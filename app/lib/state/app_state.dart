@@ -1630,6 +1630,17 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// 工作区文件字节下载（file 通道 stat+readFileRange 分段；见
+  /// ConversationWorkspaceFiles）。path 相对工作区根。
+  Future<Uint8List> workspaceReadFileBytes(
+    String relativePath, {
+    void Function(int received, int total)? onProgress,
+  }) async {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    return conv.workspaceReadFileBytes(relativePath, onProgress: onProgress);
+  }
+
   /// 斜杠命令/模型选项目录（zcode-task.prepareWorkspace，transport 内缓存）。
   Future<dynamic> prepareWorkspace({bool refresh = false}) async {
     final conv = _conv;

@@ -10,6 +10,7 @@ import 'conversation_message_cells.dart';
 import 'conversation_session_opener.dart';
 import 'diff_viewer_page.dart';
 import 'file_preview.dart';
+import 'file_save.dart';
 import 'turn_model.dart';
 
 IconData fileTypeIcon(String path) {
@@ -446,6 +447,9 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                                 // a-6：点行落在该文件（此前打开整轮
                                 // 列表不定位，导航语义断裂）。
                                 onTap: () => _openViewer(item: item),
+                                // P0 文件下载批：长按行=保存到手机。
+                                onLongPress: () =>
+                                    unawaited(_saveItemToPhone(item)),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,
@@ -548,6 +552,34 @@ class FileSummaryCardState extends State<FileSummaryCard> {
           ),
       ],
     );
+  }
+
+  /// P0 文件下载批：行内产物保存到手机——file 通道分段拉取字节后走
+  /// SAF 另存为。大文件给瞬时提示（分段拉取期间无逐段进度）。
+  Future<void> _saveItemToPhone(Map<String, dynamic> item) async {
+    final path = '${item['path']}';
+    if (path.isEmpty || !mounted) return;
+    final app = AppStateScope.of(context);
+    final name = path.split(RegExp(r'[\\/]')).last;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(tr('正在获取文件…')),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    try {
+      final bytes = await app.workspaceReadFileBytes(path);
+      if (!mounted) return;
+      await saveBytesToPhone(context, fileName: name, bytes: bytes);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('获取文件失败：$e'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _openViewer({String? initialPath, Map<String, dynamic>? item}) {

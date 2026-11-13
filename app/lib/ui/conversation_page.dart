@@ -29,6 +29,7 @@ import 'branch_sheet.dart';
 import 'brand_logo.dart';
 import 'attachments_compose.dart';
 import 'attachment_annotate_page.dart';
+import 'file_save.dart';
 import 'quota_banner.dart';
 import 'voice_input_sheet.dart';
 import '../state/cache_policy.dart';
@@ -4171,25 +4172,54 @@ class _ConversationPageState extends State<ConversationPage> {
         mime == 'text/plain' &&
         (sourceKind == 'topic-history' || sourceKind == 'clipboard-text');
     // 视频/PDF 没有播放/渲染插件（协议读取返回原始字节，Image.memory 只会
-    // 显示「非图片附件」）：明确前置提示且**不发起读取**——旧实现把它们
-    // 算进 previewable，专用提示分支永不可达，还会白拉整包字节。
-    final isVideoOrPdf = mime.startsWith('video/') || mime == 'application/pdf';
+    // 显示「非图片附件」）：此前前置提示且不发起读取。P0 文件下载批
+    // （2026-11-13）：改为引导「保存到手机」——附件读取（≤32MB）走
+    // SAF 另存为，系统应用接管查看。
     final previewable = mime.startsWith('image/') || isTextMaterial;
     if (!previewable) {
-      if (isVideoOrPdf) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('视频/PDF 预览排在后续版本，当前可在电脑端查看'),
-            duration: Duration(seconds: 2),
-          ),
+      final ok = await showConfirmDialog(
+        context,
+        title: tr('保存附件到手机'),
+        message: tr('"$fileName"暂不支持在手机端预览，可保存后用系统应用打开'),
+        confirmLabel: tr('保存到手机'),
+      );
+      if (!ok) return;
+      if (!mounted) return;
+      // 官方 target 构造：rowId+entityId（userInput 行的 entityId=消息id）。
+      final rowId = row['rowId'];
+      final entityId = '${row['entityId'] ?? ''}';
+      Map<String, dynamic>? target;
+      int? attIdx;
+      if (rowId is int && entityId.isNotEmpty) {
+        target = {'rowId': rowId, 'entityId': entityId};
+        attIdx = index;
+      }
+      final refForRead = target != null
+          ? '${att['ref']}'
+          : '${att['previewRef'] ?? att['ref']}';
+      try {
+        final data = await AppStateScope.of(context).attachmentRead(
+          sessionId,
+          refForRead,
+          target: target,
+          attachmentIndex: attIdx,
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('该附件类型不支持预览（仅图片/文本材料）'),
-            duration: Duration(seconds: 2),
-          ),
+        if (!mounted) return;
+        await saveBytesToPhone(
+          context,
+          fileName: fileName,
+          bytes: Uint8List.fromList(data.bytes),
+          mimeType: mime.isNotEmpty ? mime : null,
         );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('附件读取失败：$e'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
       return;
     }
@@ -4251,6 +4281,20 @@ class _ConversationPageState extends State<ConversationPage> {
                   ),
                 ),
                 TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    unawaited(
+                      saveBytesToPhone(
+                        context,
+                        fileName: fileName,
+                        bytes: Uint8List.fromList(utf8.encode(text)),
+                        mimeType: 'text/plain',
+                      ),
+                    );
+                  },
+                  child: const Text('保存到手机'),
+                ),
+                TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('关闭'),
                 ),
@@ -4292,6 +4336,20 @@ class _ConversationPageState extends State<ConversationPage> {
                     ),
                   ),
                 ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  unawaited(
+                    saveBytesToPhone(
+                      context,
+                      fileName: fileName,
+                      bytes: Uint8List.fromList(data.bytes),
+                      mimeType: mime.isNotEmpty ? mime : null,
+                    ),
+                  );
+                },
+                child: const Text('保存到手机'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),

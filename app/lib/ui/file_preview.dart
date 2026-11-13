@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Text;
 import 'package:webview_flutter/webview_flutter.dart';
@@ -6,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../core/localized_text.dart';
 import '../core/theme.dart';
 import '../state/app_state_scope.dart';
+import 'file_save.dart';
 
 /// 生成文件预览·网页档（file-preview-1，2026-10-29 用户拍板「只做 html
 /// 的部分」）：官方协议无任意文件字节读取通道（zcode-protocol-v4
@@ -367,6 +370,24 @@ class _HtmlPreviewPageState extends State<HtmlPreviewPage> {
         backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
         title: Text(widget.title, translate: false, maxLines: 1, overflow: TextOverflow.ellipsis),
+        // P0 文件下载批：预览的 html 全文本就在内存（fileChanges 拼装），
+        // 直接另存为 .html 到手机。
+        actions: [
+          IconButton(
+            tooltip: tr('保存到手机'),
+            icon: const Icon(Icons.download_outlined, size: 20),
+            onPressed: () => unawaited(
+              saveBytesToPhone(
+                context,
+                fileName: widget.title.toLowerCase().endsWith('.html')
+                    ? widget.title
+                    : '${widget.title}.html',
+                bytes: Uint8List.fromList(utf8.encode(widget.htmlContent)),
+                mimeType: 'text/html',
+              ),
+            ),
+          ),
+        ],
       ),
       body: controller == null
           ? Center(

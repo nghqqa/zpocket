@@ -1536,6 +1536,73 @@ extension ConversationDraftRecheck on ConversationTransport {
       ];
 }
 
+// P0 文件下载批（2026-11-13）：file 通道工作区文件字节下载。
+const _wsFileChunkBytes = 1024 * 1024; // 服务端单次 clamp 上限（MAX_BINARY_READ_BYTES）
+const _wsFileTotalMaxBytes = 100 << 20; // 手机端下载总量上限
+
+/// file 通道工作区文件下载：`stat` 取大小 → `readFileRange` 分段拉取。
+/// path 由本端用 workspacePath 拼绝对路径——桌面端 fileService 直接
+/// `fs.stat(params.path)`，不代解析相对路径。extension 形态同
+/// ConversationDraftRecheck 先例（避免 implements 假通道测试类连锁编译失败）。
+extension ConversationWorkspaceFiles on ConversationTransport {
+  String _workspaceAbsolute(String relativePath) {
+    final ws = scope['workspacePath'];
+    if (ws is! String || ws.isEmpty) {
+      throw StateError('no workspace path');
+    }
+    final rel = relativePath
+        .replaceAll('\\', '/')
+        .replaceFirst(RegExp('^/+'), '');
+    final base = ws.endsWith('/') || ws.endsWith('\\') ? ws : '$ws/';
+    return '$base$rel';
+  }
+
+  /// 工作区文件字节数。
+  Future<int> workspaceFileSize(String relativePath) async {
+    final res = await _channels.call(Channels.file, 'stat', [
+      {'path': _workspaceAbsolute(relativePath)},
+    ], timeout: const Duration(seconds: 8));
+    if (res is! Map) throw StateError('stat: unexpected response');
+    final size = res['size'];
+    if (size is! num) throw StateError('stat: no size');
+    return size.toInt();
+  }
+
+  /// 工作区文件字节下载。onProgress 每段回调 (received, total)。
+  Future<Uint8List> workspaceReadFileBytes(
+    String relativePath, {
+    void Function(int received, int total)? onProgress,
+  }) async {
+    final total = await workspaceFileSize(relativePath);
+    if (total <= 0) return Uint8List(0);
+    if (total > _wsFileTotalMaxBytes) {
+      throw StateError('文件超过 100MB，暂不支持手机端下载');
+    }
+    final absolutePath = _workspaceAbsolute(relativePath);
+    final out = BytesBuilder(copy: false);
+    var received = 0;
+    while (received < total) {
+      final length = _wsFileChunkBytes < total - received
+          ? _wsFileChunkBytes
+          : total - received;
+      final res = await _channels.call(Channels.file, 'readFileRange', [
+        {
+          'path': absolutePath,
+          'offset': received,
+          'length': length,
+        },
+      ], timeout: const Duration(seconds: 30));
+      if (res is! List<int>) {
+        throw StateError('readFileRange: unexpected response');
+      }
+      out.add(res);
+      received += length;
+      onProgress?.call(received, total);
+    }
+    return out.takeBytes();
+  }
+}
+
 /// Shared base for Conversation/SessionsIndex subscriptions.
 /// Extracts the common wire-frame staging, fragment reassembly, bridge
 /// recovery, and resubscribe retry logic.

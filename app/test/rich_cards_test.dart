@@ -376,7 +376,7 @@ void main() {
   });
 
   group('附件预览与行操作门控（#10/#11）', () {
-    testWidgets('视频/PDF 附件：前置提示且不发起读取（死代码修复）',
+    testWidgets('视频/PDF 附件：确认后保存到手机（P0 文件下载批）',
         (tester) async {
       final app = _AttachCountApp([
         {
@@ -399,10 +399,17 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('attachment-r1')));
       await _pump(tester, 6);
-      expect(find.textContaining('视频/PDF 预览排在后续版本'), findsOneWidget,
-          reason: '专用提示不再被 previewable 分支挡住');
-      expect(app.readCalls, 0, reason: '视频/PDF 不发起整包 attachmentRead');
-      expect(find.textContaining('附件读取失败'), findsNothing);
+      expect(find.text('保存附件到手机'), findsOneWidget,
+          reason: '非预览类型引导保存到手机（确认框）');
+      expect(app.readCalls, 0, reason: '确认前不发起 attachmentRead');
+
+      await tester.tap(find.text('保存到手机'));
+      await _pump(tester, 6);
+      expect(app.readCalls, 1, reason: '确认后读取附件字节');
+      expect(find.textContaining('视频/PDF 预览排在后续版本'), findsNothing,
+          reason: '旧的前置提示已退役');
+      expect(find.text('文件为空，无法保存'), findsOneWidget,
+          reason: '假通道空字节走空文件守卫（测试环境不触 FilePicker 平台通道）');
     });
 
     testWidgets('缺 entityId 的助手行禁用「重试这轮」（#11 门控）',
