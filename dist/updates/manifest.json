@@ -1,21 +1,21 @@
 {
-  "version": "1.2.1",
-  "notes": "l10n 补全：22 条 tr() 直出词条与全部插值 pattern 入典（英文界面完整性）；无功能变更",
+  "version": "1.2.2",
+  "notes": "评审修复批2：单文件保存进度对话框与取消、文件卡底部让位防悬浮球遮挡、批量保存失败明细、路径未命中提示与注释对齐",
   "assets": [
     {
-      "name": "zpocket-1.2.1-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.2.1-arm64-v8a.apk",
-      "sha256": "af450f39d4b84efcba66286b04b6464ef821056b85f555b190c593eff9fc5904"
+      "name": "zpocket-1.2.2-arm64-v8a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.2.2-arm64-v8a.apk",
+      "sha256": "fc3445714754b256956722927b63750a83136d600d9eddfc9e598a65302f4d75"
     },
     {
-      "name": "zpocket-1.2.1-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.2.1-armeabi-v7a.apk",
-      "sha256": "ee1c77c3e35bdc2d3df7384bc21e7984edbe14ae4b41f603a34fd2eb28d3c7ee"
+      "name": "zpocket-1.2.2-armeabi-v7a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.2.2-armeabi-v7a.apk",
+      "sha256": "e4e0eef277c3d7d2f1f460ece4e24022e7cc30b7faa48f6bda7cc0e5ead6eb3b"
     },
     {
-      "name": "zpocket-1.2.1-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.2.1-x86_64.apk",
-      "sha256": "445ebf6292da72dd26650f03b31b5d4bdfd69f975f21cc34261c354c7b3b45fe"
+      "name": "zpocket-1.2.2-x86_64.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.2.2-x86_64.apk",
+      "sha256": "a3589a9d60cf3df0bdb8ead2f42185c16045d821406d0776f1e835c13cf59c98"
     }
   ]
 }

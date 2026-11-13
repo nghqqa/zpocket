@@ -70,8 +70,9 @@ bool looksLikeTextFile(String path) {
   return _knownExts.contains(ext) && !_nonTextExts.contains(ext);
 }
 
-/// 点按入口：校验存在 → 底部动作面板。不存在/未连接/校验失败静默
-/// （agent 也常提不存在的示意路径，误报提示反而是噪音）。
+/// 点按入口：校验存在 → 底部动作面板。未连接/校验失败静默；存在性
+/// 未命中弹 2 秒「未找到」提示（反馈批 2026-11-13：静默会被当成按钮
+/// 坏了—— agent 提示意路径的场景里这条提示也是有效反馈）。
 Future<void> openWorkspacePathActions(
   BuildContext context,
   String rawPath,

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Text;
 
@@ -422,7 +423,9 @@ class FileSummaryCardState extends State<FileSummaryCard> {
               if (_open)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                  // 底部让位 72dp（评审 P2）：悬浮球常驻右下，末行的
+                  // 下载钮曾被其遮挡——留白后末行抬离 FAB 休眠区。
+                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 72),
                   decoration: BoxDecoration(
                     border: Border(
                       top: BorderSide(color: context.colors.border),
@@ -664,8 +667,8 @@ class FileSummaryCardState extends State<FileSummaryCard> {
   }
 
   /// P0 文件下载批：行内产物保存到手机——file 通道分段拉取字节后走
-  /// SAF 另存为。大文件给瞬时提示（分段拉取期间无逐段进度）。在途去重
-  /// （评审 P1：弱网重复点击会重复发起整段拉取）。
+  /// SAF 另存为。评审 P2 修复（2026-11-13）：拉取期复用批量进度对话框
+  /// （total=1）+ 可取消——弱网下不再 1 秒提示后静默长等。
   Future<void> _saveItemToPhone(Map<String, dynamic> item) async {
     final path = '${item['path']}';
     if (path.isEmpty || !mounted) return;
@@ -673,27 +676,61 @@ class FileSummaryCardState extends State<FileSummaryCard> {
     _savingPaths.add(path);
     final app = AppStateScope.of(context);
     final name = _fileNameOf(path);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(tr('正在获取文件…')),
-        duration: const Duration(seconds: 1),
+    var cancelled = false;
+    final progress = ValueNotifier<_BatchSaveProgress>(
+      _BatchSaveProgress(done: 0, total: 1, currentName: name),
+    );
+
+    final dialogFuture = showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _BatchSaveDialog(
+        progress: progress,
+        onCancel: () => cancelled = true,
       ),
     );
+
+    Uint8List? bytes;
+    Object? fetchError;
     try {
-      final bytes = await app.workspaceReadFileBytes(path);
-      if (!mounted) return;
-      await saveBytesToPhone(context, fileName: name, bytes: bytes);
-    } catch (e) {
-      if (!mounted) return;
+      bytes = await app.workspaceReadFileBytes(
+        path,
+        onProgress: (received, totalBytes) {
+          progress.value = progress.value.copyWith(
+            received: received,
+            currentBytes: totalBytes,
+          );
+        },
+        cancelled: () => cancelled,
+      );
+    } on Object catch (e) {
+      fetchError = e;
+    }
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    await dialogFuture;
+    progress.dispose();
+    if (!mounted) return;
+    if (cancelled) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('获取文件失败：$e'),
+          content: Text(tr('已取消')),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (fetchError != null || bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('获取文件失败：$fetchError'),
           duration: const Duration(seconds: 3),
         ),
       );
-    } finally {
-      _savingPaths.remove(path);
+      return;
     }
+    await saveBytesToPhone(context, fileName: name, bytes: bytes);
   }
 
   /// 评审 P1（2026-11-13）：批量保存——静默写入公共
@@ -707,6 +744,7 @@ class FileSummaryCardState extends State<FileSummaryCard> {
     var cancelled = false;
     var done = 0;
     var failed = 0;
+    final failedNames = <String>[];
     final savedPaths = <String>[];
     final progress = ValueNotifier<_BatchSaveProgress>(
       _BatchSaveProgress(done: 0, total: items.length),
@@ -745,6 +783,7 @@ class FileSummaryCardState extends State<FileSummaryCard> {
         } on Object catch (e) {
           if (cancelled || '$e'.contains('cancelled')) break;
           failed++;
+          failedNames.add(name);
         }
       }
     }
@@ -770,7 +809,8 @@ class FileSummaryCardState extends State<FileSummaryCard> {
         ? '${tr('已保存到手机')}：Downloads/ZPocket（$done/${items.length}）'
         : tr('未保存任何文件');
     final failedNote = failed > 0
-        ? '，${tr('失败 {n} 个').replaceAll('{n}', '$failed')}'
+        ? '，${tr('失败 {n} 个').replaceAll('{n}', '$failed')}：'
+            '${failedNames.take(2).join('、')}'
         : '';
     final cancelNote = cancelled ? '（${tr('已取消')}）' : '';
     ScaffoldMessenger.of(context).showSnackBar(
