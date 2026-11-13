@@ -233,6 +233,47 @@ class SettingsPage extends StatelessWidget {
                 value: app.uiPrefs.updateInAppEnabled,
                 onChanged: (v) => app.uiPrefs.setUpdateInAppEnabled(v),
               ),
+              // 更新源（2026-11-13）：auto=双通道测速择优——国内走自建
+              // 服务器，海外自动落 GitHub Releases；也可手动固定。
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 6),
+                      child: Text(
+                        '更新源',
+                        style: TextStyle(
+                          fontSize: AppType.uiCaption,
+                          color: context.colors.foregroundSubtle,
+                        ),
+                      ),
+                    ),
+                    _SegmentSelector(
+                      keyValue: 'update-source',
+                      options: const [
+                        ('auto', '自动'),
+                        ('selfhost', '自建'),
+                        ('github', 'GitHub'),
+                      ],
+                      value: app.uiPrefs.updateSource,
+                      onChanged: (v) =>
+                          unawaited(app.uiPrefs.setUpdateSource(v)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, top: 6),
+                      child: Text(
+                        '自动=测速择优：国内走自建服务器，海外走 GitHub',
+                        style: TextStyle(
+                          fontSize: AppType.uiXs,
+                          color: context.colors.foregroundSubtlest,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
             // 应用锁：安全组（方式三态/自动锁定/防泄露）。
             const AppSectionHeader('安全'),

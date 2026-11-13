@@ -24,11 +24,66 @@ const kUpdateManifestUrl =
 
 /// 应用内更新已恢复（kInAppUpdateDisabled=false）：更新源=上面的自建
 /// 清单，签名校验锚=本 fork 自有发布钥（MainActivity.RELEASE_CERT_SHA256）。
+/// 更新源偏好取值（ui.updateSource）：auto=双通道测速择优 /
+/// selfhost=自有服务器（nghqqa.cn，国内快）/ github=GitHub Releases
+/// （海外快）。三处发布同一构建，仅下载路径不同。
+const kUpdateSourceAuto = 'auto';
+const kUpdateSourceSelfHost = 'selfhost';
+const kUpdateSourceGitHub = 'github';
+const _kGitHubReleaseApi = 'https://api.github.com/repos/$_kRepo/releases/latest';
+
+/// 延迟探测签名：返回该 URL 的 RTT 毫秒，null=不可达。
+typedef UpdateLatencyProbe = Future<int?> Function(String url);
+
+/// 默认探测：GET 首包+关闭计时，2 秒超时=不可达。
+Future<int?> defaultUpdateLatencyProbe(String url) async {
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+  final sw = Stopwatch()..start();
+  try {
+    final req = await client
+        .getUrl(Uri.parse(url))
+        .timeout(const Duration(seconds: 2));
+    final res = await req.close().timeout(const Duration(seconds: 2));
+    await res.drain<void>().timeout(const Duration(seconds: 2));
+    return sw.elapsedMilliseconds;
+  } on Object {
+    return null;
+  } finally {
+    client.close(force: true);
+  }
+}
+
+/// 依据偏好解析更新源。'auto' 并行探测两通道 RTT，快者胜；单边不可达
+/// 自动落另一边；双不可达回落自建（国内主用户常态）。probe 可注入测试。
+Future<String> resolveUpdateSource(
+  String pref, {
+  UpdateLatencyProbe? probe,
+}) async {
+  if (pref == kUpdateSourceSelfHost) return kUpdateManifestUrl;
+  if (pref == kUpdateSourceGitHub) return 'github';
+  final p = probe ?? defaultUpdateLatencyProbe;
+  final r = await Future.wait([
+    p(kUpdateManifestUrl),
+    p(_kGitHubReleaseApi),
+  ]);
+  final selfhostMs = r[0];
+  final githubMs = r[1];
+  if (selfhostMs == null && githubMs == null) return kUpdateManifestUrl;
+  if (selfhostMs == null) return 'github';
+  if (githubMs == null) return kUpdateManifestUrl;
+  // 平手回落自建（国内主用户常态）。
+  return selfhostMs <= githubMs ? kUpdateManifestUrl : 'github';
+}
+
 const kInAppUpdateDisabled = false;
 
 /// 测试缝：清单 URL 覆盖（同 debugUpdateApiBaseOverride 先例）。
 @visibleForTesting
 String? debugManifestUrlOverride;
+
+/// 测试缝：更新源覆盖（绕过测速，直接指定 selfhost/github/绝对清单 URL）。
+@visibleForTesting
+String? debugUpdateSourceOverride;
 
 /// 测试缝：本机 HttpServer 覆盖 API 基址（relay_v2_test 同款先例）。
 @visibleForTesting
@@ -143,12 +198,25 @@ class UpdateCheckException implements Exception {
 }
 
 /// 拉取 latest release 元数据。抛 [UpdateCheckException]（调用方静默/
-/// 提示自定）。自建清单（kUpdateManifestUrl）优先；空则回落 GitHub。
-Future<UpdateInfo> fetchLatestRelease() async {
-  final manifestUrl = debugManifestUrlOverride ?? kUpdateManifestUrl;
-  if (manifestUrl.isNotEmpty) {
-    return _fetchManifest(manifestUrl);
+/// 提示自定）。updateSource：auto=测速择优（双通道内容一致）；
+/// selfhost=自建清单；github=GitHub Releases。
+Future<UpdateInfo> fetchLatestRelease({
+  String updateSource = kUpdateSourceAuto,
+  UpdateLatencyProbe? probe,
+}) async {
+  final resolved = await resolveUpdateSource(
+    debugUpdateSourceOverride ?? updateSource,
+    probe: probe,
+  );
+  if (resolved == 'github') {
+    return _fetchGitHubLatest();
   }
+  final manifestUrl = debugManifestUrlOverride ?? kUpdateManifestUrl;
+  return _fetchManifest(manifestUrl);
+}
+
+/// GitHub Releases 通道（海外快；资产 digest 由 GitHub 官方提供）。
+Future<UpdateInfo> _fetchGitHubLatest() async {
   final base = debugUpdateApiBaseOverride ?? 'https://api.github.com';
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
   try {
@@ -156,7 +224,7 @@ Future<UpdateInfo> fetchLatestRelease() async {
         .getUrl(Uri.parse('$base/repos/$_kRepo/releases/latest'))
         .timeout(const Duration(seconds: 10));
     // 未认证 GitHub API 要求 User-Agent。
-    req.headers.set('User-Agent', 'zcode-pocket-updater');
+    req.headers.set('User-Agent', 'zpocket-updater');
     req.headers.set('Accept', 'application/vnd.github+json');
     final res = await req.close().timeout(const Duration(seconds: 12));
     if (res.statusCode == 403 || res.statusCode == 429) {

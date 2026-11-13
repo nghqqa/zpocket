@@ -1,21 +1,21 @@
 {
-  "version": "1.2.2",
-  "notes": "评审修复批2：单文件保存进度对话框与取消、文件卡底部让位防悬浮球遮挡、批量保存失败明细、路径未命中提示与注释对齐",
+  "version": "1.3.0",
+  "notes": "新功能：更新源可选——自动测速择优（国内走自建服务器，海外走 GitHub Releases）/ 自建服务器 / GitHub，三档可选手动固定",
   "assets": [
     {
-      "name": "zpocket-1.2.2-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.2.2-arm64-v8a.apk",
-      "sha256": "fc3445714754b256956722927b63750a83136d600d9eddfc9e598a65302f4d75"
+      "name": "zpocket-1.3.0-arm64-v8a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.3.0-arm64-v8a.apk",
+      "sha256": "f495601ec563964cb8d26b2a6439e13a9f09be7b9fffc5e7b95705f55aa50255"
     },
     {
-      "name": "zpocket-1.2.2-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.2.2-armeabi-v7a.apk",
-      "sha256": "e4e0eef277c3d7d2f1f460ece4e24022e7cc30b7faa48f6bda7cc0e5ead6eb3b"
+      "name": "zpocket-1.3.0-armeabi-v7a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.3.0-armeabi-v7a.apk",
+      "sha256": "db1b977351f4c43cdf9f1f3bda346b6839ac61b978b7025411b3588cc082bed9"
     },
     {
-      "name": "zpocket-1.2.2-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.2.2-x86_64.apk",
-      "sha256": "a3589a9d60cf3df0bdb8ead2f42185c16045d821406d0776f1e835c13cf59c98"
+      "name": "zpocket-1.3.0-x86_64.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.3.0-x86_64.apk",
+      "sha256": "fccf446e195d882e16f51c5de3b56273b015a56ebed422e477db78d48e49c279"
     }
   ]
 }

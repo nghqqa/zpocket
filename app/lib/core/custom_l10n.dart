@@ -25,11 +25,16 @@ const _customEn = <String, String>{
   '电脑连接已关闭，请重新连接': 'Computer connection closed — reconnect',
   '立即发送': 'Send now',
   '补充指示或调整方向…': 'Add instructions or adjust direction…',
+
+  // 更新源选择（2026-11-13）。
+  '更新源': 'Update source',
+  '自动=测速择优：国内走自建服务器，海外走 GitHub': 'Auto = fastest by probe: self-hosted server in CN, GitHub elsewhere',
   // l10n 补全批 2（2026-11-13）：批量保存/预览新功能文案。
   '全部保存到下载目录': 'Save all to Downloads',
   '正在批量保存…': 'Batch saving…',
   '未保存任何文件': 'Nothing was saved',
   '已取消': 'Cancelled',
+  '失败 {n} 个': '{n} failed',
   // l10n 补全批（2026-11-13 评审）：lib/ui 内 Text() 中文直出但词典
   // 缺失的 52 条（tools/l10n_missing.py 提取）。
   '上下文容量': 'Context capacity',

@@ -41,7 +41,9 @@ Future<void> checkAndPrompt(BuildContext context, {bool manual = false}) async {
   }
   UpdateInfo info;
   try {
-    info = await fetchLatestRelease();
+    info = await fetchLatestRelease(
+      updateSource: app.uiPrefs.updateSource,
+    );
   } catch (_) {
     if (manual) {
       _snack(context, tr('检查更新失败，请稍后再试'));

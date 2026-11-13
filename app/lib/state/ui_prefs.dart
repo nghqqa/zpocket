@@ -74,6 +74,10 @@ class UiPrefs extends ChangeNotifier {
   static const _keyUpdateInAppEnabled = 'ui.updateInAppEnabled';
   static const _keyUpdateLastCheckAt = 'ui.updateLastCheckAt';
 
+  /// 应用内更新源：auto=双通道测速择优 / selfhost=自有服务器（国内快）
+  /// / github=GitHub Releases（海外快）。三处发布同一构建。
+  static const _keyUpdateSource = 'ui.updateSource';
+
   final FlutterSecureStorage _storage;
   bool _showToolCalls = true;
   bool _fabMenuHintShown = false;
@@ -84,6 +88,7 @@ class UiPrefs extends ChangeNotifier {
   bool _updateInAppEnabled = true;
   bool _loadedFlag = false;
   int _updateLastCheckAt = 0;
+  String _updateSource = 'auto';
   String? _appLockPinSalt;
   String? _appLockPinHash;
   String? _lastModel;
@@ -207,6 +212,7 @@ class UiPrefs extends ChangeNotifier {
         _storage.read(key: _keyAppLockPinHash), // 25
         _storage.read(key: _keyUpdateInAppEnabled), // 26
         _storage.read(key: _keyUpdateLastCheckAt), // 27
+        _storage.read(key: _keyUpdateSource), // 28
       ];
       final reads = await Future.wait(
         readFutures.map(
@@ -252,6 +258,9 @@ class UiPrefs extends ChangeNotifier {
       // 更新开关缺省 true；显式 'false' 才关。
       _updateInAppEnabled = reads[26] != 'false';
       _updateLastCheckAt = int.tryParse(reads[27] ?? '') ?? 0;
+      final us = reads[28];
+      _updateSource =
+          (us == 'selfhost' || us == 'github') ? us! : 'auto';
       try {
         final qr = reads[14];
         if (qr != null && qr.isNotEmpty) {
@@ -472,6 +481,16 @@ class UiPrefs extends ChangeNotifier {
     _updateInAppEnabled = value;
     notifyListeners();
     await _persist(_keyUpdateInAppEnabled, value ? 'true' : 'false');
+  }
+
+  /// 应用内更新源（auto/selfhost/github，见 update_check.dart）。
+  String get updateSource => _updateSource;
+
+  Future<void> setUpdateSource(String value) async {
+    if (_updateSource == value) return;
+    _updateSource = value;
+    notifyListeners();
+    await _persist(_keyUpdateSource, value);
   }
 
   Future<void> setUpdateLastCheckAt(int epochMs) async {

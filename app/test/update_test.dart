@@ -101,6 +101,35 @@ void main() {
     });
   });
 
+
+  group('resolveUpdateSource（双通道择优）', () {
+    Future<String> pick(String pref, int? selfMs, int? ghMs) =>
+        resolveUpdateSource(pref, probe: (url) async {
+          if (url.contains('nghqqa.cn')) return selfMs;
+          if (url.contains('api.github.com')) return ghMs;
+          return null;
+        });
+
+    test('显式偏好优先（不探测）', () async {
+      expect(await pick('selfhost', 10, 10), kUpdateManifestUrl);
+      expect(await pick('github', 10, 10), 'github');
+    });
+
+    test('auto：快者胜', () async {
+      expect(await pick('auto', 50, 800), kUpdateManifestUrl, reason: '国内自建快');
+      expect(await pick('auto', 800, 50), 'github', reason: '海外 GitHub 快');
+    });
+
+    test('auto：单边不可达自动落另一边', () async {
+      expect(await pick('auto', null, 100), 'github', reason: '自建不可达');
+      expect(await pick('auto', 100, null), kUpdateManifestUrl, reason: 'GitHub 不可达');
+    });
+
+    test('auto：双不可达回落自建清单', () async {
+      expect(await pick('auto', null, null), kUpdateManifestUrl);
+    });
+  });
+
   group('parseManifestJson（自建清单）', () {
     test('正常解析（notes 直出+sha256 小写归一）', () {
       final json = jsonEncode({
