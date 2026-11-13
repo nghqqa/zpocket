@@ -1,21 +1,21 @@
 {
-  "version": "1.0.8",
-  "notes": "保存成功后提示具体保存路径，文件不再找不到",
+  "version": "1.0.9",
+  "notes": "添加面板文案更清晰：附件文件改为上传文件，避免与下载混淆",
   "assets": [
     {
-      "name": "zpocket-1.0.8-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.0.8-arm64-v8a.apk",
-      "sha256": "822f90950297528544e2d90a02705dc9db07f481f0b2f865d845acfd86974799"
+      "name": "zpocket-1.0.9-arm64-v8a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.0.9-arm64-v8a.apk",
+      "sha256": "5227c610e9c00fd4f6e85a7bbc302826445f78dc4a6807f53e2d450e6b502be7"
     },
     {
-      "name": "zpocket-1.0.8-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.0.8-armeabi-v7a.apk",
-      "sha256": "f09759d28db26236291b640710711e93f9cb842841b7a54bf21d8240bb4ccc3d"
+      "name": "zpocket-1.0.9-armeabi-v7a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.0.9-armeabi-v7a.apk",
+      "sha256": "a3ed7cbee620fddefddb414960c0a3cd0fb939ffc822e5d29ee2a36b036c7333"
     },
     {
-      "name": "zpocket-1.0.8-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.0.8-x86_64.apk",
-      "sha256": "eb0f3f844a525607f456884945dc785ab89ad1df95a7cd18e8cd4a3a9096d01c"
+      "name": "zpocket-1.0.9-x86_64.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.0.9-x86_64.apk",
+      "sha256": "79108c9c6cac2e7d34c28cfe0e2b37dbe5ce568bbe8dd692d866a8eaba0391dc"
     }
   ]
 }
