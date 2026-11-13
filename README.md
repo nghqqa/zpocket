@@ -1,285 +1,74 @@
-# ZPocket
+<div align="center">
 
-**English** | [简体中文](README.zh-CN.md)
+<img src="./assets/readme/hero.svg" width="100%" alt="ZPocket — 在手机上接管你的 ZCode 编程智能体">
 
-ZPocket is a native Android client (Flutter) for the ZCode desktop app — an
-internal-use fork of [zcode-pocket](https://github.com/JZYLukis/zcode-pocket)
-(Apache 2.0) with its own branding and package identity. It brings
-multi-computer management, the task home, streaming conversations, approval
-interactions, branch selection, usage stats and more to your phone, keeping
-interaction habits consistent with the desktop. It connects to ZCode's
-official Web Remote Control channel (relay + V4 protocol); you need your own
-ZCode account and a running desktop.
+**[English](README.en.md)** | 简体中文
 
-> **Unofficial project disclaimer**: This is a community-driven third-party
-> client. It is not affiliated with, authorized by, or endorsed by
-> ZCode / Zhipu. The ZCode name belongs to its owner. Protocol behavior is
-> implemented against the official open-source implementation; no official
-> runtime code is included. UI strings are generated from the official
-> open-source localization resources (Apache 2.0; see third-party notices).
->
-> **Fork notes (this repository)**: applicationId `com.zpocket.mobile`, app
-> name `ZPocket`. In-app updates point to a self-hosted update manifest
-> (`kUpdateManifestUrl` in `app/lib/core/update_check.dart`; releases are
-> produced with `tools/release.py` and signed with the fork's own keystore —
-> the upstream release channel is intentionally NOT used, its APKs carry a
-> different package/signature). Upstream changes are merged from the
-> `upstream` remote. All upstream documentation below still applies unless
-> noted.
->
-> **Service usage notice**: This repository contains client code only. When
-> using it with the official ZCode service you must comply with the official
-> terms of service (zcode.z.ai/cn/terms) — the current terms default to
-> non-commercial personal research and study; commercial use requires a
-> separate agreement with the provider.
+</div>
 
-## Screenshots
+---
 
-> All content shown (accounts, projects, conversations) is demo data produced
-> by the built-in demo mode — no real usage records.
+ZPocket 是 [ZCode](https://github.com/zai-org/ZCode) 桌面编程智能体的**安卓伴侣客户端**：在手机上查看任务、审批权限、浏览会话，并把 agent 产出的文件一键保存到手机。
 
-**Demo video** (26s: streaming output → tool calls → permission approval → done)
+> 基于 [zcode-pocket](https://github.com/JZYLukis/zcode-pocket)（Apache-2.0）fork 而来，更新通道与产品方向独立维护。当前版本 v1.2.2。
 
-https://github.com/user-attachments/assets/4e81ba59-6d69-4316-a5fc-67955c261c47
+| 产物文件 · 一键保存 | 聊天内路径点按 | 会话菜单 |
+| --- | --- | --- |
+| ![产物文件](docs/screenshots/file-card-dark.jpg) | ![路径点按](docs/screenshots/path-actions-dark.jpg) | ![会话菜单](docs/screenshots/session-menu-dark.jpg) |
 
-**Light**
+## 它解决什么问题
 
-| Task home | Conversation: streaming and tool calls |
-|---|---|
-| ![Task home](docs/screenshots/home-en.png) | ![Conversation](docs/screenshots/conversation-en.png) |
-| **Approval interaction (Bash permission)** | **Model & thinking level** |
-| ![Approval](docs/screenshots/approval-en.png) | ![Model sheet](docs/screenshots/models-en.png) |
-| **Usage stats (heatmap / trends / quota)** | **Workflow runs and artifacts** |
-| ![Usage](docs/screenshots/usage-en.png) | ![Workflows](docs/screenshots/workflows-en.png) |
+桌面端的 ZCode 在电脑上干活，但人不在电脑前：
 
-**Dark**
+- **审批不能等**——agent 卡在权限确认上，任务就停在那里
+- **产物拿不走**——agent 生成的文件在电脑磁盘里，手机上拿不到
+- **进度看不见**——出门在外，不知道任务跑没跑完
 
-| Task home | Conversation: streaming and tool calls |
-|---|---|
-| ![Task home](docs/screenshots/home-dark-en.png) | ![Conversation](docs/screenshots/conversation-dark-en.png) |
-| **Approval interaction (Bash permission)** | **Usage stats** |
-| ![Approval](docs/screenshots/approval-dark-en.png) | ![Usage](docs/screenshots/usage-dark-en.png) |
+ZPocket 把这三件事搬进手机：连接桌面端后，任务状态实时可见、权限一键审批、产物文件直接下载到手机存储。
 
-**Foldable unfolded / wide-screen dual pane** (task list + conversation)
+## 工作原理
 
-![Dual pane](docs/screenshots/dual-pane.png)
+<img src="./assets/readme/architecture.svg" width="100%" alt="手机经云端中继连接桌面端；更新由自有服务器分发；产物经 file 通道分段下载">
 
-## Features
+- **会话链路**：手机 ⇄ 云端中继 ⇄ 桌面端，WSS + V4 会话协议（RPC 帧），配对凭据为账号 JWT 或扫码
+- **文件下载**：`file` 通道 `stat` + `readFileRange` 分段拉取，SHA-256 校验语义与桌面端一致
+- **更新通道**：自建——清单与 APK 由自有服务器分发，应用内一键检查更新，不依赖第三方
 
-- Multi-computer / multi-account management (parallel online, isolated
-  profiles, computer nicknames, read-only task snapshots of other computers)
-- Task home: all tasks grouped by time/project, project ordering, pin,
-  archive, batch actions
-- Conversations: streaming output, tool-call display, approvals, subagent
-  list & drill-down, context compaction, in-conversation full-text search,
-  notification deep links
-- Projects / branches: workspace project tree, branch picker for new chats
-- Input: persistent drafts (isolated per computer/account/workspace/
-  conversation), offline send queue, attachments, screenshot annotation,
-  voice input (system recognizer)
-- Workflows: run catalog and artifact viewing (text/HTML preview)
-- Usage: subscription usage, heatmap (total / per-model), daily and
-  per-model breakdowns and trends
-- Appearance: light/dark themes, Chinese/English UI, foldable-unfolded and
-  wide-screen dual pane, font scaling
-- About page: unofficial disclaimer, service-terms notice, privacy notes,
-  project license and third-party notices (bundled offline)
+## 安装
 
-## Requirements
+要求：Android 7.0+，桌面端已登录 [ZCode](https://github.com/zai-org/ZCode) 且手机使用同一账号。
 
-- Android 7.0+ (minSdk 24; arm64 / armv7 / x86_64, arm64 recommended)
-- A ZCode account you can sign in with, and a running desktop (or cloud
-  session)
-- Logical screen width 320dp–840dp (portrait is the only main orientation)
+1. 下载最新 APK：`https://nghqqa.cn/updates/zpocket-<version>-arm64-v8a.apk`（绝大多数手机）
+2. 或在 App 内：**设置 → 软件更新 → 一键更新**
+3. 首次使用：登录账号 → 从设备列表选择你的电脑（或扫码配对）
 
-Desktop compatibility (pairing uses the account-based channel, which needs
-desktop **3.16+**):
+> 更新清单与 APK 由自托管服务分发（见 [`tools/release.py`](tools/release.py)），不依赖任何第三方发布平台。
 
-| Desktop version | Status |
-|---|---|
-| 3.18.0 (not yet released by ZCode) | Assessed against official sources: zero breaking changes, no adaptation needed; on-device verification pending after release |
-| 3.17.x (current) | Verified on 3.17.1 on-device; 3.17.2 reviewed against official sources |
-| 3.16 – 3.16.3 | Verified end-to-end (pairing, tasks, conversations) |
-| 3.15.x | Legacy QR pairing only (old channel; no longer exercised by the maintainer) |
-| 3.14 and earlier | Untested |
-
-The protocol is additive by design: unknown message types and fields are
-ignored rather than rejected, so a newer desktop usually keeps working — but
-verify after major desktop upgrades before filing a protocol bug.
-
-## Installation
-
-Grab a prebuilt APK from [Releases](https://github.com/JZYLukis/zcode-pocket/releases)
-(most phones: `arm64-v8a`) — or build from source below. Before mixing the two,
-read [Signing and switching builds](#signing-and-switching-builds): the
-signatures differ and switching requires uninstalling, which erases local data.
-Per-version changes and upgrade notes are in [CHANGELOG.md](CHANGELOG.md).
-
-## Verifying downloads
-
-You don't have to trust the APKs — you can verify them:
-
-1. **Signature**. All prebuilt APKs are signed with the same release key:
-
-   ```
-   Certificate SHA-256: 2e079b31d61d3f6fbbc5aa4fc9ed0cb0d2787b4de7e558345b630a59c546b681
-   ```
-
-   This fingerprint will not change across versions (changing it would break
-   updates for every installed user; if it ever must, the change will be
-   announced in a release). Verify with:
-
-   ```bash
-   apksigner verify --print-certs app-arm64-v8a-release.apk
-   ```
-
-2. **Checksums**. Recent releases (v1.0.2 onward) list the SHA-256 of every
-   APK in their CHANGELOG.md "Checksums" section. Verify with
-   `sha256sum <apk>`.
-
-3. **Provenance**. Each release is built from this repository at the release
-   tag (recorded in the release notes). When present, the APK's `versionName`
-   embeds the commit it was actually built from — e.g. v1.0.0 is
-   `1.0.0-7fe66058e900`; check it with `aapt dump badging <apk> | head -1`.
-   CI builds the same tree on every push (analyze + tests + debug and
-   release compile), so the released source is continuously
-   machine-verified. Self-built APKs are debug-signed unless you configure
-   your own keystore (see below), so their signature will differ by design.
-
-## Build
+## 从源码构建
 
 ```bash
-flutter pub get
-flutter build apk --split-per-abi
+# 依赖：Flutter 3.47+ / JDK 17 / Android SDK
+flutter build apk --release --split-per-abi
+
+# 发版（bump 版本 → 构建 → 生成更新清单 → 上传提示）
+python tools/release.py --version 1.2.3 --notes "…" --base-url https://your-host/updates
 ```
 
-Without `app/android/key.properties`, release builds fall back to debug
-signing (fine for personal use); configure your own signing for wider
-distribution.
+工具链：[`tools/gen_icon.py`](tools/gen_icon.py)（图标生成）、[`tools/l10n_missing.py`](tools/l10n_missing.py)（本地化完整性检查）、`.zcode/workflows/`（测试验证工作流）。
 
-### Signing and switching builds
+## 质量与守护
 
-The prebuilt APKs are signed with the maintainer's release keystore. A build
-made from this repository without `app/android/key.properties` uses the
-Android debug keystore instead, so the two have **different signatures**.
+- 1400+ 测试全绿（继承上游 184 个测试文件的守护文化）
+- 新增守卫：文件卡触控目标 ≥44dp、路径双分隔符提取、批量保存通道接线
+- 本地化完整性检查可复跑，缺失即失败
 
-Android refuses to update an installed app with an APK signed by a different
-key (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). To switch between the prebuilt APK
-and your own build you must uninstall the old app first. **Uninstalling erases
-local data** — signed-in accounts, paired computers, drafts, the offline send
-queue — and there is no cloud backup (`allowBackup=false`).
+## 与上游的关系
 
-To keep receiving updates without uninstalling, always build with the same
-keystore and keep using that build. Fill four keys in
-`app/android/key.properties` (values from your own keystore):
+- **上游**：[zcode-pocket](https://github.com/JZYLukis/zcode-pocket)（本项目的直接基线，Apache-2.0）——协议实现与大部分 UI 出自它，上游更新通过 `upstream` remote 合并跟进
+- **官方**：[zai-org/ZCode](https://github.com/zai-org/ZCode)（ZCode 桌面端本体）
+- **本 fork 的独立部分**：自建更新通道、文件下载/批量保存、聊天路径点按、品牌与图标、中文本地化补全
+- 协议与桌面端的兼容性跟随上游与官方桌面端版本演进
 
-| Key | Meaning |
-|---|---|
-| `storeFile` | keystore path (relative paths resolve inside `app/android/app/`) |
-| `storePassword` | keystore password |
-| `keyAlias` | key alias |
-| `keyPassword` | key password |
+## 许可证
 
-Do not commit the keystore or this file; the repository `.gitignore` already
-excludes them.
-
-### Voice input
-
-Speech recognition uses the standard system service (Android
-SpeechRecognizer) — no keys or extra setup required. Devices with a
-recognition service work out of the box; the entry hides itself when none is
-available. Optional transcript polishing supports Zhipu / DeepSeek / Kimi
-with your own API keys in settings.
-
-## Background & battery
-
-- The app disconnects about 90 seconds after backgrounding (by design) and
-  reconnects automatically on return.
-- With the "approval alerts" switch enabled it stays connected in the
-  background for real-time alerts, with correspondingly higher battery use.
-  For stable background behavior on vendor ROMs, allow
-  **auto-launch / associated launch / background activity** for this app in
-  system settings (location varies by vendor, usually under battery or
-  startup management).
-
-## Privacy
-
-- No telemetry, no third-party analytics, no ads. Conversation and task data
-  go only to the ZCode desktop / official service you configure.
-- Account credentials are stored in the Android keystore; Android backup is
-  disabled (`allowBackup=false`), so app data is not copied into cloud
-  backups.
-- **Lock screen**: by default Android may show notification content on the
-  lock screen. ZCode Pocket notifications contain the task title and up to
-  60 characters of the latest assistant reply; the optional foreground
-  connection notification also shows the name of the running task. To hide
-  this, enable "hide sensitive notification content" (or disable lock-screen
-  notifications) for ZCode Pocket in system settings.
-- **Local caches are plain JSON**: task and usage snapshots, conversation
-  caches and the notification ledger live as plain JSON inside the app's
-  private storage (never in cloud backups, and not readable by other apps on
-  a non-rooted device). You can clear them anytime from
-  Settings → About → "Clear local cache"; drafts, queued messages, accounts
-  and settings are not affected.
-
-
-### In-app updates and network access
-
-"Software update" (Settings → Software update, on by default, can be
-turned off) accesses GitHub Releases (`api.github.com` / `github.com`
-and its download domains, or a public mirror) to check for and download
-updates. Downloads are verified against the officially published
-SHA-256 before anything is installed. In-app installation requires the
-system "allow this app to install apps" grant, requested only when you
-tap "Update now". Beyond this, the app connects to no third-party
-services.
-
-## Known limitations
-
-Each of these is also tracked as a `known-limitation` issue with its current
-status and workaround.
-
-- Portrait is the only main orientation; wide screens and foldables unfolded
-  (≥600dp) use a dual-pane layout (task list + conversation); the
-  large-tablet layout is still being polished.
-- No built-in image/PDF preview — the remote-control protocol has no
-  file-byte channel; only newly created HTML files can be previewed. View
-  other files on the desktop.
-- QR pairing shows a static viewfinder instead of a live camera preview
-  (a renderer workaround for some devices), and the screen rebuilds once
-  after a successful pairing.
-- The app disconnects about 90 seconds after backgrounding (battery by
-  design); you don't get real-time task-completion notifications in the
-  background unless "approval alerts" is enabled.
-- "Approval alerts" keeps a background connection for real-time alerts, with
-  correspondingly higher battery use.
-- Off-peak (idle-time) tasks cannot be edited from the phone — the remote
-  protocol only exposes create/list; edit them on the desktop.
-- One terminal per desktop: connecting a second phone/account to the same
-  desktop kicks the previous connection (different desktops run in parallel
-  fine); time-share one desktop by switching accounts.
-- The prebuilt APK and your own build have different signatures; switching
-  between them requires uninstalling, which erases local data (no cloud
-  backup).
-- Not applicable to HarmonyOS NEXT (Android APK).
-- Verified mainly on mainstream Android and foldable devices; other devices
-  are welcome to open issues.
-
-## Maintenance
-
-Maintained by [@JZYLukis](https://github.com/JZYLukis) — a solo maintainer,
-best effort. The primary target is the desktop version the maintainer
-currently runs; other desktop versions are supported on a best-effort basis.
-Key design trade-offs and their costs are recorded in
-[docs/decisions.md](docs/decisions.md) — check it before reporting something
-that might be intended behavior. See [CHANGELOG.md](CHANGELOG.md) for release
-notes. Please open an issue for problems and feedback.
-
-## License
-
-Apache License 2.0 (see LICENSE). Transport-layer modules under
-`app/lib/transport/` were initially ported from
-[zemote](https://github.com/HumanAILoop/zemote) (MIT) and have since been
-rewritten and hardened against the official open-source implementation — see
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for the attribution details
-and the full MIT text.
+Apache-2.0。继承并保留上游 [zcode-pocket](https://github.com/JZYLukis/zcode-pocket) 与 [zai-org/ZCode](https://github.com/zai-org/ZCode) 的全部版权与声明，详见 [LICENSE](LICENSE)、[THIRD-PARTY-NOTICES.md](app/THIRD-PARTY-NOTICES.md) 与 [NOTICE-ZCode.md](app/NOTICE-ZCode.md)。
