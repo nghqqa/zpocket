@@ -3,6 +3,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// ZPocket 启动图标守护（v4 满版 ZP 连字设计，2026-11-13 重写）。
+///
+/// 上游 zcode-pocket 的图标是"下带 POCKET 字标"布局，其守护测试钉的
+/// 是上游品牌。fork 换成自有设计后，本测试改钉 ZPocket 自己的设计
+/// 不变量（tools/gen_icon.py 的输出契约）：
+/// 全尺寸不透明黑底、四角纯黑、满版白色 ZP 字标居中。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -14,7 +20,7 @@ void main() {
     'xxxhdpi': 192,
   };
 
-  test('启动图标五档均为全黑不透明底', () async {
+  test('启动图标五档均为全黑不透明底、四角纯黑', () async {
     for (final entry in sizes.entries) {
       final file = File(
         'android/app/src/main/res/mipmap-${entry.key}/ic_launcher.png',
@@ -50,7 +56,7 @@ void main() {
     }
   });
 
-  test('POCKET 在 192px 母版中保持放大的可见尺寸', () async {
+  test('ZP 连字满版居中（ZPocket 品牌钉死）', () async {
     final file = File(
       'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png',
     );
@@ -65,7 +71,7 @@ void main() {
     var minY = image.height;
     var maxX = -1;
     var maxY = -1;
-    for (var y = 130; y < image.height; y++) {
+    for (var y = 0; y < image.height; y++) {
       for (var x = 0; x < image.width; x++) {
         final offset = (y * image.width + x) * 4;
         if (pixels[offset] > 220 &&
@@ -79,10 +85,11 @@ void main() {
         }
       }
     }
-    expect(maxX, greaterThanOrEqualTo(0), reason: '色带中必须存在 POCKET 白字');
-    expect(maxX - minX + 1, greaterThanOrEqualTo(90), reason: 'POCKET 宽度');
-    expect(maxY - minY + 1, greaterThanOrEqualTo(15), reason: 'POCKET 高度');
-    expect((minX + maxX) / 2, closeTo(96, 2), reason: 'POCKET 水平居中');
+    expect(maxX, greaterThanOrEqualTo(0), reason: '画布中必须存在 ZP 白字');
+    expect(maxX - minX + 1, greaterThanOrEqualTo(110), reason: 'ZP 连字宽度（满版）');
+    expect(maxY - minY + 1, greaterThanOrEqualTo(90), reason: 'ZP 连字高度（满版）');
+    expect((minX + maxX) / 2, closeTo(96, 2), reason: '水平居中');
+    expect((minY + maxY) / 2, closeTo(94, 4), reason: '光学垂直中心（略高于几何中心）');
     image.dispose();
   });
 }
