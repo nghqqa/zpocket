@@ -20,7 +20,7 @@ const _kRepo = 'JZYLukis/zcode-pocket';
 /// name 匹配）。置空串=回落 GitHub Releases（_kRepo，上游仓库——签名
 /// 不同装不上，仅作保留路径）。发版用 tools/release.py 一键产出清单。
 const kUpdateManifestUrl =
-    'https://CHANGE-ME.example.com/updates/manifest.json';
+    'https://nghqqa.cn/updates/manifest.json';
 
 /// 应用内更新已恢复（kInAppUpdateDisabled=false）：更新源=上面的自建
 /// 清单，签名校验锚=本 fork 自有发布钥（MainActivity.RELEASE_CERT_SHA256）。

@@ -33,6 +33,9 @@ ABI_TAGS = {
 
 
 def sh(args, cwd=None):
+    # Windows 上 flutter 是 .bat：裸名在无 shell 的 CreateProcess 下不可执行
+    if os.name == 'nt' and args and args[0] == 'flutter':
+        args = ['flutter.bat'] + args[1:]
     print('+', ' '.join(args))
     subprocess.run(args, cwd=cwd, check=True)
 
