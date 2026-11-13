@@ -26,6 +26,12 @@ class MainActivity : FlutterActivity() {
         private const val RECREATE_WINDOW_MS = 10 * 60 * 1000L
         private const val RECREATE_MAX = 3
         private val recreateAt = mutableListOf<Long>()
+
+        // ZPocket 发布签名证书 SHA-256（key.properties keystore；fork 已
+        // 换自有钥，上游 zcode-pocket 指纹不适用）。应用内更新的信任锚：
+        // 下载包与本机安装都验这个指纹。换钥必须同步此处。
+        const val RELEASE_CERT_SHA256 =
+            "f9ffa6fa1caafbd55dd473260e4d624966575bb88d70da3f61c2b2d6b3fe0d7d"
     }
 
     private var pairingUrl: String? = null
@@ -461,7 +467,7 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    /// 校验下载 APK 文件：包名一致 + 签名证书 SHA-256 == 官方指纹。
+    /// 校验下载 APK 文件：包名一致 + 签名证书 SHA-256 == 发布指纹。
     private fun verifyApkSignature(file: File): Boolean {
         return try {
             val info = packageManager.getPackageArchiveInfo(
@@ -473,15 +479,15 @@ class MainActivity : FlutterActivity() {
             val hex = java.security.MessageDigest.getInstance("SHA-256")
                 .digest(sig.toByteArray())
                 .joinToString("") { "%02x".format(it) }
-            hex == "2e079b31d61d3f6fbbc5aa4fc9ed0cb0d2787b4de7e558345b630a59c546b681"
+            hex == RELEASE_CERT_SHA256
         } catch (e: Exception) {
             false
         }
     }
 
-    /// 本机签名 SHA-256 是否等于官方发布钥指纹（check_public_apk 同源
-    /// 值）。自行构建包（debug/自签）会得到 false——应用内更新到官方包
-    /// 必然 INSTALL_FAILED_UPDATE_INCOMPATIBLE，提前提示走手动路线。
+    /// 本机签名 SHA-256 是否等于发布钥指纹。不匹配（如换钥前的旧安装）
+    /// 会得到 false——应用内更新必然 INSTALL_FAILED_UPDATE_INCOMPATIBLE，
+    /// 提前提示走手动路线。
     private fun officialSignatureMatches(): Boolean {
         return try {
             @Suppress("DEPRECATION")
@@ -493,7 +499,7 @@ class MainActivity : FlutterActivity() {
             val md = java.security.MessageDigest.getInstance("SHA-256")
             val hex = md.digest(sig.toByteArray())
                 .joinToString("") { "%02x".format(it) }
-            hex == "2e079b31d61d3f6fbbc5aa4fc9ed0cb0d2787b4de7e558345b630a59c546b681"
+            hex == RELEASE_CERT_SHA256
         } catch (e: Exception) {
             false
         }

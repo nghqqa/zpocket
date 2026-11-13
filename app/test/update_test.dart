@@ -101,6 +101,40 @@ void main() {
     });
   });
 
+  group('parseManifestJson（自建清单）', () {
+    test('正常解析（notes 直出+sha256 小写归一）', () {
+      final json = jsonEncode({
+        'version': '1.0.6',
+        'notes': '修复与优化',
+        'assets': [
+          {
+            'name': 'zpocket-1.0.6-arm64-v8a.apk',
+            'url': 'https://updates.example.com/zpocket-1.0.6-arm64-v8a.apk',
+            'sha256': 'A' * 64,
+          },
+          {'name': 'zpocket-1.0.6-armeabi-v7a.apk', 'url': 'https://x/y.apk'},
+          {'name': 'zpocket-1.0.6-x86_64.apk', 'url': 'https://x/z.apk', 'sha256': ''},
+        ],
+      });
+      final info = parseManifestJson(json);
+      expect(info.version, '1.0.6');
+      expect(info.notes, '修复与优化');
+      expect(info.assets, hasLength(1), reason: '缺/空 sha256 的条目剔除');
+      expect(info.assets.first.name, contains('arm64-v8a'));
+      expect(info.assets.first.sha256Hex, 'a' * 64);
+    });
+    test('坏 JSON/缺 version 抛 UpdateCheckException', () {
+      expect(() => parseManifestJson('not json'), throwsA(isA<UpdateCheckException>()));
+      expect(() => parseManifestJson('{"notes":"x"}'),
+          throwsA(isA<UpdateCheckException>()));
+    });
+    test('assets 缺失=空资产（不误报更新）', () {
+      final info = parseManifestJson('{"version":"2.0.0"}');
+      expect(info.version, '2.0.0');
+      expect(info.assets, isEmpty);
+    });
+  });
+
   group('下载（本机 HttpServer）', () {
     late HttpServer server;
     late Directory tmpDir;

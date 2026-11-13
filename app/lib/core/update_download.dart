@@ -74,10 +74,18 @@ class UpdateDownload {
       directError = e;
     }
     // 镜像兜底（同一 URL 前缀拼接；SHA256 校验保证镜像可信度）。
+    // 自建清单（kUpdateManifestUrl）的自有域不在 ghproxy 代理范围——
+    // 非 GitHub 系 URL 直连失败即如实报错；测试缝 override 不受限。
     if (_cancelled) {
       throw const UpdateDownloadException('cancelled');
     }
     final mirror = debugMirrorPrefixOverride ?? kDefaultMirrorPrefix;
+    final mirrorable = debugMirrorPrefixOverride != null ||
+        url.contains('github.com') ||
+        url.contains('githubusercontent.com');
+    if (!mirrorable) {
+      throw UpdateDownloadException('direct-failed($directError)');
+    }
     try {
       await _downloadFrom('$mirror$url', target, onProgress: onProgress);
     } on UpdateDownloadException {

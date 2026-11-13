@@ -12,10 +12,23 @@ import 'package:flutter/foundation.dart';
 
 const _kRepo = 'JZYLukis/zcode-pocket';
 
-/// ZPocket 内部分发构建：上游 Release 的包名/签名与本包不同，在线检查
-/// 只会导向装不上的官方包——应用内更新整体禁用（改 false 可恢复）。
-/// fetchLatestRelease 及其测试保持原样，便于将来指向自有仓库。
-const kInAppUpdateDisabled = true;
+/// ZPocket 自建更新清单（P0 文件下载批同期，2026-11-13）：HTTPS 静态
+/// JSON 放自有服务器/域名，格式
+/// `{"version":"1.0.6","notes":"…","assets":[{"name":"zpocket-1.0.6-
+/// arm64-v8a.apk","url":"https://…/zpocket-1.0.6-arm64-v8a.apk",
+/// "sha256":"64 位十六进制"}]}`——assets.name 须含 ABI 串（assetForAbi 按
+/// name 匹配）。置空串=回落 GitHub Releases（_kRepo，上游仓库——签名
+/// 不同装不上，仅作保留路径）。发版用 tools/release.py 一键产出清单。
+const kUpdateManifestUrl =
+    'https://CHANGE-ME.example.com/updates/manifest.json';
+
+/// 应用内更新已恢复（kInAppUpdateDisabled=false）：更新源=上面的自建
+/// 清单，签名校验锚=本 fork 自有发布钥（MainActivity.RELEASE_CERT_SHA256）。
+const kInAppUpdateDisabled = false;
+
+/// 测试缝：清单 URL 覆盖（同 debugUpdateApiBaseOverride 先例）。
+@visibleForTesting
+String? debugManifestUrlOverride;
 
 /// 测试缝：本机 HttpServer 覆盖 API 基址（relay_v2_test 同款先例）。
 @visibleForTesting
@@ -130,8 +143,12 @@ class UpdateCheckException implements Exception {
 }
 
 /// 拉取 latest release 元数据。抛 [UpdateCheckException]（调用方静默/
-/// 提示自定）。
+/// 提示自定）。自建清单（kUpdateManifestUrl）优先；空则回落 GitHub。
 Future<UpdateInfo> fetchLatestRelease() async {
+  final manifestUrl = debugManifestUrlOverride ?? kUpdateManifestUrl;
+  if (manifestUrl.isNotEmpty) {
+    return _fetchManifest(manifestUrl);
+  }
   final base = debugUpdateApiBaseOverride ?? 'https://api.github.com';
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
   try {
@@ -160,6 +177,69 @@ Future<UpdateInfo> fetchLatestRelease() async {
   } finally {
     client.close(force: true);
   }
+}
+
+/// 自建清单拉取（kUpdateManifestUrl）。同一超时分层。
+Future<UpdateInfo> _fetchManifest(String url) async {
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+  try {
+    final req = await client
+        .getUrl(Uri.parse(url))
+        .timeout(const Duration(seconds: 10));
+    req.headers.set('Accept', 'application/json');
+    final res = await req.close().timeout(const Duration(seconds: 12));
+    if (res.statusCode == 403 || res.statusCode == 429) {
+      throw const UpdateCheckException('rate-limited');
+    }
+    if (res.statusCode != 200) {
+      throw UpdateCheckException('http-${res.statusCode}');
+    }
+    final body = await res
+        .transform(utf8.decoder)
+        .join()
+        .timeout(const Duration(seconds: 15));
+    return parseManifestJson(body);
+  } on UpdateCheckException {
+    rethrow;
+  } on Object {
+    throw const UpdateCheckException('network');
+  } finally {
+    client.close(force: true);
+  }
+}
+
+/// 自建清单 JSON 解析（纯函数，可测）。缺 version/assets 视为坏清单；
+/// assets 单条缺 name/url/sha256 剔除该条（全部无效则空 assets=无更新可用）。
+UpdateInfo parseManifestJson(String body) {
+  final Map<dynamic, dynamic> json;
+  try {
+    json = jsonDecode(body) as Map<dynamic, dynamic>;
+  } on Object {
+    throw const UpdateCheckException('bad-json');
+  }
+  final version = json['version'];
+  if (version is! String || version.isEmpty) {
+    throw const UpdateCheckException('no-version');
+  }
+  final assetsRaw = json['assets'];
+  final assets = <UpdateAsset>[];
+  if (assetsRaw is List) {
+    for (final a in assetsRaw) {
+      if (a is! Map) continue;
+      final name = a['name'];
+      final url = a['url'];
+      final sha = a['sha256'];
+      if (name is! String || url is! String || sha is! String) continue;
+      if (sha.isEmpty) continue;
+      assets.add(UpdateAsset(name, url, sha.toLowerCase()));
+    }
+  }
+  final notes = json['notes'];
+  return UpdateInfo(
+    version,
+    notes is String ? notes : '',
+    assets,
+  );
 }
 
 /// JSON 解析（纯函数，可测）。

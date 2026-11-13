@@ -19,7 +19,10 @@ ZCode account and a running desktop.
 > open-source localization resources (Apache 2.0; see third-party notices).
 >
 > **Fork notes (this repository)**: applicationId `com.zpocket.mobile`, app
-> name `ZPocket`, in-app updates disabled (upstream release APKs use a
+> name `ZPocket`. In-app updates point to a self-hosted update manifest
+> (`kUpdateManifestUrl` in `app/lib/core/update_check.dart`; releases are
+> produced with `tools/release.py` and signed with the fork's own keystore —
+> the upstream release channel is intentionally NOT used, its APKs carry a
 > different package/signature). Upstream changes are merged from the
 > `upstream` remote. All upstream documentation below still applies unless
 > noted.
