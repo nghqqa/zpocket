@@ -192,6 +192,7 @@ const _customEn = <String, String>{
   '保存到手机': 'Save to phone',
   '保存附件到手机': 'Save attachment to phone',
   '已保存到手机': 'Saved to phone',
+  '已保存到手机：': 'Saved to phone: ',
   '保存失败，请重试': 'Save failed. Try again',
   '文件为空，无法保存': 'File is empty; nothing to save',
   '正在获取文件…': 'Fetching file…',

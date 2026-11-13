@@ -45,8 +45,24 @@ String mimeForFileName(String fileName) {
   return table[ext] ?? 'application/octet-stream';
 }
 
+/// SAF content URI → 人能看懂的路径（尽力而为）。典型形态
+/// content://com.android.externalstorage.documents/document/primary%3A
+/// Download%2Ftest.txt → /storage/emulated/0/Download/test.txt。
+String displayPathFor(Uri uri) {
+  if (uri.scheme == 'file') {
+    return uri.toFilePath();
+  }
+  final path = uri.path;
+  final primaryIdx = path.indexOf('primary:');
+  if (primaryIdx >= 0) {
+    return '/storage/emulated/0/${path.substring(primaryIdx + 'primary:'.length)}';
+  }
+  return uri.toString();
+}
+
 /// 字节落盘：弹系统「另存为」，用户选定位置后写入。返回是否已保存
-/// （取消=false）。空字节/异常走 SnackBar 反馈。
+/// （取消=false）。空字节/异常走 SnackBar 反馈；成功提示具体路径——
+/// 反馈批（2026-11-13）：只说"已保存"用户找不到文件去了哪。
 Future<bool> saveBytesToPhone(
   BuildContext context, {
   required String fileName,
@@ -75,8 +91,12 @@ Future<bool> saveBytesToPhone(
   }
   if (uri == null) return false; // 用户取消
   if (!context.mounted) return false;
+  final display = displayPathFor(uri);
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(tr('已保存到手机'))),
+    SnackBar(
+      content: Text(tr('已保存到手机：') + display),
+      duration: const Duration(seconds: 4),
+    ),
   );
   return true;
 }
