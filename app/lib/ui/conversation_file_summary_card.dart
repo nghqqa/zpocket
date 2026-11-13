@@ -511,6 +511,29 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                                               context.colors.foregroundSubtlest,
                                         ),
                                       ),
+                                      // P0 文件下载批反馈（2026-11-13）：
+                                      // 长按不够可发现——行尾加显式下载钮
+                                      // （与长按同一动作）。
+                                      IconButton(
+                                        key: ValueKey(
+                                          'file-row-download-${item['path']}',
+                                        ),
+                                        tooltip: tr('保存到手机'),
+                                        icon: Icon(
+                                          Icons.download_outlined,
+                                          size: 16,
+                                          color:
+                                              context.colors.foregroundSubtle,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 30,
+                                          minHeight: 30,
+                                        ),
+                                        onPressed: () => unawaited(
+                                          _saveItemToPhone(item),
+                                        ),
+                                      ),
                                       const SizedBox(width: 6),
                                       Icon(
                                         Icons.chevron_right,
