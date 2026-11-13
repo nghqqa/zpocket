@@ -41,12 +41,12 @@ void main() {
       expect(g.title, '启动管理三开关');
       expect(
         g.body,
-        '设置 → 应用 → 应用启动管理 → ZCode Pocket → 改为"手动管理"，'
+        '设置 → 应用 → 应用启动管理 → ZPocket → 改为"手动管理"，'
         '开启 自启动 / 关联启动 / 后台活动 三个开关。',
       );
       expect(
         g.startupNote,
-        '已跳到「启动管理」：找到 ZCode Pocket 改为手动管理，'
+        '已跳到「启动管理」：找到 ZPocket 改为手动管理，'
         '开启自启动/关联启动/后台活动三个开关',
       );
     });

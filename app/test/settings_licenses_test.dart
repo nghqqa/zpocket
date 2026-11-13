@@ -1,5 +1,5 @@
 // 开源许可页回归（2026-10-28 开源准备批；2026-11-04 关于页聚合同步）：
-// 设置-关于组 → 关于 ZCode Pocket → 开源依赖许可入口 → Flutter
+// 设置-关于组 → 关于 ZPocket → 开源依赖许可入口 → Flutter
 // LicensePage（第三方依赖许可文本随安装包分发的合规入口）；英文界面下
 // applicationLegalese 走翻译（无中文残留）。
 import 'package:flutter/material.dart';

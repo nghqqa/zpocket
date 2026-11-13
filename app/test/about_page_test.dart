@@ -79,7 +79,7 @@ void main() {
     L10n.setTestLocale('en-US');
     addTearDown(() => L10n.setTestLocale('zh-CN'));
     await _pumpAbout(tester);
-    expect(find.text('About ZCode Pocket'), findsOneWidget);
+    expect(find.text('About ZPocket'), findsOneWidget);
     expect(find.text('Notices'), findsOneWidget);
     expect(find.text('Privacy'), findsOneWidget);
     // 锁屏说明入页后许可行落到首屏之外（ListView 懒构建）——先滚到可见。

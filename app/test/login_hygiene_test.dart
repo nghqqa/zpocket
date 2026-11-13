@@ -126,7 +126,7 @@ void main() {
     });
     expect(broken.queryParameters['sid'], 'applogin00000000000000000',
         reason: '缺有效 sid/mid 时整体回落占位（登录-only 路径）');
-    expect(broken.queryParameters['name'], 'ZCode Pocket');
+    expect(broken.queryParameters['name'], 'ZPocket');
 
     final partial = loginTargetUri({
       'sid': 'd_RealSid_0000000000000',
