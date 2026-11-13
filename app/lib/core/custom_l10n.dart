@@ -1,7 +1,36 @@
 part of 'l10n.dart';
 
 /// 手机端特有文案的审校翻译。无官方对应时保持桌面术语一致，不冒充官方原文。
-const _customEn = <String, String>{  // l10n 补全批（2026-11-13 评审）：lib/ui 内 Text() 中文直出但词典
+const _customEn = <String, String>{
+
+  // l10n 补全批 3（2026-11-13）：tr() 扫描开启后的余量清零。
+  '1 秒': '1s',
+  '上一个匹配项': 'Previous match',
+  '上一题': 'Previous question',
+  '上下文来源': 'Context source',
+  '下一个匹配项': 'Next match',
+  '丢弃暂存消息': 'Discard queued message',
+  '任务内查找': 'Find in task',
+  '加载失败：': 'Load failed: ',
+  '名称': 'Name',
+  '复制代码': 'Copy code',
+  '工作区尚未打开，请稍后重试': 'Workspace not open yet — try again later',
+  '工具白名单（逗号分隔，留空=全部）': 'Tool allowlist (comma-separated, empty = all)',
+  '描述（一句话）': 'Description (one line)',
+  '搜索任务': 'Search tasks',
+  '更多': 'More',
+  '最大轮数（可选）': 'Max rounds (optional)',
+  '未授予麦克风权限（设置→应用/权限）': 'Microphone permission not granted (Settings → Apps → Permissions)',
+  '正在切换电脑或工作区，请稍后重试': 'Switching computer or workspace — try again later',
+  '电脑连接已关闭，请重新连接': 'Computer connection closed — reconnect',
+  '立即发送': 'Send now',
+  '补充指示或调整方向…': 'Add instructions or adjust direction…',
+  // l10n 补全批 2（2026-11-13）：批量保存/预览新功能文案。
+  '全部保存到下载目录': 'Save all to Downloads',
+  '正在批量保存…': 'Batch saving…',
+  '未保存任何文件': 'Nothing was saved',
+  '已取消': 'Cancelled',
+  // l10n 补全批（2026-11-13 评审）：lib/ui 内 Text() 中文直出但词典
   // 缺失的 52 条（tools/l10n_missing.py 提取）。
   '上下文容量': 'Context capacity',
   '停止': 'Stop',
@@ -1020,7 +1049,6 @@ const _customEn = <String, String>{  // l10n 补全批（2026-11-13 评审）：
   '加载更多': 'Load more',
   '工作流': 'Workflow',
   '等待补全': 'Awaiting completion',
-  '已取消': 'Cancelled',
   '后台': 'Background',
   '前台': 'Foreground',
   '不可写盘（配置由来源文件维护）':
@@ -1111,6 +1139,16 @@ final _customPatterns = <_L10nPattern>[
   _L10nPattern(RegExp(r'^创建失败，请重试：([\s\S]+)$'), 'Create failed. Try again: {detail}', {'detail': 1}),
   _L10nPattern(RegExp(r'^创建失败：([\s\S]+)$'), 'Create failed: {detail}', {'detail': 1}),
   _L10nPattern(RegExp(r'^删除失败：([\s\S]+)$'), 'Delete failed: {detail}', {'detail': 1}),
+  _L10nPattern(RegExp(r'^失败 (\d+) 个$'), '{n} failed', {'n': 1}),
+  // l10n 补全批 3（2026-11-13）：模板插值 pattern 清尾。
+  _L10nPattern(RegExp(r'^第 ?(\d+) 轮$'), 'Round {n}', {'n': 1}),
+  _L10nPattern(RegExp(r'^已运行 (\d+) 次$'), 'Run {n} times', {'n': 1}),
+  _L10nPattern(RegExp(r'^移动「([\s\S]+)」$'), 'Move "{name}"', {'name': 1}),
+  _L10nPattern(RegExp(r'^确定删除「([\s\S]+)」$'), 'Delete "{name}"?', {'name': 1}),
+  _L10nPattern(RegExp(r'^已归档「([\s\S]+)」$'), 'Archived "{name}"', {'name': 1}),
+  _L10nPattern(RegExp(r'^非图片附件（([\s\S]+)）$'), 'Non-image attachment ({type})', {'type': 1}),
+  _L10nPattern(RegExp(r'^加载更多失败：([\s\S]+)$'), 'Failed to load more: {detail}', {'detail': 1}),
+
   _L10nPattern(RegExp(r'^加载失败：([\s\S]+)$'), 'Failed to load: {detail}', {'detail': 1}),
   _L10nPattern(RegExp(r'^回滚失败：([\s\S]+)$'), 'Rollback failed: {detail}', {'detail': 1}),
   _L10nPattern(RegExp(r'^回滚预检失败：([\s\S]+)$'), 'Rollback precheck failed: {detail}', {'detail': 1}),

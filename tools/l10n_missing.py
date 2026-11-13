@@ -11,7 +11,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 cust = io.open('app/lib/core/custom_l10n.dart', encoding='utf-8').read()
 off = io.open('app/lib/core/official_l10n.g.dart', encoding='utf-8').read()
-patterns = re.findall(r"_L10nPattern\(RegExp\(r'(.+?)'\)", cust)
+patterns = re.findall(r"_L10nPattern\(RegExp\(\s*r'([^']*)'\)", cust)
 
 
 def has_exact(key):
@@ -59,7 +59,7 @@ missing_interp = {}
 files = glob.glob('app/lib/ui/**/*.dart', recursive=True)
 for f in files:
     s = io.open(f, encoding='utf-8').read()
-    for mm in re.finditer(r"Text\(\s*'", s):
+    for mm in re.finditer(r"(?:Text\(\s*|tr\(\s*)'", s):
         start = mm.end() - 1
         key, _end = combined_literals(s, start)
         if not re.search(r'[\u4e00-\u9fff]', key):
