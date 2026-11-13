@@ -13,6 +13,22 @@ import 'file_preview.dart';
 import 'file_save.dart';
 import 'turn_model.dart';
 
+/// P0 评审修复（2026-11-13）：文件名提取须同时切正/反斜杠——Windows
+/// 路径 split('/') 切不开，标题会回退成整条截断路径（8 行同形不可辨识）。
+String _fileNameOf(String path) => path.split(RegExp(r'[\\/]')).last;
+
+/// 副行相对路径：剥掉 workspace 前缀（大小写不敏感），未命中则返回
+/// 归一化（反斜杠→正斜杠）后的原路径。
+String _relativeDisplayPath(String path, String? workspacePath) {
+  final norm = path.replaceAll('\\', '/');
+  if (workspacePath == null || workspacePath.isEmpty) return norm;
+  final ws = workspacePath.replaceAll('\\', '/').toLowerCase();
+  if (norm.toLowerCase().startsWith(ws)) {
+    return norm.substring(ws.length).replaceFirst(RegExp('^/+'), '');
+  }
+  return norm;
+}
+
 IconData fileTypeIcon(String path) {
   final ext = path.split('.').last.toLowerCase();
   if (ext == 'html' || ext == 'htm') return Icons.public;
@@ -82,6 +98,11 @@ class FileSummaryCardState extends State<FileSummaryCard> {
 
   List<Map<String, dynamic>> get _items => widget.itemsByCard[_key] ?? const [];
   set _items(List<Map<String, dynamic>> v) => widget.itemsByCard[_key] = v;
+
+  // 评审 P1（2026-11-13）：批量保存进行中标记 + 单文件在途去重
+  // （弱网下重复点击会重复发起分段拉取，Riley 人偶红旗）。
+  bool _batchSaving = false;
+  final Set<String> _savingPaths = <String>{};
 
   Map<String, dynamic>? get _target {
     final header = widget.header;
@@ -441,6 +462,39 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 评审 P1（2026-11-13）：批量保存——一轮
+                            // N 个产物逐个点 30dp 小钮过 N 次 SAF 是
+                            // 效率灾难；一键静默写入 Downloads/ZPocket/。
+                            if (_items.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton.icon(
+                                    key: const ValueKey('file-summary-save-all'),
+                                    onPressed: _batchSaving
+                                        ? null
+                                        : () => unawaited(_saveAllToPhone()),
+                                    icon: Icon(
+                                      _batchSaving
+                                          ? Icons.hourglass_top
+                                          : Icons.download,
+                                      size: 16,
+                                    ),
+                                    label: Text(
+                                      _batchSaving
+                                          ? tr('正在批量保存…')
+                                          : tr('全部保存到下载目录'),
+                                    ),
+                                    style: TextButton.styleFrom(
+                                      alignment: Alignment.centerLeft,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             for (final item in _items)
                               InkWell(
                                 key: ValueKey('file-row-${item['path']}'),
@@ -478,8 +532,14 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
+                                            // P0 评审修复（2026-11-13）：
+                                            // split('/') 切不开 Windows
+                                            // 反斜杠路径——标题回退成整条
+                                            // 截断路径，8 行不可辨识。改双
+                                            // 分隔符取名 + 副行剥 workspace
+                                            // 前缀显示相对路径。
                                             Text(
-                                              '${item['path']}'.split('/').last,
+                                              _fileNameOf('${item['path']}'),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
@@ -489,7 +549,11 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                                               ),
                                             ),
                                             Text(
-                                              '${item['path']}',
+                                              _relativeDisplayPath(
+                                                '${item['path']}',
+                                                AppStateScope.of(context)
+                                                    .workspacePath,
+                                              ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
@@ -502,18 +566,40 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                                           ],
                                         ),
                                       ),
-                                      Text(
-                                        '+${item['additions'] ?? 0}/'
-                                        '-${item['deletions'] ?? 0}',
-                                        style: TextStyle(
-                                          fontSize: AppType.uiXs,
-                                          color:
-                                              context.colors.foregroundSubtlest,
+                                      // 评审（2026-11-13）：+/− 数字着色
+                                      // 增强扫读（绿加红删）。
+                                      Text.rich(
+                                        TextSpan(
+                                          children: [
+                                            TextSpan(
+                                              text:
+                                                  '+${item['additions'] ?? 0}',
+                                              style: TextStyle(
+                                                fontSize: AppType.uiXs,
+                                                color:
+                                                    context.colors.success,
+                                              ),
+                                            ),
+                                            TextSpan(
+                                              text:
+                                                  '/-${item['deletions'] ?? 0}',
+                                              style: TextStyle(
+                                                fontSize: AppType.uiXs,
+                                                color: (item['deletions'] ?? 0) > 0
+                                                    ? context
+                                                        .colors.destructive
+                                                    : context.colors
+                                                        .foregroundSubtlest,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       // P0 文件下载批反馈（2026-11-13）：
                                       // 长按不够可发现——行尾加显式下载钮
-                                      // （与长按同一动作）。
+                                      // （与长按同一动作）。触控目标
+                                      // ≥44dp（评审 P1：30dp 低于安卓
+                                      // 下限且会话页不在守卫范围）。
                                       IconButton(
                                         key: ValueKey(
                                           'file-row-download-${item['path']}',
@@ -527,8 +613,8 @@ class FileSummaryCardState extends State<FileSummaryCard> {
                                         ),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(
-                                          minWidth: 30,
-                                          minHeight: 30,
+                                          minWidth: 44,
+                                          minHeight: 44,
                                         ),
                                         onPressed: () => unawaited(
                                           _saveItemToPhone(item),
@@ -578,12 +664,15 @@ class FileSummaryCardState extends State<FileSummaryCard> {
   }
 
   /// P0 文件下载批：行内产物保存到手机——file 通道分段拉取字节后走
-  /// SAF 另存为。大文件给瞬时提示（分段拉取期间无逐段进度）。
+  /// SAF 另存为。大文件给瞬时提示（分段拉取期间无逐段进度）。在途去重
+  /// （评审 P1：弱网重复点击会重复发起整段拉取）。
   Future<void> _saveItemToPhone(Map<String, dynamic> item) async {
     final path = '${item['path']}';
     if (path.isEmpty || !mounted) return;
+    if (_savingPaths.contains(path)) return;
+    _savingPaths.add(path);
     final app = AppStateScope.of(context);
-    final name = path.split(RegExp(r'[\\/]')).last;
+    final name = _fileNameOf(path);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(tr('正在获取文件…')),
@@ -602,7 +691,94 @@ class FileSummaryCardState extends State<FileSummaryCard> {
           duration: const Duration(seconds: 3),
         ),
       );
+    } finally {
+      _savingPaths.remove(path);
     }
+  }
+
+  /// 评审 P1（2026-11-13）：批量保存——静默写入公共
+  /// Downloads/ZPocket/（不逐个弹 SAF），进度对话框（整批+当前文件）
+  /// 可取消。取消=中止后续文件，已保存的保留。
+  Future<void> _saveAllToPhone() async {
+    if (_batchSaving || _items.isEmpty || !mounted) return;
+    final app = AppStateScope.of(context);
+    final items = List<Map<String, dynamic>>.from(_items);
+    setState(() => _batchSaving = true);
+    var cancelled = false;
+    var done = 0;
+    var failed = 0;
+    final savedPaths = <String>[];
+    final progress = ValueNotifier<_BatchSaveProgress>(
+      _BatchSaveProgress(done: 0, total: items.length),
+    );
+
+    Future<void> run() async {
+      for (final item in items) {
+        if (cancelled) break;
+        final path = '${item['path']}';
+        final name = _fileNameOf(path);
+        progress.value = progress.value.copyWith(
+          currentName: name,
+          received: 0,
+          currentBytes: 0,
+        );
+        try {
+          final bytes = await app.workspaceReadFileBytes(
+            path,
+            onProgress: (received, totalBytes) {
+              progress.value = progress.value.copyWith(
+                currentName: name,
+                received: received,
+                currentBytes: totalBytes,
+              );
+            },
+            cancelled: () => cancelled,
+          );
+          if (cancelled) break;
+          final savedPath = await saveBytesToDownloadsFolder(
+            fileName: name,
+            bytes: bytes,
+          );
+          savedPaths.add(savedPath);
+          done++;
+          progress.value = progress.value.copyWith(done: done);
+        } on Object catch (e) {
+          if (cancelled || '$e'.contains('cancelled')) break;
+          failed++;
+        }
+      }
+    }
+
+    final dialogFuture = showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _BatchSaveDialog(
+        progress: progress,
+        onCancel: () => cancelled = true,
+      ),
+    );
+    await run();
+    if (!mounted) return;
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    await dialogFuture;
+    progress.dispose();
+    if (!mounted) return;
+    setState(() => _batchSaving = false);
+    final summary = done > 0
+        ? '${tr('已保存到手机')}：Downloads/ZPocket（$done/${items.length}）'
+        : tr('未保存任何文件');
+    final failedNote = failed > 0
+        ? '，${tr('失败 {n} 个').replaceAll('{n}', '$failed')}'
+        : '';
+    final cancelNote = cancelled ? '（${tr('已取消')}）' : '';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$summary$failedNote$cancelNote'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _openViewer({String? initialPath, Map<String, dynamic>? item}) {
@@ -654,3 +830,109 @@ class FileSummaryCardState extends State<FileSummaryCard> {
 /// 样式=通栏文本行+底部分割线（官方不是卡片盒）；运行中默认展开、完成
 /// 默认收起且自动收起；异常终态/无正文轮默认展开（官方 forceOpen 三条件
 /// 的手机化：默认展开但允许手动收起）；chevron 常驻并随展开翻转。
+
+/// 批量保存进度快照（_BatchSaveDialog 订阅 ValueNotifier 渲染）。
+class _BatchSaveProgress {
+  const _BatchSaveProgress({
+    required this.done,
+    required this.total,
+    this.currentName = '',
+    this.received = 0,
+    this.currentBytes = 0,
+  });
+
+  final int done;
+  final int total;
+  final String currentName;
+  final int received;
+  final int currentBytes;
+
+  _BatchSaveProgress copyWith({
+    int? done,
+    int? total,
+    String? currentName,
+    int? received,
+    int? currentBytes,
+  }) =>
+      _BatchSaveProgress(
+        done: done ?? this.done,
+        total: total ?? this.total,
+        currentName: currentName ?? this.currentName,
+        received: received ?? this.received,
+        currentBytes: currentBytes ?? this.currentBytes,
+      );
+}
+
+/// 批量保存进度对话框：整批进度（N/M）+ 当前文件名 + 单文件字节进度 +
+/// 取消。barrierDismissible=false——进度期间必须走取消键（中断半截
+/// SAF/通道请求），与更新下载对话框同策略。
+class _BatchSaveDialog extends StatelessWidget {
+  const _BatchSaveDialog({
+    required this.progress,
+    required this.onCancel,
+  });
+
+  final ValueNotifier<_BatchSaveProgress> progress;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        tr('正在批量保存…'),
+        style: const TextStyle(fontSize: AppType.uiBase),
+      ),
+      content: ValueListenableBuilder<_BatchSaveProgress>(
+        valueListenable: progress,
+        builder: (context, p, _) {
+          final filePct = p.currentBytes > 0 ? p.received / p.currentBytes : null;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${p.done}/${p.total}',
+                style: TextStyle(
+                  fontSize: AppType.uiCaption,
+                  fontFamily: 'monospace',
+                  color: context.colors.foregroundSubtle,
+                ),
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: p.total > 0 ? p.done / p.total : 0,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              const SizedBox(height: 10),
+              if (p.currentName.isNotEmpty) ...[
+                Text(
+                  p.currentName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppType.uiXs,
+                    fontFamily: 'monospace',
+                    color: context.colors.foregroundSubtlest,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                LinearProgressIndicator(
+                  value: filePct,
+                  minHeight: 3,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: onCancel,
+          child: Text(tr('取消')),
+        ),
+      ],
+    );
+  }
+}

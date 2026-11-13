@@ -66,7 +66,7 @@ void main() {
     final calls = <Map<String, dynamic>>[];
     await tester.pumpWidget(_host(state, calls));
     await tester.pump();
-    expect(find.text('后台工作 · 2'), findsOneWidget, reason: '标题带计数');
+    expect(find.text('后台工作（2 项）'), findsOneWidget, reason: '标题带计数');
     expect(find.text('跑构建脚本'), findsOneWidget);
     expect(find.text('已完成待投递'), findsOneWidget);
     // 仅 running+cancellable 可取消。
@@ -116,7 +116,7 @@ void main() {
     final calls = <Map<String, dynamic>>[];
     await tester.pumpWidget(_host(state, calls));
     await tester.pump();
-    expect(find.text('后台工作 · 51'), findsOneWidget);
+    expect(find.text('后台工作（51 项）'), findsOneWidget);
     expect(find.text('历史批次任务 50').hitTestable(), findsNothing,
         reason: '51 行远超一屏，末项初始不在视口');
     await tester.scrollUntilVisible(
@@ -205,7 +205,7 @@ void menuEntryTests() {
     expect(find.byKey(const ValueKey('background-works-panel')), findsNothing);
     await tester.tap(find.byKey(const ValueKey('task-menu')));
     await tester.pumpAndSettle();
-    expect(find.text('后台工作 · 1'), findsOneWidget, reason: '唯一入口');
+    expect(find.text('后台工作（1 项）'), findsOneWidget, reason: '唯一入口');
 
     // 清空 → 菜单项消失。
     await tester.tapAt(const Offset(10, 10)); // 关菜单

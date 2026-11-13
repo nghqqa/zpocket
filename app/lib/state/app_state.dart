@@ -1635,10 +1635,15 @@ class AppState extends ChangeNotifier {
   Future<Uint8List> workspaceReadFileBytes(
     String relativePath, {
     void Function(int received, int total)? onProgress,
+    bool Function()? cancelled,
   }) async {
     final conv = _conv;
     if (conv == null) throw StateError('no active computer');
-    return conv.workspaceReadFileBytes(relativePath, onProgress: onProgress);
+    return conv.workspaceReadFileBytes(
+      relativePath,
+      onProgress: onProgress,
+      cancelled: cancelled,
+    );
   }
 
   /// 当前工作区绝对路径（聊天内路径点按的归一化用；未连接=null）。

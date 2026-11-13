@@ -44,7 +44,7 @@ class BackgroundWorksPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('后台工作 · ${state.backgroundWorks.length}'),
+        title: Text('后台工作（${state.backgroundWorks.length} 项）'),
       ),
       body: AnimatedBuilder(
         animation: state,

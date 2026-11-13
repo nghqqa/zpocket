@@ -325,6 +325,27 @@ class MainActivity : FlutterActivity() {
                     "officialSignatureMatches" -> {
                         result.success(officialSignatureMatches())
                     }
+                    // P0 文件下载批二期（2026-11-13）：静默保存到公共
+                    // Downloads/ZPocket/（批量保存不逐个弹 SAF）。API 29+
+                    // 走 MediaStore.Downloads（无需权限）；24-28 需
+                    // WRITE_EXTERNAL_STORAGE（Dart 侧先用 permission_handler
+                    // 申请，未授权返回 "permission" 由上层引导）。
+                    "saveToDownloads" -> {
+                        val fileName = call.argument<String>("fileName")
+                        val bytes = call.argument<ByteArray>("bytes")
+                        val mime = call.argument<String>("mime")
+                        if (fileName.isNullOrEmpty() || bytes == null) {
+                            result.error("bad-args", "fileName/bytes required", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            result.success(saveToDownloads(fileName, bytes, mime))
+                        } catch (e: SecurityException) {
+                            result.error("permission", e.message, null)
+                        } catch (e: Exception) {
+                            result.error("io", e.message, null)
+                        }
+                    }
                     // 安装前校验 APK 文件本身的包名与官方签名
                     // 指纹（SHA 只锚到 API 响应，这里锚到官方签名）。
                     "verifyApk" -> {
@@ -483,6 +504,52 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /// 静默保存字节到公共 Downloads/ZPocket/（批量保存用——单文件仍走
+    /// SAF 另存为给用户选位）。返回可读路径供 snackbar 展示。
+    /// API 29+：MediaStore.Downloads（应用自有文件，无需存储权限）。
+    /// 24-28：传统公共目录写入，需 WRITE_EXTERNAL_STORAGE（缺失抛
+    /// SecurityException，Dart 侧引导授权后重试）。
+    private fun saveToDownloads(fileName: String, bytes: ByteArray, mime: String?): String {
+        val safeName = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+        val safeMime = if (mime.isNullOrBlank() || mime == "application/octet-stream") {
+            "application/octet-stream"
+        } else {
+            mime
+        }
+        if (Build.VERSION.SDK_INT >= 29) {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, safeName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, safeMime)
+                put(
+                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                    android.os.Environment.DIRECTORY_DOWNLOADS + "/ZPocket",
+                )
+            }
+            val resolver = contentResolver
+            val uri = resolver.insert(
+                android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                values,
+            ) ?: throw IllegalStateException("MediaStore insert returned null")
+            resolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: throw IllegalStateException("output stream null")
+            // DISPLAY_NAME 已知，直接拼可读路径（Q 上 MediaStore 不给 file path）。
+            val downloads = android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS,
+            )
+            return "${downloads.absolutePath}/ZPocket/$safeName"
+        }
+        @Suppress("DEPRECATION")
+        val downloads = android.os.Environment
+            .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        val dir = java.io.File(downloads, "ZPocket")
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw IllegalStateException("mkdirs failed: ${dir.absolutePath}")
+        }
+        val out = java.io.File(dir, safeName)
+        java.io.FileOutputStream(out).use { it.write(bytes) }
+        return out.absolutePath
     }
 
     /// 本机签名 SHA-256 是否等于发布钥指纹。不匹配（如换钥前的旧安装）

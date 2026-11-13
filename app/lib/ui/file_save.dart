@@ -1,11 +1,45 @@
 // 通用「保存到手机」：SAF 另存为（file_picker.saveFile，仓库既有依赖，
 // 零新增）。对话附件、工作区产物文件共用本入口，统一反馈与 MIME 推断。
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../core/localized_text.dart';
+
+const _channel = MethodChannel('companion/update');
+
+/// 静默保存到公共 Downloads/ZPocket/（批量保存用——单文件仍走 SAF
+/// 另存为给用户选位）。原生 MediaStore（29+，免权限）/ 传统目录写入
+/// （24-28，需存储权限：缺失时自动申请一次并重试）。返回可读路径。
+/// 失败抛异常（调用方兜底转 SAF 或提示）。
+Future<String> saveBytesToDownloadsFolder({
+  required String fileName,
+  required Uint8List bytes,
+  String? mimeType,
+}) async {
+  Future<String> invoke() async {
+    final path = await _channel.invokeMethod<String>('saveToDownloads', {
+      'fileName': fileName,
+      'bytes': bytes,
+      'mime': mimeType ?? mimeForFileName(fileName),
+    });
+    if (path == null || path.isEmpty) {
+      throw StateError('saveToDownloads returned empty path');
+    }
+    return path;
+  }
+
+  try {
+    return await invoke();
+  } on PlatformException catch (e) {
+    if (e.code != 'permission') rethrow;
+    // 24-28 设备：申请一次存储权限后重试。
+    final status = await Permission.storage.request();
+    if (!status.isGranted) rethrow;
+    return await invoke();
+  }
+}
 
 /// 由扩展名推断常用 MIME（saveFile 的元数据；未覆盖回落 octet-stream）。
 String mimeForFileName(String fileName) {

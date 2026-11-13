@@ -1606,10 +1606,12 @@ extension ConversationWorkspaceFiles on ConversationTransport {
     return size.toInt();
   }
 
-  /// 工作区文件字节下载。onProgress 每段回调 (received, total)。
+  /// 工作区文件字节下载。onProgress 每段回调 (received, total)；
+  /// cancelled 每段前询问（评审 P1：大文件下载可取消，弱网防重复触发）。
   Future<Uint8List> workspaceReadFileBytes(
     String relativePath, {
     void Function(int received, int total)? onProgress,
+    bool Function()? cancelled,
   }) async {
     final total = await workspaceFileSize(relativePath);
     if (total <= 0) return Uint8List(0);
@@ -1620,6 +1622,9 @@ extension ConversationWorkspaceFiles on ConversationTransport {
     final out = BytesBuilder(copy: false);
     var received = 0;
     while (received < total) {
+      if (cancelled?.call() == true) {
+        throw StateError('cancelled');
+      }
       final length = _wsFileChunkBytes < total - received
           ? _wsFileChunkBytes
           : total - received;

@@ -4578,6 +4578,9 @@ class _ConversationPageState extends State<ConversationPage> {
               icon: const Icon(Icons.more_vert, size: 20),
               onSelected: (v) => _onTaskMenu(v),
               itemBuilder: (_) => [
+                // 评审 P2（2026-11-13）：菜单三分组——会话管理/运行视图/
+                // 开发者；「后台工作 · N」补单位语义；「复制会话 ID」是
+                // 排障功能，降级到底部开发者组。
                 const PopupMenuItem(value: 'rename', child: Text('重命名')),
                 PopupMenuItem(
                   value: 'pin',
@@ -4585,6 +4588,7 @@ class _ConversationPageState extends State<ConversationPage> {
                 ),
                 const PopupMenuItem(value: 'unread', child: Text('标为未读')),
                 const PopupMenuItem(value: 'archive', child: Text('归档')),
+                const PopupMenuDivider(),
                 // 工作流运行入口（entry-polish-1，用户拍板方案 A）：
                 // 低频查看型入口归任务菜单，加号面板回归纯"添加"语义。
                 const PopupMenuItem(
@@ -4598,8 +4602,9 @@ class _ConversationPageState extends State<ConversationPage> {
                   PopupMenuItem(
                     value: 'bgWorks',
                     child: Text(
-                        '后台工作 · ${_sub!.state.backgroundWorks.length}'),
+                        '后台工作（${_sub!.state.backgroundWorks.length} 项）'),
                   ),
+                const PopupMenuDivider(),
                 const PopupMenuItem(value: 'copyId', child: Text('复制会话 ID')),
               ],
             ),
