@@ -150,7 +150,7 @@ class _NotifyGuidePageState extends State<NotifyGuidePage>
           _StepCard(
             index: 2,
             title: '通知双开关',
-            body: '设置 → 通知 → ZCode Pocket：「允许通知」与「锁屏通知」都打开'
+            body: '设置 → 通知 → ZPocket：「允许通知」与「锁屏通知」都打开'
                 '（锁屏上要看到提醒，两个都必须开）。',
             actionLabel: '去通知设置',
             onAction: _jumpNotificationSettings,
@@ -167,7 +167,7 @@ class _NotifyGuidePageState extends State<NotifyGuidePage>
           _StepCard(
             index: 4,
             title: '最近任务锁定（手动）',
-            body: '打开最近任务（多任务）视图 → 找到 ZCode Pocket 卡片 → 下拉'
+            body: '打开最近任务（多任务）视图 → 找到 ZPocket 卡片 → 下拉'
                 '（或长按）→ 点锁图标 🔒。锁定后上滑清理不会误清本应用。\n'
                 '此步无法自动跳转，请在最近任务界面对照操作。',
           ),

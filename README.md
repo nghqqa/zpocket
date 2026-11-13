@@ -1,8 +1,10 @@
-# ZCode Pocket
+# ZPocket
 
 **English** | [简体中文](README.zh-CN.md)
 
-A native Android client (Flutter) for the ZCode desktop app. It brings
+ZPocket is a native Android client (Flutter) for the ZCode desktop app — an
+internal-use fork of [zcode-pocket](https://github.com/JZYLukis/zcode-pocket)
+(Apache 2.0) with its own branding and package identity. It brings
 multi-computer management, the task home, streaming conversations, approval
 interactions, branch selection, usage stats and more to your phone, keeping
 interaction habits consistent with the desktop. It connects to ZCode's
@@ -15,6 +17,12 @@ ZCode account and a running desktop.
 > implemented against the official open-source implementation; no official
 > runtime code is included. UI strings are generated from the official
 > open-source localization resources (Apache 2.0; see third-party notices).
+>
+> **Fork notes (this repository)**: applicationId `com.zpocket.mobile`, app
+> name `ZPocket`, in-app updates disabled (upstream release APKs use a
+> different package/signature). Upstream changes are merged from the
+> `upstream` remote. All upstream documentation below still applies unless
+> noted.
 >
 > **Service usage notice**: This repository contains client code only. When
 > using it with the official ZCode service you must comply with the official

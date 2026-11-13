@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
-import 'package:zcode_pocket/state/conversation_registry.dart';
-import 'package:zcode_pocket/state/local_cache.dart';
-import 'package:zcode_pocket/state/session_errors.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/state/cache_policy.dart';
+import 'package:zpocket/state/conversation_registry.dart';
+import 'package:zpocket/state/local_cache.dart';
+import 'package:zpocket/state/session_errors.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 class _ControlledConversation implements ConversationTransport {
   final gates = <Completer<ConversationSubscription>>[];

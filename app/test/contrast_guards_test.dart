@@ -11,7 +11,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zcode_pocket/core/theme.dart';
+import 'package:zpocket/core/theme.dart';
 
 /// WCAG 相对亮度对比度。
 double ratio(Color a, Color b) {

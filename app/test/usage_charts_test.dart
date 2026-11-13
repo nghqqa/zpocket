@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/usage_charts.dart';
+import 'package:zpocket/ui/usage_charts.dart';
 
 ChartSeries _s(String name, List<double> v) => ChartSeries(
       name: name,

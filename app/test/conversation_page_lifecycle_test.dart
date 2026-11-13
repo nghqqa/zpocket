@@ -10,12 +10,12 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/z_transport.dart';
+import 'package:zpocket/ui/conversation_page.dart';
 
 /// 附件选择器桩（file_picker 13 的 PlatformFile 是抽象基类，测试自实现）。
 base class _FakePlatformFile extends PlatformFile {

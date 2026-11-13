@@ -8,15 +8,15 @@
 // 文本更新必须照常上屏）。
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/localized_text.dart' show Text;
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/conversation_message_cells.dart';
-import 'package:zcode_pocket/ui/markdown_view.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/core/localized_text.dart' show Text;
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/conversation_message_cells.dart';
+import 'package:zpocket/ui/markdown_view.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 class _ThrottleSub implements ConversationSubscription {
   _ThrottleSub(this.sessionId);

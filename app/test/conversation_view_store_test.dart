@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/conversation_view_store.dart';
+import 'package:zpocket/ui/conversation_view_store.dart';
 
 void main() {
   setUp(ConversationViewStore.resetToolFoldMemory);

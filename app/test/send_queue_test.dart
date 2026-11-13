@@ -5,17 +5,17 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/draft_store.dart';
-import 'package:zcode_pocket/state/send_queue_store.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/draft_store.dart';
+import 'package:zpocket/state/send_queue_store.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/z_transport.dart';
+import 'package:zpocket/ui/conversation_page.dart';
 
 /// 断网消息排队（6.6②，2026-10-29 批次）：断连期发送入队+重连自动
 /// 发出+重启存活。旅程用内存桩（testWidgets 假区里真 IO 永不完成——

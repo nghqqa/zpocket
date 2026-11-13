@@ -1,8 +1,10 @@
-# ZCode Pocket
+# ZPocket
 
 [English](README.md) | **简体中文**
 
-ZCode 桌面端的安卓原生客户端（Flutter）：把桌面端的多电脑管理、任务
+ZPocket 是 ZCode 桌面端的安卓原生客户端（Flutter）：基于开源项目
+[zcode-pocket](https://github.com/JZYLukis/zcode-pocket)（Apache 2.0）
+fork 的内部使用版本，替换了品牌与包名。它把桌面端的多电脑管理、任务
 主页、会话流式、审批交互、分支选择、用量统计等能力搬进手机，操作
 习惯与桌面端保持一致。连接 ZCode 官方 Web Remote Control 通道
 （中继 + V4 协议），需自备 ZCode 账号与桌面端。
@@ -10,6 +12,11 @@ ZCode 桌面端的安卓原生客户端（Flutter）：把桌面端的多电脑�
 > **非官方项目声明**：本项目为社区驱动的第三方客户端，与 ZCode /
 > 智谱无关联、未经其授权或认可；ZCode 名称归其所有者。协议行为均
 > 对照官方开源实现自行实现，不含官方运行时代码；界面文案由官方开源本地化资源生成（Apache 2.0，见第三方声明）。
+>
+> **Fork 说明（本仓库）**：applicationId `com.zpocket.mobile`，应用名
+> `ZPocket`，应用内更新已禁用（上游 Release 包的包名/签名均不同）。
+> 上游改动通过 `upstream` remote 合并跟进。以下上游文档除特别说明外
+> 全部适用。
 >
 > **服务使用提示**：本仓库仅是客户端代码。使用它连接 ZCode 官方
 > 服务时须自行遵守官方服务条款（zcode.z.ai/cn/terms）——现行条款

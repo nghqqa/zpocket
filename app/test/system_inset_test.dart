@@ -2,7 +2,7 @@
 // 断裂的终局方案——原生监听 insets 推 dp 值，Dart ValueNotifier 接收）。
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/system_inset.dart' show systemInsetBottomDp, initSystemInsetBridge, refreshSystemInset;
+import 'package:zpocket/core/system_inset.dart' show systemInsetBottomDp, initSystemInsetBridge, refreshSystemInset;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

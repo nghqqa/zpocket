@@ -12,15 +12,15 @@
 // ②（列表卡死）为行为级状态机修复，无轻量夹具，模拟器/真机验证覆盖。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/code_highlight.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/core/code_highlight.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/cache_policy.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 void main() {
   group('① createSession 归属：commandParams 协议形状', () {

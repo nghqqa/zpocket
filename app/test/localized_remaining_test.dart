@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/core/localized_text.dart';
-import 'package:zcode_pocket/core/oem_vendor.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/diff_viewer_page.dart';
-import 'package:zcode_pocket/ui/device_list_page.dart';
-import 'package:zcode_pocket/ui/goal_panel.dart';
-import 'package:zcode_pocket/ui/inline_diff_preview.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart';
-import 'package:zcode_pocket/ui/login_page.dart';
-import 'package:zcode_pocket/ui/notify_guide_page.dart';
-import 'package:zcode_pocket/ui/profiles_sheet.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/subagent_list_sheet.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/core/localized_text.dart';
+import 'package:zpocket/core/oem_vendor.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/diff_viewer_page.dart';
+import 'package:zpocket/ui/device_list_page.dart';
+import 'package:zpocket/ui/goal_panel.dart';
+import 'package:zpocket/ui/inline_diff_preview.dart';
+import 'package:zpocket/ui/interaction_banner.dart';
+import 'package:zpocket/ui/login_page.dart';
+import 'package:zpocket/ui/notify_guide_page.dart';
+import 'package:zpocket/ui/profiles_sheet.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/subagent_list_sheet.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart';
 
 class _DiffApp extends AppState {
   @override

@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/crc32.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/crc32.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
 
 /// rpc-frame 收/发两侧限额分离 + 入站装配
 /// 资源闸。发送侧收紧到官方限额（16MiB/64 分片——官方接收端超限整条

@@ -7,16 +7,16 @@
 // 药丸、yolo 橙、并行共存、旧 mode=plan 折算。
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/cache_policy.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/conversation_page.dart';
 
 class _SendTestBridge implements BridgeSession {
   @override

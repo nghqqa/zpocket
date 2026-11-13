@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/markdown_view.dart';
+import 'package:zpocket/ui/markdown_view.dart';
 
 /// 表格手机端优化（2026-10-20 用户真机反馈"表格没针对手机优化"）：
 /// Markdown 渲染器在 tableColumnWidth=IntrinsicColumnWidth 时自动给

@@ -1,11 +1,11 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/state/ui_prefs.dart';
-import 'package:zcode_pocket/transport/automation_client.dart';
-import 'package:zcode_pocket/ui/composer_panels.dart';
-import 'package:zcode_pocket/ui/quota_banner.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/state/ui_prefs.dart';
+import 'package:zpocket/transport/automation_client.dart';
+import 'package:zpocket/ui/composer_panels.dart';
+import 'package:zpocket/ui/quota_banner.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 class _FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> data = {};

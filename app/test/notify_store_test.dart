@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/notify_core.dart';
-import 'package:zcode_pocket/state/notify_store.dart';
+import 'package:zpocket/state/notify_core.dart';
+import 'package:zpocket/state/notify_store.dart';
 
 /// 轮询读盘上的 lastActivityAt（临时 .tmp+rename 原子写：读到的要么旧要么
 /// 新，不会半份）。同步读便于轮询谓词内直接判定。

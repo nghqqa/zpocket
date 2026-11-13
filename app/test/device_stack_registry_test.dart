@@ -1,14 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/device_stack_registry.dart';
-import 'package:zcode_pocket/state/link_phase.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/relay_client.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/device_stack_registry.dart';
+import 'package:zpocket/state/link_phase.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/relay_client.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 class _MemoryProfiles extends ProfileStore {
   _MemoryProfiles(this.items);

@@ -6,8 +6,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/update_check.dart';
-import 'package:zcode_pocket/core/update_download.dart';
+import 'package:zpocket/core/update_check.dart';
+import 'package:zpocket/core/update_download.dart';
 
 void main() {
   group('版本比较', () {

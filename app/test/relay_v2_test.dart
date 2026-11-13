@@ -4,11 +4,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/relay_client.dart'
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/relay_client.dart'
     show RelayClient, RelayFailure, RelayState;
-import 'package:zcode_pocket/transport/relay_v2.dart';
-import 'package:zcode_pocket/ui/device_list_page.dart' show pickAutoConnectDevice;
+import 'package:zpocket/transport/relay_v2.dart';
+import 'package:zpocket/ui/device_list_page.dart' show pickAutoConnectDevice;
 
 import 'fake_relay_v2.dart';
 

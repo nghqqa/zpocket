@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/app.dart';
-import 'package:zcode_pocket/core/breakpoints.dart';
-import 'package:zcode_pocket/ui/pairing_page.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
+import 'package:zpocket/app.dart';
+import 'package:zpocket/core/breakpoints.dart';
+import 'package:zpocket/ui/pairing_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
 
 void main() {
   testWidgets('无档案时进入配对页', (tester) async {

@@ -4,12 +4,12 @@
 // {trust_selected, reviewItemIds}。红=旧代码白板横幅无法完成审核。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart';
-import 'package:zcode_pocket/ui/workspace_hook_review_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/interaction_banner.dart';
+import 'package:zpocket/ui/workspace_hook_review_page.dart';
 
 // 夹具按官方 pendingInteractionSchema（snapshot.ts:317-345）/
 // workspaceHookReviewRequestPayloadSchema（workspace-hook-review.ts:75-140）

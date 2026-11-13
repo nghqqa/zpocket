@@ -3,11 +3,11 @@
 // childSessionId 下钻只读会话、空/错误态。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/subagent_list_sheet.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/subagent_list_sheet.dart';
 
 Map<String, dynamic> _item(
   String id,

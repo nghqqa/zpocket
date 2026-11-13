@@ -5,9 +5,9 @@ library;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/ui_prefs.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
-import 'package:zcode_pocket/ui/task_center_page.dart';
+import 'package:zpocket/state/ui_prefs.dart';
+import 'package:zpocket/transport/z_transport.dart';
+import 'package:zpocket/ui/task_center_page.dart';
 
 class _MemStorage extends FlutterSecureStorage {
   final data = <String, String>{};

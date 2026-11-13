@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/usage_timezone.dart';
+import 'package:zpocket/core/usage_timezone.dart';
 
 void main() {
   test('IANA 时区校验：接受地区名/UTC，拒绝歧义缩写', () {

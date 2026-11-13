@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 SessionEntry _session(
   String id, {

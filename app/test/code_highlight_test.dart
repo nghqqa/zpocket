@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zcode_pocket/core/code_highlight.dart';
-import 'package:zcode_pocket/state/ui_prefs.dart';
-import 'package:zcode_pocket/ui/markdown_view.dart';
+import 'package:zpocket/core/code_highlight.dart';
+import 'package:zpocket/state/ui_prefs.dart';
+import 'package:zpocket/ui/markdown_view.dart';
 
 class _Fs extends FlutterSecureStorage {
   final Map<String, String> data = {};

@@ -1,1 +1,1 @@
--keep class dev.zcodeapp.** { *; }
+-keep class com.zpocket.** { *; }

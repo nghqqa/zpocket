@@ -4,15 +4,15 @@
 // 红=旧 _runBatchOp 只查 workspaceTasks，row==null 时归当前键。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/project_tree.dart'
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/project_tree.dart'
     show conversationsPseudoProjectId;
-import 'package:zcode_pocket/ui/task_center_page.dart';
+import 'package:zpocket/ui/task_center_page.dart';
 
 class _FakeBridgeSession implements BridgeSession {
   @override

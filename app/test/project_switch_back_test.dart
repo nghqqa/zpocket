@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/project_tree.dart';
-import 'package:zcode_pocket/transport/relay_v2.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/project_tree.dart';
+import 'package:zpocket/transport/relay_v2.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 /// 红绿（2026-10-25 批①）：「任务」聚合视图点回原项目被幂等门
 /// 误跳过——真 ComputerStack 状态机旅程（门逻辑跑本尊，桥/索引/客户端

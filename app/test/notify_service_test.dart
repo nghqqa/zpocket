@@ -3,8 +3,8 @@
 //   cancelAll 把仍在等待的审批通知一并清掉，差分不会补发）；
 // - 事件 id 起点避开前台服务常驻通知 id（ForegroundService.kt 用 100）。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/notify/notification_service.dart';
-import 'package:zcode_pocket/state/notify_core.dart';
+import 'package:zpocket/notify/notification_service.dart';
+import 'package:zpocket/state/notify_core.dart';
 
 class _Backend implements NotificationBackend {
   _Backend({this.active = const []});

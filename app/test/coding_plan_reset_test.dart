@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/coding_plan_reset.dart';
+import 'package:zpocket/ui/coding_plan_reset.dart';
 
 /// 套餐「重置额度」纯逻辑（2026-10-26 用户："手机端现在是看不见重置的"）
 /// ——解析/倒计时/徽标文案/幂等键四件。通道四方法（status/use/opportunity/

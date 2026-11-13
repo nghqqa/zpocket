@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/relay_v2.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/relay_v2.dart';
 
 import 'fake_relay_v2.dart';
 

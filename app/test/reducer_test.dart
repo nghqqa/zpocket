@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 /// ConversationState / SessionsIndexState reducer 单元测试。
 /// 帧结构依据 /（v4 规范 apply 三分支：

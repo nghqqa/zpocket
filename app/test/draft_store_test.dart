@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/draft_store.dart';
+import 'package:zpocket/state/draft_store.dart';
 
 DraftIdentity _identity({
   String device = 'device-a',

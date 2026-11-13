@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
-import 'package:zcode_pocket/ui/usage_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/ui/usage_page.dart';
 
 /// 电量速赢（battery-measure 2026-10-08 静态排查嫌疑②）：
 /// 用量页退后台必须暂停 60s 刷新定时器——桥活着时每次刷新都是一次

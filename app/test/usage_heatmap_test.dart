@@ -4,8 +4,8 @@
 // 与后续区块。修复=容器高按命中盒计。本测试锁死「内容高 == 容器高」。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/usage_charts.dart' show buildModelTrendSeries;
-import 'package:zcode_pocket/ui/usage_page.dart';
+import 'package:zpocket/ui/usage_charts.dart' show buildModelTrendSeries;
+import 'package:zpocket/ui/usage_page.dart';
 
 Map<String, dynamic> _heatmap(int weeks) => {
       'startDate': '2026-09-13',

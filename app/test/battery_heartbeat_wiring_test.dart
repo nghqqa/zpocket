@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 /// 电量专项接线回归：
 /// - battery-heartbeat-2（2026-10-29）：退后台放宽心跳覆盖全部分支；

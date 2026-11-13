@@ -2,10 +2,10 @@
 // 数据准备（官方 presets/spec.ts 对位）+会话内 run 卡+任务行 run 线。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/workflow_dashboards.dart';
-import 'package:zcode_pocket/ui/workflow_runs_page.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/workflow_dashboards.dart';
+import 'package:zpocket/ui/workflow_runs_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
 
 void main() {
   group('视觉补跑必修（human-eye-retro-1109，Visual A）', () {

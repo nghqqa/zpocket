@@ -2,17 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart'
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/interaction_banner.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart'
     show debugVoiceRecognitionAvailable;
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 /// 立即失败的 createSession（草稿态首条消息失败零提示）。
 class _SendTestBridge implements BridgeSession {

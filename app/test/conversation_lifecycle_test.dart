@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/local_cache.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/local_cache.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 class _ControlledConversation implements ConversationTransport {
   final subscribeGates = <Completer<ConversationSubscription>>[];

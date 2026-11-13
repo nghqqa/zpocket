@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/notify/notification_service.dart';
-import 'package:zcode_pocket/state/notify_core.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/notify/notification_service.dart';
+import 'package:zpocket/state/notify_core.dart';
 
 class _Backend implements NotificationBackend {
   final shown = <(int, String, String)>[];

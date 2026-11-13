@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/state/cache_policy.dart';
 
 /// 「对话历史丢失」回归（2026-10-23 真机实锤，用户反馈"提问和回复
 /// 对不上"——列表最老行冻结在最新一条用户消息，「加载更早消息」入口

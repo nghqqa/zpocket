@@ -8,19 +8,19 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/notify/notification_service.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/battery_journal.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/draft_store.dart';
-import 'package:zcode_pocket/state/link_phase.dart';
-import 'package:zcode_pocket/state/notify_coordinator.dart';
-import 'package:zcode_pocket/state/notify_store.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/notify/notification_service.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/battery_journal.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/draft_store.dart';
+import 'package:zpocket/state/link_phase.dart';
+import 'package:zpocket/state/notify_coordinator.dart';
+import 'package:zpocket/state/notify_store.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/transport/z_transport.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 class _ProbeStack extends ComputerStack {
   _ProbeStack(String sid)

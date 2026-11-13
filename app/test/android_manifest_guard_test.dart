@@ -113,7 +113,7 @@ void main() {
 
   test('ForegroundService 必须覆写 onTimeout 防超时崩溃路径', () {
     final source = File(
-      'android/app/src/main/kotlin/dev/zcodeapp/zcode_companion/'
+      'android/app/src/main/kotlin/com/zpocket/mobile/'
       'ForegroundService.kt',
     ).readAsStringSync();
     expect(
@@ -149,7 +149,7 @@ void main() {
           '否则常驻通知继续显示「已连接」=假在线',
     );
     final source = File(
-      'android/app/src/main/kotlin/dev/zcodeapp/zcode_companion/'
+      'android/app/src/main/kotlin/com/zpocket/mobile/'
       'ForegroundService.kt',
     ).readAsStringSync();
     expect(

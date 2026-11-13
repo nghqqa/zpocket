@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zcode_pocket/app.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/ui_prefs.dart';
+import 'package:zpocket/app.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/ui_prefs.dart';
 
 class FakeSecureStorage extends FlutterSecureStorage {
   final Map<String, String> data = {};

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 /// 列表缓存一致性（phase3-cache-design"测试与验收"节，2026-10-18 增）：
 /// 列表操作（置顶/归档/删除/已读）→ 缓存导出 → 重启重建（dormant 预渲

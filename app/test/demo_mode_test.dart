@@ -11,14 +11,14 @@ import 'dart:convert';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/demo/demo_app_state.dart';
-import 'package:zcode_pocket/demo/demo_bridge.dart';
-import 'package:zcode_pocket/demo/demo_data.dart';
-import 'package:zcode_pocket/demo/demo_mode.dart';
-import 'package:zcode_pocket/demo/demo_script.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/link_phase.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/demo/demo_app_state.dart';
+import 'package:zpocket/demo/demo_bridge.dart';
+import 'package:zpocket/demo/demo_data.dart';
+import 'package:zpocket/demo/demo_mode.dart';
+import 'package:zpocket/demo/demo_script.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/link_phase.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 void main() {
   group('ZP_DEMO 编译期开关解析', () {

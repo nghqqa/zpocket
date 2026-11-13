@@ -10,9 +10,9 @@
         android:shortcutShortLabel="@string/shortcut_new_task"
         android:shortcutLongLabel="@string/shortcut_new_task">
         <intent
-            android:action="dev.zcodeapp.zcode_companion.action.SHORTCUT"
-            android:targetPackage="dev.zcodeapp.zcode_companion"
-            android:targetClass="dev.zcodeapp.zcode_companion.MainActivity">
+            android:action="com.zpocket.mobile.action.SHORTCUT"
+            android:targetPackage="com.zpocket.mobile"
+            android:targetClass="com.zpocket.mobile.MainActivity">
             <extra android:name="shortcut_action" android:value="new_task"/>
         </intent>
     </shortcut>
@@ -23,9 +23,9 @@
         android:shortcutShortLabel="@string/shortcut_last_session"
         android:shortcutLongLabel="@string/shortcut_last_session">
         <intent
-            android:action="dev.zcodeapp.zcode_companion.action.SHORTCUT"
-            android:targetPackage="dev.zcodeapp.zcode_companion"
-            android:targetClass="dev.zcodeapp.zcode_companion.MainActivity">
+            android:action="com.zpocket.mobile.action.SHORTCUT"
+            android:targetPackage="com.zpocket.mobile"
+            android:targetClass="com.zpocket.mobile.MainActivity">
             <extra android:name="shortcut_action" android:value="last_session"/>
         </intent>
     </shortcut>

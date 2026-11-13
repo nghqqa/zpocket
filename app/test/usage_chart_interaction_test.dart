@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/usage_charts.dart';
-import 'package:zcode_pocket/ui/usage_page.dart';
+import 'package:zpocket/ui/usage_charts.dart';
+import 'package:zpocket/ui/usage_page.dart';
 
 void main() {
   testWidgets('每日 Token 柱图：真实点按回调选中下标', (tester) async {

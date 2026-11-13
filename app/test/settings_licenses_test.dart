@@ -4,10 +4,10 @@
 // applicationLegalese 走翻译（无中文残留）。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/settings_page.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/settings_page.dart';
 
 Future<void> _openLicenses(WidgetTester tester, AppState app) async {
   await tester.pumpWidget(

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/usage_format.dart';
+import 'package:zpocket/core/usage_format.dart';
 
 /// ③用量页纯函数层（对照 ZCode 官方开源实现 codingPlanQuotaPresentation 官方口径）。
 void main() {

@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
 
 /// -8A 红绿（2026-10-29 批次）：zcode-task.prepareWorkspace（zemote
 /// 遗产，官方快照零命中）兜底退役——readWorkspacePresentation 失败时

@@ -39,7 +39,7 @@
          强保证再评估 dataExtractionRules。静态断言见
          app/test/android_manifest_guard_test.dart。 -->
     <application
-        android:label="ZCode Pocket"
+        android:label="ZPocket"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">

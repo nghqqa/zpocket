@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/anchored_chat_list.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/ui/anchored_chat_list.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 /// 用户真机反馈「上滑偶发跳转/入会话闪动」（2026-10-29）——锚定列表
 /// 前插稳定性复现靶：内容稳定键（逻辑 id）＋变高条目，验证拖拽进行中

@@ -1,8 +1,8 @@
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
-import 'package:zcode_pocket/notify/notification_service.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/transport/z_transport.dart';
+import 'package:zpocket/notify/notification_service.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/notify_core.dart';
+import 'package:zpocket/state/notify_core.dart';
 
 PhaseSnapshot snap({
   String phase = 'running',

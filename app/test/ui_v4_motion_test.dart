@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/motion.dart';
-import 'package:zcode_pocket/ui/qr_scan_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/motion.dart';
+import 'package:zpocket/ui/qr_scan_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/app.dart';
-import 'package:zcode_pocket/core/localized_text.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/app.dart';
+import 'package:zpocket/core/localized_text.dart';
 
 void main() {
   tearDown(L10n.resetForTest);

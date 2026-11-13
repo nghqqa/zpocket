@@ -3,7 +3,7 @@
 // _toggleUsageCard 的 _entCache==null 门槛 + _refresh 只在卡开时清缓存，
 // 卡关期间的档位变化完全不感知。修后：快照记录所属档位，档位变化即作废。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/conversation_page.dart';
 
 void main() {
   group('inferEntPlanKind 档位推断（当前会话一票定档）', () {

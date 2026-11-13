@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../core/localized_text.dart';
 import '../core/theme.dart';
+import '../core/update_check.dart' show kInAppUpdateDisabled;
 import '../state/app_state_scope.dart';
 import 'app_widgets.dart';
 import 'about_page.dart';
@@ -202,33 +203,37 @@ class SettingsPage extends StatelessWidget {
             ),
             // 应用内更新：入口行（检查更新+开关收在
             // 二级动作——开关单独一行，避免一级页过长）。
-            ListTile(
-              leading: const Icon(Icons.system_update_outlined, size: 20),
-              title: const Text(
-                '软件更新',
-                style: TextStyle(fontSize: AppType.uiBase),
+            // ZPocket 内部分发构建禁用在线更新（kInAppUpdateDisabled），
+            // 两个入口一并隐藏。
+            if (!kInAppUpdateDisabled) ...[
+              ListTile(
+                leading: const Icon(Icons.system_update_outlined, size: 20),
+                title: const Text(
+                  '软件更新',
+                  style: TextStyle(fontSize: AppType.uiBase),
+                ),
+                subtitle: const Text(
+                  '检查新版本并应用内下载安装（需安装权限）',
+                  style: TextStyle(fontSize: AppType.uiCaption),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: () => unawaited(checkAndPrompt(context, manual: true)),
               ),
-              subtitle: const Text(
-                '检查新版本并应用内下载安装（需安装权限）',
-                style: TextStyle(fontSize: AppType.uiCaption),
+              SwitchListTile(
+                key: const ValueKey('settings-update-in-app'),
+                secondary: const Icon(Icons.download_outlined, size: 20),
+                title: const Text(
+                  '应用内更新',
+                  style: TextStyle(fontSize: AppType.uiBase),
+                ),
+                subtitle: const Text(
+                  '关闭后仅提示新版本，不下载也不申请安装权限',
+                  style: TextStyle(fontSize: AppType.uiCaption),
+                ),
+                value: app.uiPrefs.updateInAppEnabled,
+                onChanged: (v) => app.uiPrefs.setUpdateInAppEnabled(v),
               ),
-              trailing: const Icon(Icons.chevron_right, size: 18),
-              onTap: () => unawaited(checkAndPrompt(context, manual: true)),
-            ),
-            SwitchListTile(
-              key: const ValueKey('settings-update-in-app'),
-              secondary: const Icon(Icons.download_outlined, size: 20),
-              title: const Text(
-                '应用内更新',
-                style: TextStyle(fontSize: AppType.uiBase),
-              ),
-              subtitle: const Text(
-                '关闭后仅提示新版本，不下载也不申请安装权限',
-                style: TextStyle(fontSize: AppType.uiCaption),
-              ),
-              value: app.uiPrefs.updateInAppEnabled,
-              onChanged: (v) => app.uiPrefs.setUpdateInAppEnabled(v),
-            ),
+            ],
             // 应用锁：安全组（方式三态/自动锁定/防泄露）。
             const AppSectionHeader('安全'),
             ListTile(
@@ -253,7 +258,7 @@ class SettingsPage extends StatelessWidget {
               key: const ValueKey('settings-about'),
               leading: const Icon(Icons.info_outline, size: 20),
               title: const Text(
-                '关于 ZCode Pocket',
+                '关于 ZPocket',
                 style: TextStyle(fontSize: AppType.uiBase),
               ),
               subtitle: const _AppVersionText(),

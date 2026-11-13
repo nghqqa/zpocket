@@ -7,9 +7,9 @@
 //    测试即抛错，无需基线）。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/app.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/ui/home_shell.dart';
+import 'package:zpocket/app.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/ui/home_shell.dart';
 
 void main() {
   testWidgets('字号钳制：系统 2.0 档被压到 1.3 上限（全路由生效）', (tester) async {

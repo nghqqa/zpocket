@@ -6,12 +6,12 @@
 // 与 onError 分支承担，不属本测。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/conversation_composer.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart'
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/conversation_composer.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart'
     show debugVoiceRecognitionAvailable;
 
 Future<void> _openAddSheet(WidgetTester tester) async {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/composer_panels.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/ui/composer_panels.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 void main() {
   group('activeCompletionToken', () {

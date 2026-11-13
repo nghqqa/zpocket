@@ -2,7 +2,7 @@
 // 是 "桌面协议变化从静默坏变 logcat 可见"的防线，此前零测试——
 // 哨兵自身失效模式恰是静默（只打日志不拦截），用 onLog 缝钉三分支。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/protocol_drift.dart';
+import 'package:zpocket/transport/protocol_drift.dart';
 
 void main() {
   test('载荷整体缺席（source=null）→ 一条整体缺席日志', () {

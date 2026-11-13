@@ -3,8 +3,8 @@
 // 体量（多源多账）有界。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/status_tray.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/status_tray.dart';
 
 Widget _host(Widget child) => MaterialApp(
       theme: buildAppTheme(),

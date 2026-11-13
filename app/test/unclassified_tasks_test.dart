@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/project_tree.dart';
-import 'package:zcode_pocket/ui/task_center_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/project_tree.dart';
+import 'package:zpocket/ui/task_center_page.dart';
 
 /// 「任务」未归类区在 B 方案任务主页中的行为（2026-10-26 项目栏优化）：
 /// 不再有伪项目 chip；默认最近直接展示，项目视图归入「任务」分组。

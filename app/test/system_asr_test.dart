@@ -6,12 +6,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/hms_asr.dart';
-import 'package:zcode_pocket/core/system_asr.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart' as sheet;
+import 'package:zpocket/core/hms_asr.dart';
+import 'package:zpocket/core/system_asr.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart' as sheet;
 
 const _ch = MethodChannel('companion/sys_asr');
 const _permCh = MethodChannel('flutter.baseflow.com/permissions/methods');

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/battery_journal.dart';
+import 'package:zpocket/state/battery_journal.dart';
 
 void main() {
   group('电量日志行格式（batteryJournalLine）', () {

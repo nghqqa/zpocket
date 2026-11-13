@@ -5,11 +5,11 @@
 // 红=不带参数（旧时序形态）浮层不出现；绿=带参数出现。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/conversation_page.dart';
 
 /// 游览 _TourConvSub 同款（ConversationSubscription 构造私有 → implements）。
 class _Sub implements ConversationSubscription {

@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/local_cache.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/cache_policy.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/local_cache.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 /// 设备缓存内容去重（电量批 2026-10-30， 验收电量反馈）：
 /// 后台保活期订阅持续推帧，任务列表模型每 ~5s notify 一次但内容大多

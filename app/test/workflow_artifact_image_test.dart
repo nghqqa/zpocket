@@ -6,9 +6,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/workflow_runs_page.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/workflow_runs_page.dart';
 
 /// 1×1 红色像素 PNG（魔数齐全，Image.memory 可真解码）。
 final Uint8List _png1x1 = base64.decode(

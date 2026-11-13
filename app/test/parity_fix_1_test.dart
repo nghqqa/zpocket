@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart' as banner;
-import 'package:zcode_pocket/ui/task_home.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/ui/interaction_banner.dart' as banner;
+import 'package:zpocket/ui/task_home.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 /// （2026-10-29 差异审查修复批）纯逻辑回归：
 /// 运行优先排序/ 复制带计划/ 时间线四类标记/ artifact 兜底/

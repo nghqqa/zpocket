@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
-import 'package:zcode_pocket/state/local_cache.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/state/cache_policy.dart';
+import 'package:zpocket/state/local_cache.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 /// 阶段 3 缓存策略与存储单测（"测试与验收"节）：
 /// - 失效协议三分支（水位一致/不一致作废/快照未到先渲）

@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/ipc_codec.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/ipc_codec.dart';
 
 Uint8List _frame(List<Object?> header, [Object? data]) {
   final writer = ValueWriter();

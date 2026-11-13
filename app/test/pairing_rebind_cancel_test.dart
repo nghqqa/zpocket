@@ -4,15 +4,15 @@
 // ③配对目标账号按显式 accountId 传递，不落 lastUsed。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/device_stack_registry.dart'
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/device_stack_registry.dart'
     show AccountRebindRequired;
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/relay_v2.dart' show RelayV2Device;
-import 'package:zcode_pocket/ui/device_list_page.dart';
-import 'package:zcode_pocket/ui/pairing_page.dart';
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/relay_v2.dart' show RelayV2Device;
+import 'package:zpocket/ui/device_list_page.dart';
+import 'package:zpocket/ui/pairing_page.dart';
 
 /// 真 AccountStore 在 widget 测试里 secure-storage 读永不完成（串行
 /// 队列首读悬挂）——注入只读假 store。

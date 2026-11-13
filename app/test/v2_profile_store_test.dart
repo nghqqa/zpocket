@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 import 'profile_store_test.dart' show FakeSecureStorage;
 

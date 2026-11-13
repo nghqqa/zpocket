@@ -7,10 +7,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/local_cache.dart';
-import 'package:zcode_pocket/ui/about_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/local_cache.dart';
+import 'package:zpocket/ui/about_page.dart';
 
 class _StubCacheStore extends LocalCacheStore {
   _StubCacheStore() : super(Directory('about-clear-cache-stub'));

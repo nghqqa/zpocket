@@ -5,9 +5,9 @@ import 'dart:io' show Directory, Platform;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 /// 内存 secure storage 替身（ProfileStore 测试缝，批次 2 注入）。
 class FakeSecureStorage extends FlutterSecureStorage {

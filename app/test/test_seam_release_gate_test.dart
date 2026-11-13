@@ -1,9 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/relay_v2.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/relay_v2.dart';
 
 /// 正式包测试缝闸门红绿：release 模式下 intent extra 的
 /// 连接地址覆盖/账号凭据注入被忽略、非官方域配对链接被拒；debug 行为

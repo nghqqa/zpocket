@@ -1,7 +1,7 @@
 import 'dart:convert' show jsonDecode;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/login_page.dart';
+import 'package:zpocket/ui/login_page.dart';
 
 /// 登录页会话卫生（2026-10-26 真机验收③立红绿；2026-11-03 两轮对抗
 /// 审查重构两段式状态机并修正机制叙述）：官方远控页把会话与"记住的

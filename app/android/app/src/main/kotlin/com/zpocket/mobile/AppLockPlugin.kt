@@ -1,4 +1,4 @@
-package dev.zcodeapp.zcode_companion
+package com.zpocket.mobile
 
 import android.app.Activity
 import android.app.KeyguardManager
@@ -67,7 +67,7 @@ class AppLockPlugin private constructor(
 
                 val km = activity.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
                 val intent: Intent? = km.createConfirmDeviceCredentialIntent(
-                    "ZCode Pocket",
+                    "ZPocket",
                     "验证以继续使用",
                 )
                 if (intent == null) {

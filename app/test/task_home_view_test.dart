@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/project_tree.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/task_center_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/project_tree.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/task_center_page.dart';
 
 class _FakeConversation implements ConversationTransport {
   @override

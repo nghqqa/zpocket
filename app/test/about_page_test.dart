@@ -2,8 +2,8 @@
 // 第三方来源/依赖许可集中呈现；许可证文本随包分发、应用内可读。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/ui/about_page.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/ui/about_page.dart';
 
 Future<void> _pumpAbout(WidgetTester tester) async {
   await tester.pumpWidget(

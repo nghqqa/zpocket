@@ -22,25 +22,25 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/core/l10n.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/project_tree.dart';
-import 'package:zcode_pocket/ui/archived_tasks_page.dart';
-import 'package:zcode_pocket/ui/automation_page.dart';
-import 'package:zcode_pocket/ui/composer_panels.dart';
-import 'package:zcode_pocket/ui/markdown_view.dart';
-import 'package:zcode_pocket/ui/notify_ledger_page.dart';
-import 'package:zcode_pocket/ui/quota_banner.dart';
-import 'package:zcode_pocket/ui/settings_conversation_page.dart';
-import 'package:zcode_pocket/ui/settings_notifications_page.dart';
-import 'package:zcode_pocket/ui/settings_page.dart';
-import 'package:zcode_pocket/ui/settings_voice_page.dart';
-import 'package:zcode_pocket/ui/subagents_page.dart';
-import 'package:zcode_pocket/ui/task_center_page.dart';
-import 'package:zcode_pocket/ui/usage_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/core/l10n.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/project_tree.dart';
+import 'package:zpocket/ui/archived_tasks_page.dart';
+import 'package:zpocket/ui/automation_page.dart';
+import 'package:zpocket/ui/composer_panels.dart';
+import 'package:zpocket/ui/markdown_view.dart';
+import 'package:zpocket/ui/notify_ledger_page.dart';
+import 'package:zpocket/ui/quota_banner.dart';
+import 'package:zpocket/ui/settings_conversation_page.dart';
+import 'package:zpocket/ui/settings_notifications_page.dart';
+import 'package:zpocket/ui/settings_page.dart';
+import 'package:zpocket/ui/settings_voice_page.dart';
+import 'package:zpocket/ui/subagents_page.dart';
+import 'package:zpocket/ui/task_center_page.dart';
+import 'package:zpocket/ui/usage_page.dart';
 
 const _minTouch = 48.0; // Material 触控下限（安卓）
 const _textScale = 1.3; // 华为大字体常见档

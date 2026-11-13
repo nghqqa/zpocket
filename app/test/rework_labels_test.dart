@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
-import 'package:zcode_pocket/ui/composer_panels.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/ui/turn_model.dart';
+import 'package:zpocket/ui/composer_panels.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 TurnWork _work({
   String state = 'completedSuccess',

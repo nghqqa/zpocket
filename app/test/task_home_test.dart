@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/project_tree.dart';
-import 'package:zcode_pocket/ui/task_home.dart';
+import 'package:zpocket/transport/project_tree.dart';
+import 'package:zpocket/ui/task_home.dart';
 
 /// 项目栏优化 B 方案纯视图模型红绿：默认最近/置顶不重复/项目分组与
 /// 状态计数/归属未到达不误判/全局索引未就绪时的有限兜底。

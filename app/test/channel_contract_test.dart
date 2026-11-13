@@ -13,7 +13,7 @@ void main() {
   setUpAll(() {
     updateFlow = File('lib/ui/update_flow.dart').readAsStringSync();
     mainActivity = File(
-      'android/app/src/main/kotlin/dev/zcodeapp/zcode_companion/MainActivity.kt',
+      'android/app/src/main/kotlin/com/zpocket/mobile/MainActivity.kt',
     ).readAsStringSync();
   });
 
@@ -66,7 +66,7 @@ void main() {
         RegExp(r"invokeMethod<\w+>\('(\w+)'\)").allMatches(lockSrc).map((m) => m.group(1)!);
     // app_lock 通道在 AppLockPlugin.kt。
     final pluginSrc = File(
-      'android/app/src/main/kotlin/dev/zcodeapp/zcode_companion/AppLockPlugin.kt',
+      'android/app/src/main/kotlin/com/zpocket/mobile/AppLockPlugin.kt',
     ).readAsStringSync();
     final pluginMethods =
         RegExp(r'"(\w+)"\s*->').allMatches(pluginSrc).map((m) => m.group(1)!).toSet();

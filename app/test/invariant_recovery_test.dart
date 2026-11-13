@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 /// 断线恢复/真实数据形态不变量（2026-10-16 B 轮立）。
 /// 背景：真机复验暴露"快照已到（rows=60）页面仍停在载入"与

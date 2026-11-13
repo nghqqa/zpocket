@@ -12,6 +12,11 @@ import 'package:flutter/foundation.dart';
 
 const _kRepo = 'JZYLukis/zcode-pocket';
 
+/// ZPocket 内部分发构建：上游 Release 的包名/签名与本包不同，在线检查
+/// 只会导向装不上的官方包——应用内更新整体禁用（改 false 可恢复）。
+/// fetchLatestRelease 及其测试保持原样，便于将来指向自有仓库。
+const kInAppUpdateDisabled = true;
+
 /// 测试缝：本机 HttpServer 覆盖 API 基址（relay_v2_test 同款先例）。
 @visibleForTesting
 String? debugUpdateApiBaseOverride;

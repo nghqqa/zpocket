@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/relay_client.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/relay_client.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 /// backlog 36 红绿（2026-10-29 批次）：后台栈失败被 过滤门拦下
 /// 不顶替展示（多电脑防串台），但切回该电脑时必须回捞这条近期失败

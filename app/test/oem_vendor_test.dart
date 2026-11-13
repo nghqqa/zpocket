@@ -3,9 +3,9 @@
 // vivo 档旅程单独锁。
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/oem_vendor.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/notify_guide_page.dart';
+import 'package:zpocket/core/oem_vendor.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/notify_guide_page.dart';
 
 void main() {
   group('oemVendorFromManufacturer 规范化', () {

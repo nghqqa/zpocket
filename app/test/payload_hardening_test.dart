@@ -12,24 +12,24 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/payload_guard.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/task_list.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/conversation_composer_meta.dart';
-import 'package:zcode_pocket/ui/conversation_file_summary_card.dart';
-import 'package:zcode_pocket/ui/conversation_tool_tiles.dart';
-import 'package:zcode_pocket/ui/conversation_turn_view.dart';
-import 'package:zcode_pocket/ui/attachments_compose.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/diff_viewer_page.dart';
-import 'package:zcode_pocket/ui/goal_panel.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart';
-import 'package:zcode_pocket/ui/task_home.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
-import 'package:zcode_pocket/ui/usage_page.dart';
+import 'package:zpocket/core/payload_guard.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/task_list.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/conversation_composer_meta.dart';
+import 'package:zpocket/ui/conversation_file_summary_card.dart';
+import 'package:zpocket/ui/conversation_tool_tiles.dart';
+import 'package:zpocket/ui/conversation_turn_view.dart';
+import 'package:zpocket/ui/attachments_compose.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/diff_viewer_page.dart';
+import 'package:zpocket/ui/goal_panel.dart';
+import 'package:zpocket/ui/interaction_banner.dart';
+import 'package:zpocket/ui/task_home.dart';
+import 'package:zpocket/ui/turn_model.dart';
+import 'package:zpocket/ui/usage_page.dart';
 
 Future<void> _openSession(
   BuildContext context, {

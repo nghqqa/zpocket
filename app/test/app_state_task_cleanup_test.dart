@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/draft_store.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/state/send_queue_store.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/draft_store.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/state/send_queue_store.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 /// ：归档任务必须联动清理草稿与离线排队（:30
 /// 明文"删除任务/归档任务/电脑时清理对应草稿"）——deleteTask 链有清，

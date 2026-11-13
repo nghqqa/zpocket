@@ -7,7 +7,7 @@ import '../state/app_state_scope.dart';
 import 'app_widgets.dart';
 import 'markdown_view.dart';
 
-/// 关于 ZCode Pocket（2026-11-04 开源说明聚合批）：
+/// 关于 ZPocket（2026-11-04 开源说明聚合批）：
 /// 设置-关于组的唯一入口——把原先散落在 README / LICENSE /
 /// THIRD-PARTY-NOTICES / NOTICE-ZCode 里的说明搬进 app：非官方声明、
 /// 服务条款提示、隐私说明、项目许可证、第三方来源声明、依赖许可。
@@ -49,7 +49,7 @@ class _AboutZcodePocketPageState extends State<AboutZcodePocketPage> {
       backgroundColor: context.colors.background,
       appBar: AppBar(
         title: Text(
-          tr('关于 ZCode Pocket'),
+          tr('关于 ZPocket'),
           style: const TextStyle(fontSize: AppType.uiLg),
         ),
         bottom: PreferredSize(
@@ -65,7 +65,8 @@ class _AboutZcodePocketPageState extends State<AboutZcodePocketPage> {
           _paragraph(
             context,
             tr('本项目为社区驱动的第三方客户端，与 ZCode / 智谱无关联、'
-                '未经其授权或认可；ZCode 名称归其所有者。'),
+                '未经其授权或认可；ZCode 名称归其所有者。本应用基于开源项目 '
+                'zcode-pocket（Apache 2.0）修改。'),
           ),
           const SizedBox(height: 8),
           _paragraph(
@@ -175,7 +176,7 @@ class _AboutZcodePocketPageState extends State<AboutZcodePocketPage> {
             trailing: const Icon(Icons.chevron_right, size: 18),
             onTap: () => showLicensePage(
               context: context,
-              applicationName: 'ZCode Pocket',
+              applicationName: 'ZPocket',
               applicationLegalese:
                   tr('非官方第三方客户端，与 ZCode/智谱无关联。') +
                   '\n' +
@@ -183,7 +184,7 @@ class _AboutZcodePocketPageState extends State<AboutZcodePocketPage> {
             ),
           ),
           const AppSectionHeader('版权'),
-          _paragraph(context, 'Copyright © 2026 JZYLukis and ZCode Pocket contributors'),
+          _paragraph(context, 'Copyright © 2026 JZYLukis and ZPocket contributors'),
         ],
       ),
     );
@@ -227,7 +228,7 @@ class _AboutZcodePocketPageState extends State<AboutZcodePocketPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'ZCode Pocket',
+                  'ZPocket',
                   style: TextStyle(
                     fontSize: AppType.uiXl,
                     fontWeight: FontWeight.w600,

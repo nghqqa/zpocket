@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/crc32.dart';
-import 'package:zcode_pocket/transport/ipc_codec.dart';
-import 'package:zcode_pocket/transport/proof.dart';
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/crc32.dart';
+import 'package:zpocket/transport/ipc_codec.dart';
+import 'package:zpocket/transport/proof.dart';
 
 void main() {
   group('proof（官方测试向量，refs/ZCode packages/shared/src/web-remote-control.ts:202-217）', () {

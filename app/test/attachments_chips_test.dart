@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/attachments_compose.dart';
+import 'package:zpocket/ui/attachments_compose.dart';
 
 /// 回填律：附件区两轮真机反馈——
 /// ①（2026-10-22 反馈③）两行竖排堆高被键盘挡 → 单行 chip+限高滚动；

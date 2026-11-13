@@ -3,7 +3,7 @@
 // （官方 3.17.1 源码快照 visualize/SKILL.md），并补 base-uri/form-action/
 // object-src 关死；img-src 不再给任意 https 域留 beacon 外带通道。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/file_preview.dart';
+import 'package:zpocket/ui/file_preview.dart';
 
 void main() {
   test('CSP 关死外发与 <base>/表单/插件通道', () {

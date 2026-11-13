@@ -4,11 +4,11 @@
 // 自动 snooze 只发一次；另钉 #13 的两处收口（到期停 ticker / 幂等账有界）。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/interaction_banner.dart';
+import 'package:zpocket/transport/conversation.dart';
 
 class _SnoozeApp extends AppState {
   List<Map<String, String>> snoozeCalls = [];

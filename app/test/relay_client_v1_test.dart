@@ -1,7 +1,7 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/connection_params.dart';
-import 'package:zcode_pocket/transport/relay_client.dart';
+import 'package:zpocket/transport/connection_params.dart';
+import 'package:zpocket/transport/relay_client.dart';
 
 /// 协议传输层修复批（2026-11-08）：V1 relay 三洞——
 /// ①data 帧无认证/配对门禁 ②setRelaySilent/setBackgroundHeartbeat 空实现

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart'
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart'
     show debugVoiceRecognitionAvailable;
 
 /// 加号面板布局回归（2026-10-23 真机反馈"加号点开后布局有问题"）：

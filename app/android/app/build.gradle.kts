@@ -17,7 +17,7 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "dev.zcodeapp.zcode_companion"
+    namespace = "com.zpocket.mobile"
     compileSdk = flutter.compileSdkVersion
     // ndkVersion 由插件决定；纯 Dart/Kotlin 依赖无需 NDK，去掉以避免 700MB 下载
     // （若后续引入含 native 代码的插件再恢复）
@@ -31,7 +31,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "dev.zcodeapp.zcode_companion"
+        applicationId = "com.zpocket.mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

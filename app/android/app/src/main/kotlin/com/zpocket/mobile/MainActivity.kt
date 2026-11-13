@@ -1,4 +1,4 @@
-package dev.zcodeapp.zcode_companion
+package com.zpocket.mobile
 
 import android.content.ComponentName
 import android.content.Context

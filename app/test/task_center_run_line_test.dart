@@ -4,8 +4,8 @@
 // 在 ≥2 条或大字号下溢出）。红=旧实现全量渲染且固定高度。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/task_center_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/task_center_page.dart';
 
 Widget _host(Widget child) => MaterialApp(
       theme: buildAppTheme(),

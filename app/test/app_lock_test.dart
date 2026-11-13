@@ -3,14 +3,14 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/app_lock.dart';
-import 'package:zcode_pocket/core/localized_text.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/ui_prefs.dart';
+import 'package:zpocket/core/app_lock.dart';
+import 'package:zpocket/core/localized_text.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/ui_prefs.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:zcode_pocket/ui/app_lock_gate.dart';
+import 'package:zpocket/ui/app_lock_gate.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/settings_page.dart';
-import 'package:zcode_pocket/ui/settings_voice_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/settings_page.dart';
+import 'package:zpocket/ui/settings_voice_page.dart';
 
 /// 语音整理多提供商（2026-10-19）：设置页 UI 联动 widget 测试——
 /// 提供商切换、key 对话框标题/提示随提供商变化。

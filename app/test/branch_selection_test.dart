@@ -4,11 +4,11 @@
 // 真桥。通道放行由 tools/git-channel-probe.mjs 对真桌面实证（2026-10-24）。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/git_branch_service.dart';
-import 'package:zcode_pocket/ui/branch_sheet.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/git_branch_service.dart';
+import 'package:zpocket/ui/branch_sheet.dart';
+import 'package:zpocket/ui/conversation_page.dart';
 
 Map<String, dynamic> _repoInfo({String kind = 'main-tree', bool gitOk = true}) =>
     {'workspacePath': r'G:\demo', 'kind': kind, 'isGitAvailable': gitOk};

@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/crc32.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/crc32.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
 
 /// 协议传输层修复批（2026-11-08）：rpc-frame 判重从「物理 seq」改为
 /// 「messageSeq 已交付」——官方 replayUnacknowledged 按原物理 seq 重发

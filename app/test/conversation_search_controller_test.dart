@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/conversation_search.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/conversation_search.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 class _Harness {
   _Harness({List<Map<String, dynamic>>? rows, this.loader}) {

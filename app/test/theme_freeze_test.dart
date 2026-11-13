@@ -12,7 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:zcode_pocket/core/theme.dart';
+import 'package:zpocket/core/theme.dart';
 
 /// Color → AARRGGBB（失败信息可读）。
 String hex(Color c) => c.toARGB32().toRadixString(16).toUpperCase().padLeft(8, '0');

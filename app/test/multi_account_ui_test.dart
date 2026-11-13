@@ -7,16 +7,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/relay_v2.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
-import 'package:zcode_pocket/ui/device_list_page.dart';
-import 'package:zcode_pocket/ui/profiles_sheet.dart';
-import 'package:zcode_pocket/ui/settings_accounts_page.dart';
-import 'package:zcode_pocket/ui/task_center_page.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/relay_v2.dart';
+import 'package:zpocket/transport/z_transport.dart';
+import 'package:zpocket/ui/device_list_page.dart';
+import 'package:zpocket/ui/profiles_sheet.dart';
+import 'package:zpocket/ui/settings_accounts_page.dart';
+import 'package:zpocket/ui/task_center_page.dart';
 
 class _MemStorage extends FlutterSecureStorage {
   final Map<String, String> data = {};

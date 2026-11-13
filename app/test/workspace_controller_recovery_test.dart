@@ -2,15 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/conversation_registry.dart';
-import 'package:zcode_pocket/state/task_catalog.dart';
-import 'package:zcode_pocket/state/workspace_controller.dart';
-import 'package:zcode_pocket/transport/channel_client.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/transport/relay_v2.dart';
-import 'package:zcode_pocket/transport/rpc_frame_transport.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/conversation_registry.dart';
+import 'package:zpocket/state/task_catalog.dart';
+import 'package:zpocket/state/workspace_controller.dart';
+import 'package:zpocket/transport/channel_client.dart';
+import 'package:zpocket/transport/companion_client.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/transport/relay_v2.dart';
+import 'package:zpocket/transport/rpc_frame_transport.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 import 'fake_relay_v2.dart';
 

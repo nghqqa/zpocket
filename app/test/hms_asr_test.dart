@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/hms_asr.dart';
+import 'package:zpocket/core/hms_asr.dart';
 
 /// HMS 语音通道客户端（companion/hms_asr，结构性剥离 2026-10-29 批次）：
 /// 协议映射矩阵——与 system_asr_test 同构的端到端桩测试（原生事件经

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/conversation_search.dart';
-import 'package:zcode_pocket/ui/turn_model.dart';
+import 'package:zpocket/ui/conversation_search.dart';
+import 'package:zpocket/ui/turn_model.dart';
 
 List<Map<String, dynamic>> _rows() => [
   {'rowId': 1, 'kind': 'turnHeader', 'state': 'completedSuccess'},

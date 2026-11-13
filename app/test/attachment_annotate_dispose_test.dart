@@ -6,8 +6,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/attachment_annotate_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/attachment_annotate_page.dart';
 
 Future<Uint8List> _solidPng(int w, int h) async {
   final recorder = ui.PictureRecorder();

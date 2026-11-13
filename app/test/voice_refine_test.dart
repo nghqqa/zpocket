@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/voice_refine.dart';
+import 'package:zpocket/core/voice_refine.dart';
 
 void main() {
   group('语音整理提供商表（2026-10-19 多提供商）', () {

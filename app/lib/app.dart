@@ -177,7 +177,7 @@ class _ZcodeCompanionAppState extends State<ZcodeCompanionApp>
                   ),
             child: MaterialApp(
               navigatorKey: updateNavigatorKey, // 应用内更新弹窗
-              title: 'ZCode Pocket', // 批次5：旧名清理（改名遗漏，显示名统一）
+              title: 'ZPocket', // 批次5：旧名清理（改名遗漏，显示名统一）
               debugShowCheckedModeBanner: false,
               locale: L10n.flutterLocale,
               localizationsDelegates: const [

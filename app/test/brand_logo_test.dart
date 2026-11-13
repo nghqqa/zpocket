@@ -2,7 +2,7 @@
 // kimi 字样导致药丸无 logo——真机实锤后补词边界匹配；本表锁映射防回归）。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/brand_logo.dart';
+import 'package:zpocket/ui/brand_logo.dart';
 
 void main() {
   test('各品牌 id 形态命中正确资产', () {

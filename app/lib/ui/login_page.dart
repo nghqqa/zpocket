@@ -122,7 +122,7 @@ Uri loginTargetUri(Map<String, String> qrParams) {
     // 实证 22 位纯字母亦过验，部署版只查字符集/长度形态）。
     q['sid'] = 'applogin00000000000000000';
     q['mid'] = '00000000-0000-4000-8000-000000000000'; // 标准 UUID
-    q['name'] = 'ZCode Pocket';
+    q['name'] = 'ZPocket';
     q['app_version'] = kLoginPlaceholderAppVersion;
   }
   return base.replace(queryParameters: q);

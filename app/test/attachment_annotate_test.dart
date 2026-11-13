@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/ui/attachment_annotate_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/ui/attachment_annotate_page.dart';
 
 /// 截图圈点标注（6.6④）：绘制/撤销/清空/保存合成与页面旅程。
 /// toImage/instantiateImageCodec 走真实引擎异步——生成与保存断言在

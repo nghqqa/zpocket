@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/cache_policy.dart';
-import 'package:zcode_pocket/ui/conversation_page.dart';
-import 'package:zcode_pocket/ui/voice_input_sheet.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/cache_policy.dart';
+import 'package:zpocket/ui/conversation_page.dart';
+import 'package:zpocket/ui/voice_input_sheet.dart';
 
 /// 2026-10-23 用户反馈两件回归：
 /// ① 流式输出不持续粘底——解除粘底后（上滑回看）手动滑回底部不恢复

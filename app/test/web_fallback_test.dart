@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/core/theme.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/ui/device_list_page.dart';
-import 'package:zcode_pocket/ui/web_fallback_page.dart';
+import 'package:zpocket/core/theme.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/ui/device_list_page.dart';
+import 'package:zpocket/ui/web_fallback_page.dart';
 
 /// 网页备用入口（阶段 4.2 最小版 / -8B，2026-10-29 批次）：入口
 /// 可达性 + 导航白名单纯函数矩阵 + 页面结构（WebView 平台通道缺席时

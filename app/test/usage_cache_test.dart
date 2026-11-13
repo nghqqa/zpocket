@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/usage_page.dart';
+import 'package:zpocket/ui/usage_page.dart';
 
 /// 用量数据短缓存（2026-10-26 真机验收④）：旧实现按档永久命中——进页
 /// 拉一次后统计不再更新（"不是实时的"根因），只有手动下拉能绕过。

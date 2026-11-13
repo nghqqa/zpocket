@@ -6,12 +6,12 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/account_store.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/computer_stack.dart';
-import 'package:zcode_pocket/state/profile_store.dart';
-import 'package:zcode_pocket/transport/relay_client.dart';
-import 'package:zcode_pocket/transport/z_transport.dart';
+import 'package:zpocket/state/account_store.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/computer_stack.dart';
+import 'package:zpocket/state/profile_store.dart';
+import 'package:zpocket/transport/relay_client.dart';
+import 'package:zpocket/transport/z_transport.dart';
 
 class _MemStorage extends FlutterSecureStorage {
   final Map<String, String> data = {};

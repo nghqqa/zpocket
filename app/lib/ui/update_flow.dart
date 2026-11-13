@@ -26,6 +26,12 @@ Future<T?> _invoke<T>(String method, [Object? args]) {
 
 /// 统一更新入口。
 Future<void> checkAndPrompt(BuildContext context, {bool manual = false}) async {
+  if (kInAppUpdateDisabled) {
+    if (manual && context.mounted) {
+      _snack(context, tr('内部分发构建已禁用在线更新'));
+    }
+    return;
+  }
   final app = AppStateScope.of(context);
   final ui = app.uiPrefs;
   final now = DateTime.now().millisecondsSinceEpoch;

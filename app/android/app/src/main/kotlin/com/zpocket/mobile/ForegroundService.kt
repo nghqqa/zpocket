@@ -1,4 +1,4 @@
-package dev.zcodeapp.zcode_companion
+package com.zpocket.mobile
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -26,13 +26,13 @@ class ForegroundService : Service() {
     companion object {
         const val CHANNEL_ID = "status"
         const val NOTIFICATION_ID = 100
-        const val ACTION_START = "dev.zcodeapp.zcode_companion.action.START"
-        const val ACTION_STOP = "dev.zcodeapp.zcode_companion.action.STOP"
+        const val ACTION_START = "com.zpocket.mobile.action.START"
+        const val ACTION_STOP = "com.zpocket.mobile.action.STOP"
         // 更新动作用自定义常量（开源审查）：原借用公共
         // Intent.ACTION_EDIT（标准"编辑数据"语义）当私有标记，易误读且
         // 与隐式 action 解析器有理论碰撞面（服务 exported=false 实际无
         // 害，仍改同族自定义常量）。
-        const val ACTION_UPDATE = "dev.zcodeapp.zcode_companion.action.UPDATE"
+        const val ACTION_UPDATE = "com.zpocket.mobile.action.UPDATE"
         const val EXTRA_TEXT = "text"
 
         fun start(context: Context, text: String) {
@@ -152,7 +152,7 @@ class ForegroundService : Service() {
         }
         return builder
             .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
-            .setContentTitle("ZCode Pocket")
+            .setContentTitle("ZPocket")
             .setContentText(currentText)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/state/send_queue_controller.dart';
-import 'package:zcode_pocket/state/send_queue_store.dart';
-import 'package:zcode_pocket/transport/companion_client.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/send_queue_controller.dart';
+import 'package:zpocket/state/send_queue_store.dart';
+import 'package:zpocket/transport/companion_client.dart';
 
 class _MemoryStore extends SendQueueStore {
   _MemoryStore() : super(File('nul'));

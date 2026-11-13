@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/ui/status_badge.dart';
+import 'package:zpocket/ui/status_badge.dart';
 
 void main() {
   testWidgets('状态图标：运行中 sync、完成 check、空闲 schedule、等待 hand', (tester) async {

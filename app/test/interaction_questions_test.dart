@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:zcode_pocket/state/app_state_scope.dart';
-import 'package:zcode_pocket/state/app_state.dart';
-import 'package:zcode_pocket/transport/conversation.dart';
-import 'package:zcode_pocket/ui/interaction_banner.dart';
+import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/transport/conversation.dart';
+import 'package:zpocket/ui/interaction_banner.dart';
 
 /// 回填律（2026-10-22 真机反馈C）：agent 提问（AskUserQuestion，payload
 /// .questions）此前无渲染分支——手机只见问题文本不见选项。钉死：
