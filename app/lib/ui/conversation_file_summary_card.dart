@@ -706,6 +706,7 @@ class FileSummaryCardState extends State<FileSummaryCard> {
     } on Object catch (e) {
       fetchError = e;
     }
+    if (!mounted) return;
     if (Navigator.of(context, rootNavigator: true).canPop()) {
       Navigator.of(context, rootNavigator: true).pop();
     }
