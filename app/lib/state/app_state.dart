@@ -1641,6 +1641,31 @@ class AppState extends ChangeNotifier {
     return conv.workspaceReadFileBytes(relativePath, onProgress: onProgress);
   }
 
+  /// 当前工作区绝对路径（聊天内路径点按的归一化用；未连接=null）。
+  String? get workspacePath {
+    final conv = _conv;
+    if (conv == null) return null;
+    final ws = conv.scope['workspacePath'];
+    return ws is String && ws.isNotEmpty ? ws : null;
+  }
+
+  /// file.checkFilesExist——批量存在性校验（入参相对/绝对均可）。
+  Future<Map<String, bool>> workspaceCheckFilesExist(
+    List<String> paths,
+  ) async {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    return conv.workspaceCheckFilesExist(paths);
+  }
+
+  /// file.readTextFile——文本预览（256KB 截断语义见 transport）。
+  Future<({String content, int totalBytes, bool truncated, bool isBinary})>
+      workspaceReadTextFile(String path) async {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    return conv.workspaceReadTextFile(path);
+  }
+
   /// 斜杠命令/模型选项目录（zcode-task.prepareWorkspace，transport 内缓存）。
   Future<dynamic> prepareWorkspace({bool refresh = false}) async {
     final conv = _conv;

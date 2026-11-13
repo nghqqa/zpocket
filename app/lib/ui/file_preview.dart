@@ -11,12 +11,13 @@ import '../state/app_state_scope.dart';
 import 'file_save.dart';
 
 /// 生成文件预览·网页档（file-preview-1，2026-10-29 用户拍板「只做 html
-/// 的部分」）：官方协议无任意文件字节读取通道（zcode-protocol-v4
-/// V4_METHODS 全量核实；官方 web 远程同样抑制 html 预览卡，见
-/// assistantPreviewCards.ts:311「Web 远控没有本地端口转发或 HTML 运行
-/// 环境」）。唯一原生可达路径：**新建 html 文件的全文随 fileChanges 到
-/// 达**（新文件 diff=全量行）——本地 WebView 渲染，零提示词零额度。
-/// 图片/PDF 档经用户拍板不做（取回变通消耗额度，留待官方通道）。
+/// 的部分」）：html 预览的数据源=**新建 html 文件的全文随 fileChanges
+/// 到达**（新文件 diff=全量行）——本地 WebView 渲染，零提示词零额度。
+/// 历史注记（2026-11-13 更新）：V4_METHODS 确无任意文件读取；但 file
+/// 通道（IFileService.stat/readFileRange，见 transport
+/// ConversationWorkspaceFiles）可按需拉工作区文件字节——任意文件下载
+/// 已由 tools 批实现，html 全文路径保留（零额外 RPC 的快路径）。
+/// 图片/PDF 预览卡经用户拍板不做（留待官方通道）。
 
 // ------------------------------------------------------------ 纯函数
 

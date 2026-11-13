@@ -1546,15 +1546,53 @@ const _wsFileTotalMaxBytes = 100 << 20; // 手机端下载总量上限
 /// ConversationDraftRecheck 先例（避免 implements 假通道测试类连锁编译失败）。
 extension ConversationWorkspaceFiles on ConversationTransport {
   String _workspaceAbsolute(String relativePath) {
+    final norm = relativePath.replaceAll('\\', '/');
+    // 已是绝对路径（聊天里 agent 常提 E:/… 或 /… 全路径）——桌面端
+    // fileService 直接 fs.stat(params.path)，原样透传即可。
+    if (RegExp('^([A-Za-z]:/|/)').hasMatch(norm)) return norm;
     final ws = scope['workspacePath'];
     if (ws is! String || ws.isEmpty) {
       throw StateError('no workspace path');
     }
-    final rel = relativePath
-        .replaceAll('\\', '/')
-        .replaceFirst(RegExp('^/+'), '');
+    final rel = norm.replaceFirst(RegExp('^/+'), '');
     final base = ws.endsWith('/') || ws.endsWith('\\') ? ws : '$ws/';
     return '$base$rel';
+  }
+
+  /// file.checkFilesExist——批量存在性校验（聊天内路径点按的轻量探针，
+  /// 一次 RPC 查完全部候选，避免误触整包拉取）。入参为相对或绝对路径；
+  /// 返回按入参原样映射 exists。
+  Future<Map<String, bool>> workspaceCheckFilesExist(
+    List<String> paths,
+  ) async {
+    final res = await _channels.call(Channels.file, 'checkFilesExist', [
+      {'paths': paths},
+    ], timeout: const Duration(seconds: 8));
+    if (res is! List) throw StateError('checkFilesExist: unexpected response');
+    final out = <String, bool>{};
+    for (final entry in res.whereType<Map>()) {
+      final p = entry['path'];
+      if (p is String) out[p] = entry['exists'] == true;
+    }
+    return out;
+  }
+
+  /// file.readTextFile——文本预览（服务端 256KB 硬上限，truncated 标记；
+  /// 二进制内容 content 为空 + isBinary=true）。
+  Future<({String content, int totalBytes, bool truncated, bool isBinary})>
+      workspaceReadTextFile(String relativePath) async {
+    final res = await _channels.call(Channels.file, 'readTextFile', [
+      {'path': _workspaceAbsolute(relativePath)},
+    ], timeout: const Duration(seconds: 15));
+    if (res is! Map) throw StateError('readTextFile: unexpected response');
+    return (
+      content: res['content'] is String ? res['content'] as String : '',
+      totalBytes: res['totalBytes'] is num
+          ? (res['totalBytes'] as num).toInt()
+          : 0,
+      truncated: res['truncated'] == true,
+      isBinary: res['isBinary'] == true,
+    );
   }
 
   /// 工作区文件字节数。

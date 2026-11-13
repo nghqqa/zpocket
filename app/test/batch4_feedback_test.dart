@@ -296,23 +296,28 @@ void main() {
     );
   });
 
-  testWidgets('④ 本地路径点击无任何响应（绿色渲染保留）', (tester) async {
+  testWidgets('④ 本地路径点击路由文件动作面板（P0 文件下载批）', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildAppTheme(),
-        home: const Scaffold(
-          body: MarkdownView(
-            data: '改了 [theme.dart](G:\\Demo App\\core\\theme.dart)',
+      AppStateScope(
+        app: AppState(),
+        child: MaterialApp(
+          theme: buildAppTheme(),
+          home: const Scaffold(
+            body: MarkdownView(
+              data: '改了 [theme.dart](G:\\Demo App\\core\\theme.dart)',
+            ),
           ),
         ),
       ),
     );
     await tester.pump();
-    // 本地路径渲染为绿色链接文本（绿色=用户认可保留），点击不做任何
-    // 响应（批4 反馈④ 用户拍板：协议无文件内容通道+复制路径无用）。
-    // 注：点击到达处理函数并提前返回已在开发期插桩验证（widget 测试
-    // 光栅化字体下 span 命中区与绘制区错位，回调级断言不稳定，故只
-    // 断言可见行为=无 SnackBar）。
+    // 本地路径渲染为绿色链接文本（绿色=用户认可保留）。P0 文件下载批
+    // （2026-11-13）：点击路由 openWorkspacePathActions——未连接
+    // workspace（无 conv）时存在性校验抛错被静默吞掉，可见行为仍=
+    // 无 SnackBar/无异常，但路由已接入（此前是彻底的提前 return）。
+    // 注：点击到达处理函数已在开发期插桩验证（widget 测试光栅化字
+    // 体下 span 命中区与绘制区错位，回调级断言不稳定，故只断言可见
+    // 行为）。
     final rp = tester.renderObject<RenderParagraph>(
         find.textContaining('theme.dart', findRichText: true));
     final text = rp.text.toPlainText();
@@ -330,6 +335,8 @@ void main() {
     }
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(SnackBar), findsNothing);
+    expect(find.text('保存到手机'), findsNothing,
+        reason: '无 workspace 上下文：动作面板不出现（静默兜底）');
     expect(tester.takeException(), isNull);
   });
 }

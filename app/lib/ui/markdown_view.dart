@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide Text;
 import '../core/localized_text.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'package:markdown/markdown.dart' as md;
 import '../core/code_highlight.dart';
 import '../core/theme.dart';
 import 'app_widgets.dart';
+import 'workspace_path_actions.dart';
 
 /// 本地路径链接预处理（早期反馈②b）：agent 回复常带
 /// `[文件名](G:\path with space\文件.txt)`——路径含空格/反斜杠不是
@@ -24,7 +27,10 @@ String _encodeSegment(String s) => s.replaceAllMapped(_localLinkRe, (m) {
     });
 
 String _encodeLocalLinks(String data) {
-  // 围栏代码块与行内码内的路径不做改写（内容保真）。
+  // 围栏代码块内路径不做改写（内容保真）。行内码：P0 文件下载批
+  // （2026-11-13）把「形如工作区路径」的行内码转成绿色文件链接——
+  // 点按走 onTapLink → 文件动作面板（预览/保存/复制）；非路径行内码
+  // 原样保留。
   final blocks = data.split('```');
   final out = <String>[];
   for (var i = 0; i < blocks.length; i++) {
@@ -35,7 +41,18 @@ String _encodeLocalLinks(String data) {
     final spans = blocks[i].split('`');
     final seg = <String>[];
     for (var j = 0; j < spans.length; j++) {
-      seg.add(j.isEven ? _encodeSegment(spans[j]) : spans[j]);
+      if (j.isEven) {
+        seg.add(_encodeSegment(spans[j]));
+        continue;
+      }
+      final code = spans[j];
+      final candidate = code.trim();
+      if (looksLikeWorkspacePath(candidate)) {
+        final label = candidate.split(RegExp(r'[\\/]')).last;
+        seg.add('[$label](${Uri.encodeFull(candidate)})');
+      } else {
+        seg.add(code);
+      }
     }
     out.add(seg.join('`'));
   }
@@ -89,10 +106,10 @@ class MarkdownView extends StatelessWidget {
           padding: styleSheet.codeblockPadding ?? const EdgeInsets.all(12),
         ),
       },
-      // 点链接的响应分两类（批4 反馈④，2026-10-23 用户拍板）：
-      // - 本地文件路径：协议层无文件内容读取 RPC（ZCode 官方开源实现
-      //   zcode-protocol-v4 全量 grep 实证，桌面预览是本地读盘），复制
-      //   路径在手机端无实用价值——点击不做任何响应（绿色渲染保留）。
+      // 点链接的响应分两类（批4 反馈④，2026-10-23 用户拍板；P0 文件
+      // 下载批 2026-11-13 二期把本地路径从「静默」升级为「文件动作」）：
+      // - 本地文件路径：file 通道（stat/checkFilesExist/readFileRange）
+      //   已打通——点按弹动作面板（预览/保存到手机/复制路径）。
       // - 网络链接：保持可点（提示+复制）。
       onTapLink: (text, href, title) {
         if (href == null || href.isEmpty) return;
@@ -107,7 +124,10 @@ class MarkdownView extends StatelessWidget {
         final isLocal =
             RegExp(r'^[A-Za-z]:[\\/]').hasMatch(decoded) ||
                 decoded.startsWith('/');
-        if (isLocal) return;
+        if (isLocal) {
+          unawaited(openWorkspacePathActions(context, decoded));
+          return;
+        }
         Clipboard.setData(ClipboardData(text: decoded));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
