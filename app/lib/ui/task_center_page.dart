@@ -888,7 +888,9 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
         );
         final banner = _taskNavigationPending
             ? const SizedBox.shrink()
-            : _PhaseBanner();
+            : _PhaseBanner(
+                suppress: _staleStripVisible(app, _searchQuery),
+              );
         void openSettings() =>
             Navigator.of(context)
                 .push(MaterialPageRoute(builder: (_) => const SettingsPage()));
@@ -1392,6 +1394,13 @@ class _GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// 连接状态横幅：非 online 时显示（失效→重扫、被踢→说明、重连中→提示）。
 class _PhaseBanner extends StatelessWidget {
+  /// P0 双横幅合并（2026-11-13）：恢复中相位且首页有缓存（=stale 条
+  /// 可见）时置 true——相位文案已并入 _HomeStaleStrip，这里不再重复
+  /// 出第二条蓝条。终态（invalid/kicked）不经过本参数，照常全幅展示。
+  final bool suppress;
+
+  const _PhaseBanner({this.suppress = false});
+
   @override
   Widget build(BuildContext context) {
     final app = AppStateScope.of(context);
@@ -1461,6 +1470,10 @@ class _PhaseBanner extends StatelessWidget {
       _ => (null, null, null, null),
     };
     if (icon == null || text == null || color == null) {
+      return const SizedBox.shrink();
+    }
+    if (suppress) {
+      // 相位文案已由 _HomeStaleStrip 承载（见类注释），不再重复展示。
       return const SizedBox.shrink();
     }
     return Material(
@@ -2415,13 +2428,35 @@ bool _hasHomeData(AppState app) =>
     app.projectTasks.isNotEmpty ||
     (app.taskList?.cards.isNotEmpty ?? false);
 
+/// P0 双横幅合并（2026-11-13）：_HomeStaleStrip 可见性的唯一事实源。
+/// _TaskList 内的 strip 分支与 _PhaseBanner 的 suppress 都引用本函数，
+/// 两处条件必须一致——恢复中只显示一条状态条，且在线/终态路径零变化。
+/// 条件须与 _TaskList.build 的 strip 分支逐字对齐（query 空、非在线、
+/// 无诊断卡、非终态、有缓存内容）。
+bool _staleStripVisible(AppState app, String query) =>
+    query.trim().isEmpty &&
+    app.relayDiagnosis == null &&
+    app.phase != LinkPhase.online &&
+    app.phase != LinkPhase.invalid &&
+    app.phase != LinkPhase.kicked &&
+    _hasHomeData(app);
+
 /// 非在线但有上次内容时的首页提示条：不伪装实时，也给手动刷新入口。
+/// P0 双横幅合并（2026-11-13）：页面级 _PhaseBanner 在本条可见时被
+/// 抑制（suppress 镜像本条的可见条件），相位文案并入此处——恢复中
+/// 只占一条高度，不再 Banner+Strip 双蓝条叠罗汉。
 class _HomeStaleStrip extends StatelessWidget {
   final AppState app;
   const _HomeStaleStrip(this.app);
 
   @override
   Widget build(BuildContext context) {
+    final (icon, phaseText) = switch (app.phase) {
+      LinkPhase.waitingDesktop => (Icons.hourglass_top, '等待桌面端确认…'),
+      LinkPhase.connecting => (Icons.sync, '连接中…'),
+      LinkPhase.error => (Icons.error_outline, '连接失败'),
+      _ => (Icons.sync, app.phaseDetail ?? '连接未就绪'),
+    };
     return Material(
       key: const ValueKey('home-stale-strip'),
       color: context.colors.linkBlue.withValues(alpha: AppAlpha.faint),
@@ -2429,11 +2464,21 @@ class _HomeStaleStrip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         child: Row(
           children: [
-            Icon(Icons.sync, size: 15, color: context.colors.linkBlue),
+            Icon(icon, size: 15, color: context.colors.linkBlue),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                '显示上次同步内容 · 正在恢复连接',
+              child: Text.rich(
+                // 分段 span 各自走 tr()：前缀与相位文案分别有英文词条，
+                // phaseDetail 是运行时串保持原文（与 _PhaseBanner 一致）。
+                TextSpan(
+                  children: [
+                    TextSpan(text: '显示上次同步内容'),
+                    const TextSpan(text: ' · '),
+                    TextSpan(text: phaseText),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: AppType.uiXs,
                   color: context.colors.linkBlue,
