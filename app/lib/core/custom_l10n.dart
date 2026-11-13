@@ -578,7 +578,7 @@ const _customEn = <String, String>{
   '发送消息': 'Send message',
   '发送中…': 'Sending…',
   '运行中，发送将排队…': 'Running. Your message will be queued…',
-  '附件文件': 'Attachments',
+  '上传文件': 'Upload file',
   '标注图片': 'Annotate image',
   '撤销': 'Undo',
   '清空': 'Clear all',

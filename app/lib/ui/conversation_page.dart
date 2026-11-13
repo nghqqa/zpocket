@@ -3643,7 +3643,7 @@ class _ConversationPageState extends State<ConversationPage> {
                   AddAction(
                     key: const ValueKey('add-attachment'),
                     icon: Icons.attach_file,
-                    label: '附件文件',
+                    label: '上传文件',
                     onTap: () {
                       Navigator.pop(sheetContext);
                       _pickAttachments();
