@@ -3,12 +3,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// ZPocket 启动图标守护（v4 满版 ZP 连字设计，2026-11-13 重写）。
+/// ZPocket 启动图标守护（v5 艺术品管线，2026-11-13 重写）。
 ///
-/// 上游 zcode-pocket 的图标是"下带 POCKET 字标"布局，其守护测试钉的
-/// 是上游品牌。fork 换成自有设计后，本测试改钉 ZPocket 自己的设计
-/// 不变量（tools/gen_icon.py 的输出契约）：
-/// 全尺寸不透明黑底、四角纯黑、满版白色 ZP 字标居中。
+/// 图标源为 tools/icon/artwork-1024.png（用户提供的绿色折带 "Z."），
+/// 由 tools/gen_icon.py 缩放为五档 mipmap。本测试钉死该设计的不变量：
+/// 全尺寸不透明、四角近黑（艺术底非纯 0）、192 母版亮部字标
+/// （任意通道 >180）满版且居中。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -20,7 +20,7 @@ void main() {
     'xxxhdpi': 192,
   };
 
-  test('启动图标五档均为全黑不透明底、四角纯黑', () async {
+  test('启动图标五档均为不透明底、四角近黑', () async {
     for (final entry in sizes.entries) {
       final file = File(
         'android/app/src/main/res/mipmap-${entry.key}/ic_launcher.png',
@@ -46,17 +46,19 @@ void main() {
         (image.width - 1, image.height - 1),
       ]) {
         final offset = (corner.$2 * image.width + corner.$1) * 4;
+        final px = pixels.sublist(offset, offset + 4);
+        expect(px[3], 255, reason: '${entry.key} 四角不透明');
         expect(
-          pixels.sublist(offset, offset + 4),
-          <int>[0, 0, 0, 255],
-          reason: '${entry.key} 四角必须为全黑不透明',
+          px[0] <= 12 && px[1] <= 12 && px[2] <= 12,
+          true,
+          reason: '${entry.key} 四角必须近黑（实际 $px）',
         );
       }
       image.dispose();
     }
   });
 
-  test('ZP 连字满版居中（ZPocket 品牌钉死）', () async {
+  test('Z. 字标满版居中（ZPocket v5 品牌钉死）', () async {
     final file = File(
       'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png',
     );
@@ -74,10 +76,11 @@ void main() {
     for (var y = 0; y < image.height; y++) {
       for (var x = 0; x < image.width; x++) {
         final offset = (y * image.width + x) * 4;
-        if (pixels[offset] > 220 &&
-            pixels[offset + 1] > 220 &&
-            pixels[offset + 2] > 220 &&
-            pixels[offset + 3] == 255) {
+        final r = pixels[offset];
+        final g = pixels[offset + 1];
+        final b = pixels[offset + 2];
+        // 亮部像素（任意通道 >180）——绿色折带与青绿下划线均命中。
+        if (r > 180 || g > 180 || b > 180) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -85,11 +88,11 @@ void main() {
         }
       }
     }
-    expect(maxX, greaterThanOrEqualTo(0), reason: '画布中必须存在 ZP 白字');
-    expect(maxX - minX + 1, greaterThanOrEqualTo(110), reason: 'ZP 连字宽度（满版）');
-    expect(maxY - minY + 1, greaterThanOrEqualTo(90), reason: 'ZP 连字高度（满版）');
-    expect((minX + maxX) / 2, closeTo(96, 2), reason: '水平居中');
-    expect((minY + maxY) / 2, closeTo(94, 4), reason: '光学垂直中心（略高于几何中心）');
+    expect(maxX, greaterThanOrEqualTo(0), reason: '画布中必须存在亮部字标');
+    expect(maxX - minX + 1, greaterThanOrEqualTo(70), reason: '字标宽度');
+    expect(maxY - minY + 1, greaterThanOrEqualTo(80), reason: '字标高度');
+    expect((minX + maxX) / 2, closeTo(96, 4), reason: '水平居中（含下划线的构图中心）');
+    expect((minY + maxY) / 2, closeTo(96, 4), reason: '垂直居中');
     image.dispose();
   });
 }

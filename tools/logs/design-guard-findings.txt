@@ -1,4 +1,4 @@
-# design_guard 发现明细（报告模式，2026-11-13 12:28:31.527425）
+# design_guard 发现明细（报告模式，2026-11-13 13:32:04.686635）
 - [触控<48.0] ModelSheet：InkWell 实测 343.0×38.0
 - [触控<48.0] ModelSheet：GestureDetector 实测 343.0×38.0
 - [触控<48.0] ModelSheet：InkWell 实测 343.0×40.0
