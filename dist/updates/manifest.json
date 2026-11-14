@@ -1,21 +1,21 @@
 {
-  "version": "1.3.1",
-  "notes": "性能优化（T3）：大文件下载改为流式落盘——分段拉取直接写临时文件，内存峰值从整文件降到 1MiB 分段；下载期可取消",
+  "version": "1.4.0",
+  "notes": "新功能：通知栏快捷审批——审批通知带 [批准] [拒绝] 按钮，通知栏直接应答（不解锁不导航）；更新源三档可选；大文件下载流式落盘",
   "assets": [
     {
-      "name": "zpocket-1.3.1-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.3.1-arm64-v8a.apk",
-      "sha256": "5723ec8ab9fa439f688cf252688ef70860c8be4fcc22bc945bb2fabe69231c97"
+      "name": "zpocket-1.4.0-arm64-v8a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.4.0-arm64-v8a.apk",
+      "sha256": "90e91bcb5b59686344ec043cb85703df8476f8b4481d15fe1250d9a108667af6"
     },
     {
-      "name": "zpocket-1.3.1-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.3.1-armeabi-v7a.apk",
-      "sha256": "327349a99334ffcc78b05179ec1be6b2bbf42696e7f58f6afe1f7dcd215ef174"
+      "name": "zpocket-1.4.0-armeabi-v7a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.4.0-armeabi-v7a.apk",
+      "sha256": "f75169cc81867ef494ee1ef839c96f0159488173a42bdf7be24fc9746ee93ccd"
     },
     {
-      "name": "zpocket-1.3.1-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.3.1-x86_64.apk",
-      "sha256": "2f968826355765e92fa3bc94525c986bf9aa07b9dad7ebe0d1b783a20b523fad"
+      "name": "zpocket-1.4.0-x86_64.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.4.0-x86_64.apk",
+      "sha256": "66f6a8b302c54d355fb8ca0cf68776c08c4cb139b695ce39a166682721e66433"
     }
   ]
 }

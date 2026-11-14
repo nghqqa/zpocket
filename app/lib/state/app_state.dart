@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../notify/notification_service.dart';
 import '../transport/channel_client.dart';
@@ -526,6 +528,8 @@ class AppState extends ChangeNotifier {
           payload.taskId,
           atMs: payload.atMs,
         );
+    _syncApprovalActionPoll();
+    _syncApprovalActionPoll();
     // 冷启动点击路由推迟（状态层批）：此处 profiles 尚未加载，
     // profileOf 恒空——此前直接走打开链既不会激活目标电脑（多电脑场景
     // 永远停在错误电脑上），markClicked 也因协调器未建而静默丢失。
@@ -576,6 +580,8 @@ class AppState extends ChangeNotifier {
 
   /// UiPrefs → 协调器静音矩阵同步（开关切换即生效）。
   void _syncNotifyPrefs() {
+    _syncApprovalActionPoll();
+    _syncApprovalActionPoll();
     final coordinator = notifyCoordinator;
     if (coordinator == null) return;
     coordinator.mutedChannels = {
@@ -636,6 +642,89 @@ class AppState extends ChangeNotifier {
       notifyStore?.markClicked(taskId, DateTime.now().millisecondsSinceEpoch),
     );
     _log('[notify] open task from notification: $taskId');
+  }
+
+  // —— 审批快捷动作（2026-11-14）：通知动作按钮（批准/拒绝）在后台
+  // isolate 只能落盘意图（活连接在主 isolate）——3s 轮询消费意图，
+  // 用活连接 resolveInteraction（action=accept/decline 语义映射）执行。
+  // 仅审批提醒开且有审批通知在栏时轮询；意图按 at 时间戳防重放。
+  static const _approvalActionIntentKey = 'notify.approvalActionIntent';
+  Timer? _approvalActionPoll;
+  int _approvalActionProcessedAt = 0;
+  bool _approvalActionBusy = false;
+
+  /// 轮询启停的唯一判定（通知在栏=可用，与提醒开关无关——前台时
+  /// 连接存活即可；断连后意图保留待重连执行）。
+  bool get _staleApprovalStripVisible =>
+      _conv != null && (notifyService?.hasActiveApprovals ?? false);
+
+  void _syncApprovalActionPoll() {
+    if (_staleApprovalStripVisible && _approvalActionPoll == null) {
+      _approvalActionPoll = Timer.periodic(const Duration(seconds: 3), (_) {
+        unawaited(_processApprovalActionIntent());
+      });
+    } else if (!_staleApprovalStripVisible && _approvalActionPoll != null) {
+      _approvalActionPoll!.cancel();
+      _approvalActionPoll = null;
+    }
+  }
+
+  Future<void> _processApprovalActionIntent() async {
+    if (_approvalActionBusy || _conv == null || notifyService == null) return;
+    final storage = const FlutterSecureStorage();
+    final raw = await storage.read(key: _approvalActionIntentKey);
+    if (raw == null || raw.isEmpty) return;
+    Map<String, dynamic> intent;
+    int at;
+    String act;
+    try {
+      final outer = jsonDecode(raw) as Map;
+      at = (outer['at'] as num?)?.toInt() ?? 0;
+      act = '${outer['act'] ?? ''}';
+      final innerRaw = outer['intent'];
+      if (innerRaw is! String || innerRaw.isEmpty) {
+        throw StateError('empty intent');
+      }
+      intent = (jsonDecode(innerRaw) as Map).cast<String, dynamic>();
+    } on Object {
+      // 坏意图：清除防循环。
+      await storage.delete(key: _approvalActionIntentKey);
+      return;
+    }
+    if (at <= _approvalActionProcessedAt) return;
+    _approvalActionBusy = true;
+    _approvalActionProcessedAt = at;
+    final sessionId = '${intent['task'] ?? ''}';
+    final iid = '${intent['iid'] ?? ''}';
+    final title = '${intent['title'] ?? ''}';
+    final accept = act == 'accept';
+    String resultTitle;
+    try {
+      await resolveInteraction(
+        sessionId,
+        iid,
+        action: accept ? 'accept' : 'decline',
+      );
+      resultTitle = '${accept ? tr('已批准') : tr('已拒绝')}：$title';
+      await notifyService?.cancelApprovalForSession(sessionId);
+    } on Object catch (e) {
+      resultTitle = tr('审批未生效（可能已超时，请打开会话重试）');
+      _log('[approval-action] resolve failed (contained): $e');
+    }
+    try {
+      await notifyService?.backend.show(
+        DateTime.now().millisecondsSinceEpoch % 100000 + 300000,
+        resultTitle,
+        '',
+        NotificationService.channelTasks,
+        NotifyTapPayload(intent['sid'] as String? ?? '', sessionId,
+                NotifyEventKind.approvalPending.name,
+                atMs: DateTime.now().millisecondsSinceEpoch)
+            .encode(),
+      );
+    } catch (_) {}
+    _approvalActionBusy = false;
+    notifyListeners();
   }
 
   /// 清空待消费的两步式深链（含归属字段；幂等）。任务中心打开失败/

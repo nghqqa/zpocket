@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:ui' show DartPluginRegistrant;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../state/notify_core.dart';
 import '../core/l10n.dart';
@@ -12,7 +14,8 @@ abstract class NotificationBackend {
   /// 热点击回调接线（生产后端把插件的回调转发到这里）。
   void setTapHandler(void Function(NotifyTapPayload payload)? handler) {}
   Future<bool> requestPermission();
-  Future<void> show(int id, String title, String body, String channel, String payload);
+  Future<void> show(int id, String title, String body, String channel, String payload,
+      {List<NotifyNotificationAction> actions = const []});
   Future<void> cancel(int id);
 
   /// 清全部（保留给后端/诊断；启动清理改走 [activeNotifications] +
@@ -48,11 +51,20 @@ class NotifyTapPayload {
   /// 通知产生时刻（事件 atMs）——两步式深链用它定位「产生通知的那条
   /// 消息」（2026-11-04 用户拍板：打开会话后弹短暂浮层，用户确认再定位）。
   final int atMs;
-  const NotifyTapPayload(this.deviceSid, this.taskId, this.kind,
-      {this.atMs = 0});
 
-  String encode() =>
-      jsonEncode({'sid': deviceSid, 'task': taskId, 'kind': kind, 'at': atMs});
+  /// 审批事件的 interactionId（2026-11-14 快捷审批批：通知动作按钮
+  /// 凭它与 session 直接 resolve；旧 payload 无此键=decode 出 null）。
+  final String? interactionId;
+  const NotifyTapPayload(this.deviceSid, this.taskId, this.kind,
+      {this.atMs = 0, this.interactionId});
+
+  String encode() => jsonEncode({
+        'sid': deviceSid,
+        'task': taskId,
+        'kind': kind,
+        'at': atMs,
+        if (interactionId != null) 'iid': interactionId,
+      });
 
   static NotifyTapPayload? decode(String? raw) {
     if (raw == null || raw.isEmpty) return null;
@@ -66,11 +78,68 @@ class NotifyTapPayload {
         task,
         '${map['kind'] ?? ''}',
         atMs: (map['at'] as num?)?.toInt() ?? 0,
+        interactionId: map['iid'] == null ? null : '${map['iid']}',
       );
     } catch (_) {
       return null;
     }
   }
+}
+
+/// 审批快捷动作按钮（通知栏直接批准/拒绝）：id=语义选择（accept/
+/// decline），payload=完整审批意图 JSON（主 isolate 消费用）。
+class NotifyNotificationAction {
+  final String id;
+  final String title;
+  final String payload;
+  const NotifyNotificationAction(this.id, this.title, this.payload);
+}
+
+/// 审批快捷动作意图的落盘键（后台 isolate 写 → 主 isolate 轮询消费）。
+const approvalActionIntentKey = 'notify.approvalActionIntent';
+const _approvalActionChoiceAccept = 'accept';
+const _approvalActionChoiceDecline = 'decline';
+
+/// 后台 isolate 动作回调（插件约定：顶层函数 + vm:entry-point）。
+/// 只落盘审批意图 + 受理反馈——真正的审批执行在主 isolate 轮询
+/// 消费（活连接在那边）。DartPluginRegistrant 确保后台引擎里
+/// 插件通道（secure storage 等）可用。
+@pragma('vm:entry-point')
+Future<void> notificationActionBackgroundHandler(NotificationResponse response) async {
+  DartPluginRegistrant.ensureInitialized();
+  final choice = response.actionId ?? '';
+  if (choice != _approvalActionChoiceAccept && choice != _approvalActionChoiceDecline) {
+    return;
+  }
+  final intent = response.payload ?? '';
+  if (intent.isEmpty) return;
+  try {
+    const storage = FlutterSecureStorage();
+    await storage.write(
+      key: approvalActionIntentKey,
+      value: jsonEncode({
+        'choice': choice,
+        'intent': intent,
+        'at': DateTime.now().millisecondsSinceEpoch,
+      }),
+    );
+    // 受理反馈：换一条 4 秒确认条（原审批通知随 autoCancel 已移除）。
+    final plugin = FlutterLocalNotificationsPlugin();
+    await plugin.show(
+      id: response.id ?? DateTime.now().millisecondsSinceEpoch % 100000,
+      title: choice == _approvalActionChoiceAccept ? '已提交批准' : '已提交拒绝',
+      body: '打开应用后自动完成',
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'approvals', '审批提醒',
+          icon: 'ic_notification',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+          timeoutAfter: 4000,
+        ),
+      ),
+    );
+  } catch (_) {}
 }
 
 /// 通知服务（三通道 + 点击路由 + 回前台清过时）。
@@ -228,20 +297,57 @@ class NotificationService {
         body = e.title.isEmpty ? tr('点按查看任务列表') : e.title;
       }
     }
+    // 审批快捷动作（2026-11-14）：通知栏 [批准] [拒绝] 直接应答——
+    // payload 携完整审批意图 JSON（后台 isolate 落盘 → 主 isolate
+    // 轮询消费活连接执行）。仅 interactionId 在手的审批事件携带。
+    List<NotifyNotificationAction>? actions;
+    if (e.kind == NotifyEventKind.approvalPending &&
+        (e.interactionId ?? '').isNotEmpty) {
+      String actionPayload(String act) => jsonEncode({
+            'sid': e.deviceSid,
+            'task': e.taskId,
+            'kind': 'approval-action',
+            'at': e.atMs,
+            'iid': e.interactionId,
+            'act': act,
+            'title': e.title,
+          });
+      actions = [
+        NotifyNotificationAction('accept', tr('批准'),
+            actionPayload(_approvalActionChoiceAccept)),
+        NotifyNotificationAction('decline', tr('拒绝'),
+            actionPayload(_approvalActionChoiceDecline)),
+      ];
+    }
     try {
       await backend.show(
         id,
         title,
         body,
         channelOf(e.channel),
-        NotifyTapPayload(e.deviceSid, e.taskId, e.kind.name, atMs: e.atMs)
+        NotifyTapPayload(e.deviceSid, e.taskId, e.kind.name, atMs: e.atMs,
+                interactionId: e.interactionId)
             .encode(),
+        actions: actions ?? const [],
       );
       _active[id] = (e.taskId, e.channel);
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// 审批快捷动作在栏（触发轮询启停用）。
+  bool get hasActiveApprovals =>
+      _active.values.any((c) => c == NotifyChannel.approvals);
+
+  /// 审批快捷动作已受理——取消该会话的审批通知。
+  Future<void> cancelApprovalForSession(String sessionId) async {
+    final id = _idsByTask['${NotifyChannel.approvals.name}:$sessionId'];
+    if (id == null) return;
+    await backend.cancel(id);
+    _active.remove(id);
+    _idsByTask.remove('${NotifyChannel.approvals.name}:$sessionId');
   }
 
   /// 回前台清过时通知（Tactic 借鉴）：任务/Goal 通道全清（完成类通知
@@ -310,6 +416,11 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
         final payload = NotifyTapPayload.decode(response.payload);
         if (payload != null) _onTap?.call(payload);
       },
+      // 动作按钮按压在后台 isolate 回调（插件约定：顶层函数 +
+      // vm:entry-point）。这里只落盘审批意图 + 受理反馈通知——
+      // 真正的审批执行在主 isolate 轮询消费（活连接在那边）。
+      onDidReceiveBackgroundNotificationResponse:
+          notificationActionBackgroundHandler,
     );
     return ok ?? false;
   }
@@ -327,8 +438,9 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
     String title,
     String body,
     String channel,
-    String payload,
-  ) async {
+    String payload, {
+    List<NotifyNotificationAction> actions = const [],
+  }) async {
     final details = AndroidNotificationDetails(
       channel,
       _channelName(channel),
@@ -338,6 +450,11 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
       importance: channel == 'approvals' ? Importance.max : Importance.defaultImportance,
       priority: channel == 'approvals' ? Priority.high : Priority.defaultPriority,
       autoCancel: true,
+      // 审批快捷动作按钮（2026-11-14）：[批准] [拒绝] 通知栏直接应答；
+      // 意图 JSON 在 payload（后台 isolate 落盘 → 主 isolate 消费）。
+      actions: [
+        for (final a in actions) AndroidNotificationAction(a.id, a.title),
+      ],
       // 自动过期（ 决策 1）：tasks/goals 30 分钟后自动出栏，
       // approvals 不过期。策略在 notify_core.notificationTtlMs（纯函数，
       // 单测覆盖），此处只接线；字段=毫秒（flutter_local_notifications

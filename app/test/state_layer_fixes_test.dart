@@ -205,8 +205,9 @@ class _NullBackend implements NotificationBackend {
     String title,
     String body,
     String channel,
-    String payload,
-  ) async {}
+    String payload, {
+    List<NotifyNotificationAction>? actions,
+  }) async {}
 
   @override
   Future<void> cancel(int id) async {}

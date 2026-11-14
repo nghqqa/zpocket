@@ -29,8 +29,9 @@ class _Backend implements NotificationBackend {
     String title,
     String body,
     String channel,
-    String payload,
-  ) async {
+    String payload, {
+    List<NotifyNotificationAction>? actions,
+  }) async {
     shownId = id;
   }
 
