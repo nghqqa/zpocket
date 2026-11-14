@@ -175,7 +175,13 @@ Future<void> _copyPath(BuildContext context, String path) async {
 Future<void> _saveWorkspaceFile(BuildContext context, String path) async {
   final app = AppStateScope.of(context);
   try {
-    final bytes = await app.workspaceReadFileBytes(path);
+    // T3 流式落盘（2026-11-14）：分段拉取直接写临时文件，SAF 选位后
+    // 从临时文件读字节——下载期内存峰值 O(1MiB 分段)。
+    final temp = await downloadWorkspaceFileToTemp(app, path: path, cancelled: () => false);
+    final bytes = await temp.readAsBytes();
+    try {
+      temp.deleteSync();
+    } on Object catch (_) {}
     if (!context.mounted) return;
     await saveBytesToPhone(
       context,

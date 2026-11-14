@@ -1,11 +1,14 @@
 // 通用「保存到手机」：SAF 另存为（file_picker.saveFile，仓库既有依赖，
 // 零新增）。对话附件、工作区产物文件共用本入口，统一反馈与 MIME 推断。
+import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../core/localized_text.dart';
+import '../state/app_state.dart';
 
 const _channel = MethodChannel('companion/update');
 
@@ -133,4 +136,82 @@ Future<bool> saveBytesToPhone(
     ),
   );
   return true;
+}
+
+
+/// T3 流式落盘（2026-11-14）：工作区文件下载到临时文件——file 通道
+/// 分段字节流直接追加写入，内存峰值 O(1MiB 分段)（对比整文件进内存）。
+/// 取消在分段间生效；失败/取消时自动清理临时文件并抛出/返回 null。
+/// [app] 显式传入（路径点按/文件卡两处调用方都持有）。
+Future<File> downloadWorkspaceFileToTemp(
+  AppState app, {
+  required String path,
+  void Function(int received, int total)? onProgress,
+  required bool Function() cancelled,
+}) async {
+  final tmpDir = await getTemporaryDirectory();
+  final dir = Directory('${tmpDir.path}${Platform.pathSeparator}ws-download');
+  await dir.create(recursive: true);
+  final stamp = DateTime.now().microsecondsSinceEpoch;
+  final target = File('${dir.path}${Platform.pathSeparator}dl-$stamp');
+  final sink = target.openWrite();
+  var closed = false;
+
+  Future<void> closeSink() async {
+    if (closed) return;
+    closed = true;
+    await sink.flush();
+    await sink.close();
+  }
+
+  try {
+    await for (final chunk in app.workspaceReadFileChunks(path)) {
+      if (cancelled()) {
+        throw const DownloadCancelled();
+      }
+      sink.add(chunk);
+    }
+    await sink.flush();
+    await sink.close();
+    closed = true;
+    return target;
+  } on Object {
+    await closeSink();
+    await target.delete().catchError((_) => target);
+    rethrow;
+  }
+}
+
+/// 下载被用户取消的哨兵异常（downloadWorkspaceFileToTemp 抛出）。
+class DownloadCancelled implements Exception {
+  const DownloadCancelled();
+}
+
+/// 批量保存：把已落盘的临时文件搬运进公共 Downloads/ZPocket/（原生侧
+/// 分块读写，全程不进内存）。失败抛异常（调用方计数/收集文件名）。
+Future<String> saveFileToDownloadsFolder({
+  required String tempPath,
+  required String fileName,
+  String? mimeType,
+}) async {
+  Future<String> invoke() async {
+    final path = await _channel.invokeMethod<String>('saveToDownloads', {
+      'fileName': fileName,
+      'tempPath': tempPath,
+      'mime': mimeType ?? mimeForFileName(fileName),
+    });
+    if (path == null || path.isEmpty) {
+      throw StateError('saveToDownloads returned empty path');
+    }
+    return path;
+  }
+
+  try {
+    return await invoke();
+  } on PlatformException catch (e) {
+    if (e.code != 'permission') rethrow;
+    final status = await Permission.storage.request();
+    if (!status.isGranted) rethrow;
+    return await invoke();
+  }
 }

@@ -1654,6 +1654,21 @@ class AppState extends ChangeNotifier {
     return ws is String && ws.isNotEmpty ? ws : null;
   }
 
+  /// 工作区文件字节数（file.stat）。
+  Future<int> workspaceFileSize(String path) async {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    return conv.workspaceFileSize(path);
+  }
+
+  /// T3 流式落盘（2026-11-14）：工作区文件分段字节流——消费方边收
+  /// 边写临时文件，内存峰值 O(1MiB 分段)。
+  Stream<List<int>> workspaceReadFileChunks(String path) async* {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    yield* conv.workspaceReadFileChunks(path);
+  }
+
   /// file.checkFilesExist——批量存在性校验（入参相对/绝对均可）。
   Future<Map<String, bool>> workspaceCheckFilesExist(
     List<String> paths,

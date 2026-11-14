@@ -333,13 +333,14 @@ class MainActivity : FlutterActivity() {
                     "saveToDownloads" -> {
                         val fileName = call.argument<String>("fileName")
                         val bytes = call.argument<ByteArray>("bytes")
+                        val tempPath = call.argument<String>("tempPath")
                         val mime = call.argument<String>("mime")
-                        if (fileName.isNullOrEmpty() || bytes == null) {
-                            result.error("bad-args", "fileName/bytes required", null)
+                        if (fileName.isNullOrEmpty() || (bytes == null && tempPath.isNullOrEmpty())) {
+                            result.error("bad-args", "fileName + bytes/tempPath required", null)
                             return@setMethodCallHandler
                         }
                         try {
-                            result.success(saveToDownloads(fileName, bytes, mime))
+                            result.success(saveToDownloads(fileName, bytes, tempPath, mime))
                         } catch (e: SecurityException) {
                             result.error("permission", e.message, null)
                         } catch (e: Exception) {
@@ -511,7 +512,7 @@ class MainActivity : FlutterActivity() {
     /// API 29+：MediaStore.Downloads（应用自有文件，无需存储权限）。
     /// 24-28：传统公共目录写入，需 WRITE_EXTERNAL_STORAGE（缺失抛
     /// SecurityException，Dart 侧引导授权后重试）。
-    private fun saveToDownloads(fileName: String, bytes: ByteArray, mime: String?): String {
+    private fun saveToDownloads(fileName: String, bytes: ByteArray?, tempPath: String?, mime: String?): String {
         val safeName = fileName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
         val safeMime = if (mime.isNullOrBlank() || mime == "application/octet-stream") {
             "application/octet-stream"
@@ -532,8 +533,15 @@ class MainActivity : FlutterActivity() {
                 android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 values,
             ) ?: throw IllegalStateException("MediaStore insert returned null")
-            resolver.openOutputStream(uri)?.use { it.write(bytes) }
-                ?: throw IllegalStateException("output stream null")
+            resolver.openOutputStream(uri)?.use { out ->
+                if (bytes != null) {
+                    out.write(bytes)
+                } else {
+                    java.io.File(tempPath).inputStream().use { input ->
+                        input.copyTo(out, 1 shl 20)
+                    }
+                }
+            } ?: throw IllegalStateException("output stream null")
             // DISPLAY_NAME 已知，直接拼可读路径（Q 上 MediaStore 不给 file path）。
             val downloads = android.os.Environment.getExternalStoragePublicDirectory(
                 android.os.Environment.DIRECTORY_DOWNLOADS,
@@ -548,7 +556,15 @@ class MainActivity : FlutterActivity() {
             throw IllegalStateException("mkdirs failed: ${dir.absolutePath}")
         }
         val out = java.io.File(dir, safeName)
-        java.io.FileOutputStream(out).use { it.write(bytes) }
+        java.io.FileOutputStream(out).use { outStream ->
+            if (bytes != null) {
+                outStream.write(bytes)
+            } else {
+                java.io.File(tempPath).inputStream().use { input ->
+                    input.copyTo(outStream, 1 shl 20)
+                }
+            }
+        }
         return out.absolutePath
     }
 

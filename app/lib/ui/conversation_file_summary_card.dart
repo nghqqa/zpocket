@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart' hide Text;
 
@@ -690,11 +690,15 @@ class FileSummaryCardState extends State<FileSummaryCard> {
       ),
     );
 
-    Uint8List? bytes;
+    // T3 流式落盘（2026-11-14）：拉取分段直接写临时文件，网络期内存
+    // 峰值 O(1MiB 分段)；SAF 选位后从临时文件读字节（峰值短暂）。
+    File? temp;
     Object? fetchError;
+    var downloadCancelled = false;
     try {
-      bytes = await app.workspaceReadFileBytes(
-        path,
+      temp = await downloadWorkspaceFileToTemp(
+        app,
+        path: path,
         onProgress: (received, totalBytes) {
           progress.value = progress.value.copyWith(
             received: received,
@@ -703,6 +707,8 @@ class FileSummaryCardState extends State<FileSummaryCard> {
         },
         cancelled: () => cancelled,
       );
+    } on DownloadCancelled {
+      downloadCancelled = true;
     } on Object catch (e) {
       fetchError = e;
     }
@@ -713,7 +719,7 @@ class FileSummaryCardState extends State<FileSummaryCard> {
     await dialogFuture;
     progress.dispose();
     if (!mounted) return;
-    if (cancelled) {
+    if (downloadCancelled) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(tr('已取消')),
@@ -722,7 +728,8 @@ class FileSummaryCardState extends State<FileSummaryCard> {
       );
       return;
     }
-    if (fetchError != null || bytes == null) {
+    if (fetchError != null || temp == null) {
+      if (temp != null) temp.deleteSync();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('获取文件失败：$fetchError'),
@@ -731,7 +738,13 @@ class FileSummaryCardState extends State<FileSummaryCard> {
       );
       return;
     }
-    await saveBytesToPhone(context, fileName: name, bytes: bytes);
+    try {
+      final bytes = await temp.readAsBytes();
+      if (!mounted) return;
+      await saveBytesToPhone(context, fileName: name, bytes: bytes);
+    } finally {
+      temp.deleteSync();
+    }
   }
 
   /// 评审 P1（2026-11-13）：批量保存——静默写入公共
@@ -761,9 +774,11 @@ class FileSummaryCardState extends State<FileSummaryCard> {
           received: 0,
           currentBytes: 0,
         );
+        File? tempFile;
         try {
-          final bytes = await app.workspaceReadFileBytes(
-            path,
+          tempFile = await downloadWorkspaceFileToTemp(
+            app,
+            path: path,
             onProgress: (received, totalBytes) {
               progress.value = progress.value.copyWith(
                 currentName: name,
@@ -773,15 +788,24 @@ class FileSummaryCardState extends State<FileSummaryCard> {
             },
             cancelled: () => cancelled,
           );
-          if (cancelled) break;
-          final savedPath = await saveBytesToDownloadsFolder(
+          if (cancelled) {
+            tempFile.deleteSync();
+            break;
+          }
+          final savedPath = await saveFileToDownloadsFolder(
+            tempPath: tempFile.path,
             fileName: name,
-            bytes: bytes,
           );
           savedPaths.add(savedPath);
+          tempFile.deleteSync();
           done++;
           progress.value = progress.value.copyWith(done: done);
         } on Object catch (e) {
+          try {
+            if (tempFile != null && tempFile.existsSync()) {
+              tempFile.deleteSync();
+            }
+          } on Object catch (_) {}
           if (cancelled || '$e'.contains('cancelled')) break;
           failed++;
           failedNames.add(name);

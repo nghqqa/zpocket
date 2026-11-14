@@ -1644,6 +1644,32 @@ extension ConversationWorkspaceFiles on ConversationTransport {
     }
     return out.takeBytes();
   }
+
+  /// 评审 T3 流式落盘（2026-11-14）：逐段产出文件字节（1MiB 分段，
+  /// 与服务端 clamp 上限对齐）。消费方边收边写临时文件——内存峰值
+  /// O(分段)，对比 workspaceReadFileBytes 的 O(文件)。
+  Stream<List<int>> workspaceReadFileChunks(String relativePath) async* {
+    final total = await workspaceFileSize(relativePath);
+    if (total <= 0) return;
+    if (total > _wsFileTotalMaxBytes) {
+      throw StateError('文件超过 100MB，暂不支持手机端下载');
+    }
+    final absolutePath = _workspaceAbsolute(relativePath);
+    var received = 0;
+    while (received < total) {
+      final length = _wsFileChunkBytes < total - received
+          ? _wsFileChunkBytes
+          : total - received;
+      final res = await _channels.call(Channels.file, 'readFileRange', [
+        {'path': absolutePath, 'offset': received, 'length': length},
+      ], timeout: const Duration(seconds: 30));
+      if (res is! List<int>) {
+        throw StateError('readFileRange: unexpected response');
+      }
+      received += length;
+      yield res;
+    }
+  }
 }
 
 /// Shared base for Conversation/SessionsIndex subscriptions.

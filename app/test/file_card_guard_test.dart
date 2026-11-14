@@ -33,13 +33,17 @@ void main() {
     expect(h, greaterThanOrEqualTo(44), reason: '高度 ≥44');
   });
 
-  test('批量保存入口 + 静默 Downloads 通道 + 可取消', () {
+  test('批量保存入口 + 流式落盘通道 + 可取消（T3）', () {
     expect(src.contains("ValueKey('file-summary-save-all')"), isTrue,
         reason: '全部保存入口存在');
     expect(src.contains('_saveAllToPhone'), isTrue);
-    expect(src.contains('saveBytesToDownloadsFolder'), isTrue,
-        reason: '批量走静默 Downloads 通道（不逐个弹 SAF）');
+    expect(src.contains('downloadWorkspaceFileToTemp'), isTrue,
+        reason: '分段拉取直接写临时文件（内存峰值 O(分段)，T3）');
+    expect(src.contains('saveFileToDownloadsFolder'), isTrue,
+        reason: '批量走临时文件→Downloads 搬运通道（不逐个弹 SAF）');
     expect(src.contains('cancelled: () => cancelled'), isTrue,
         reason: '分段拉取可取消（弱网防冻结）');
+    expect(src.contains('deleteSync'), isTrue,
+        reason: '临时文件必须清理');
   });
 }
