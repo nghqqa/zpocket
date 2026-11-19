@@ -297,7 +297,7 @@ List<Map<String, dynamic>> _menuFixRows() {
       'rowId': 2,
       'kind': 'userInput',
       'entityId': 'eu-1',
-      'text': '安卓上抽屉菜单展开后，按系统返回键没反应，只能点左上角按钮才能收起。帮我修一下，顺便确认 iOS 侧有没有同样的问题。',
+      'text': '安卓上抽屉菜单展开后，按系统返回键没反应，只能点左上角按钮才能收起。帮我修一下。',
       'createdAt': at(2_000),
     },
     {
@@ -335,7 +335,7 @@ List<Map<String, dynamic>> _menuFixRows() {
       'rowId': 6,
       'kind': 'assistantText',
       'entityId': 'ea-1',
-      'text': '找到了。`DrawerMenu` 只处理了按钮点击的开关，没有拦截系统返回键；而且项目刚升到 Flutter 3.19，旧的 `WillPopScope` 写法已经失效。用 `PopScope` 在抽屉打开时拦截返回键即可，iOS 侧手势返回走的是同一条路由管道，一并覆盖。',
+      'text': '找到了。`DrawerMenu` 只处理了按钮点击的开关，没有拦截系统返回键；而且项目刚升到 Flutter 3.19，旧的 `WillPopScope` 写法已经失效。用 `PopScope` 在抽屉打开时拦截返回键即可。',
       'createdAt': at(14_000),
       'state': 'done',
     },
@@ -404,7 +404,6 @@ List<Map<String, dynamic>> _menuFixRows() {
           '- **修复**：外层包一层 `PopScope`，抽屉打开时 `canPop: false`，返回键只收起抽屉不退出页面：\n\n'
           '```dart\nPopScope(\n  canPop: !menuOpen,\n  onPopInvoked: (didPop) {\n    if (!didPop) closeDrawer();\n  },\n  child: const Scaffold(body: HomeView()),\n)\n```\n\n'
           '- **验证**：18 个抽屉相关测试全过；子代理复查无阻塞问题。\n'
-          '- **iOS**：手势返回与返回键走同一路由管道，已一并覆盖。\n\n'
           '剩下一条小建议（补注释）记在待办里了，需要我顺手改掉吗？',
       'createdAt': at(70_000),
       'state': 'done',

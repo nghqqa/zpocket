@@ -137,7 +137,7 @@ class StatusTray extends StatelessWidget {
   }
 
   Widget _segment(BuildContext context, StatusTraySection s) {
-    // Visual 审查处置（tray 七维 ②⑤）：段点=accent 类别色，段字统一
+    // Visual 审查处置（tray 七维 ②）：段点=accent 类别色，段字统一
     // foreground——浅色 surface 底上彩字对比度 4.45:1 差 AA 一线，且
     // warning/running 同 token（浅 #B45309/深 #FF8A30）使「三色三义」
     // 不可实现。定档：点色=类别（蓝=排队待发/橙=需注意），字色=统一

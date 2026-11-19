@@ -68,5 +68,34 @@ void main() {
         reason: 'body 停滞不得无界等待——修复前 join() 永不完成',
       );
     }, timeout: const Timeout(Duration(seconds: 10)));
+    // 早前批次：整理链路总期限 10s（此前 8+12+20≈40s，API 卡住时
+    // 语音面板 refining 态锁死用户）。
+    test('整理总期限=10s（生产常量）', () {
+      expect(kRefineTotalTimeout, const Duration(seconds: 10));
+    });
+
+    test('服务器不回响应头：总期限到点退回原文（分档超时不叠加）', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        await request.drain<void>();
+        // 故意不写响应头也不关连接：旧实现 postUrl 分档 8s 才放弃。
+      });
+      debugRefineEndpointOverride =
+          'http://127.0.0.1:${server.port}/chat/completions';
+      debugRefineTotalTimeoutOverride = const Duration(milliseconds: 300);
+      addTearDown(() {
+        debugRefineEndpointOverride = null;
+        debugRefineTotalTimeoutOverride = null;
+      });
+      final sw = Stopwatch()..start();
+      final out = await refineDictation(apiKey: 'sk-x', raw: '帮我看下日志');
+      expect(out, '帮我看下日志', reason: '总期限失败必须退回原文');
+      expect(
+        sw.elapsed.inMilliseconds,
+        lessThan(3000),
+        reason: '修复前：8s 响应头分档先到，总期限未生效',
+      );
+    }, timeout: const Timeout(Duration(seconds: 15)));
   });
 }

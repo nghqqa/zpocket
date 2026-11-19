@@ -109,7 +109,7 @@ class DeviceCacheEntry {
   /// 上次的 workspace-list 结果（工作区栏预渲）。
   final List<Map<String, dynamic>> workspaces;
 
-  /// B 首页增量（2026-10-27 用户⑨）：项目全集、readTree 归属与当前
+  /// B 首页增量（2026-10-27 用户）：项目全集、readTree 归属与当前
   /// 窗口全局任务——冷启动直接出最近/项目分组，不等桥与 si。
   /// 均为可选字段，旧缓存缺失时自然为空。
   final List<Map<String, dynamic>> projects;
@@ -196,7 +196,7 @@ class DeviceCacheEntry {
 
 // ---------------------------------------------------------------- 预算常量
 
-/// 首页任务缓存裁剪（2026-10-27 用户⑨）：只保留展示/归属所需字段，
+/// 首页任务缓存裁剪（2026-10-27 用户）：只保留展示/归属所需字段，
 /// 不缓存 searchSnippet(s) 等正文片段，避免放大体积与隐私面。
 /// [sanitizeLive]=true 用于读取预览：running/waiting 清洗为 idle，不冒充
 /// 当前仍运行；写入时保留原值，真实数据到达后自然覆盖。
@@ -217,7 +217,7 @@ List<Map<String, dynamic>> cacheHomeTaskRows(
     'unreadAt',
     'archived',
     'pinned',
-    // B/A 批新字段——离线预览行保留月亮与后台点（run 线对象
+    // B/新字段——离线预览行保留月亮与后台点（run 线对象
     // 较重不入缓存，live 到达即恢复）。
     'offPeakTaskId',
     'hasBackgroundWork',

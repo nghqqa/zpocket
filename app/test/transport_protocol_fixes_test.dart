@@ -485,6 +485,9 @@ void main() {
         'retryTurn': {'target': rowTarget},
         'setAssistantFeedback': {'target': rowTarget, 'feedback': 'like'},
         'sendQueuedNow': {'queueItemId': 'q1'},
+        // editQueueItem 保留 CAS（发布预审回滚）：3.16–3.17.2 必带
+        // baseRevision 否则 proto.invalidPayload 静默拒收；3.18 忽略
+        // 多余字段（desktop-update-assessment.md:160 无害冗余实证）。
         'editQueueItem': {'queueItemId': 'q1', 'newText': 'x'},
         'reorderQueueItem': {
           'queueItemId': 'q1',

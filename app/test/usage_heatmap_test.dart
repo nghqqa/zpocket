@@ -256,7 +256,7 @@ void main() {
         reason: '色板循环（第 3 个回绕第 1 色）');
     expect(built.legend.first.total, 100);
   });
-// ==== C 批（2026-11-08 拍板 B）：时间粒度三档 + 明细卡全量 ====
+// ==== （2026-11-08 拍板 B）：时间粒度三档 + 明细卡全量 ====
 
 Widget _host(Map<String, dynamic> hm, {List<dynamic>? daily}) => MaterialApp(
       home: Scaffold(

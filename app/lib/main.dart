@@ -1,11 +1,13 @@
-import 'dart:async' show Timer;
+import 'dart:async' show Timer, unawaited;
 import 'dart:ui' show PlatformDispatcher;
 
-import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/foundation.dart' show FlutterError, defaultTargetPlatform;
 import 'package:flutter/widgets.dart' show WidgetsFlutterBinding;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart' show MethodChannel;
 import 'core/system_inset.dart';
+import 'platform/capabilities.dart';
+import 'core/backup_exclusion.dart';
 import 'core/localized_text.dart';
 import 'core/system_asr.dart';
 
@@ -121,7 +123,7 @@ void main() {
   // 通道调用须在绑定初始化之后（冒烟实证：runApp 前裸调 invokeMethod
   // 抛 Binding has not yet been initialized，探测失效）。
   WidgetsFlutterBinding.ensureInitialized();
-  // 底部安全区原生直推（vivo MediaQuery 透传
+  // dual-pane-collapse-2 r3：底部安全区原生直推（vivo MediaQuery 透传
   // 断裂的终局方案，详见 core/system_inset.dart 头注）。
   initSystemInsetBridge();
   _installForensicProbes();
@@ -133,7 +135,12 @@ void main() {
   // companion/surface 通道 recreate() 重建 Flutter 表面（同进程，秒级
   // 恢复，替代用户大退）。健康应用：静止页也会因主动调帧而完成一帧，
   // 探针续挂；后台（paused）不探测不误杀。
-  _installFrameWatchdog();
+  // （早前批次）→ 修复批（早前批次 对抗审查）：
+  // 按能力矩阵单点判定（supportsSurfaceRecreate=Android，iOS 的
+  // ChannelsBasic 恒 false 无重建可触发）——不散落裸平台判断。
+  if (ZpCapabilities.supportsSurfaceRecreate) {
+    _installFrameWatchdog();
+  }
   // 黑屏取证：帧时序哨兵——任何总耗时>250ms 的
   // 帧打一行（build/raster 分解），用于实测"配对成功瞬间 UI 线程停顿"
   // 是否超厂商应用自愈阈值（理论待验）。零常驻开销（回调仅读时序）。
@@ -154,6 +161,12 @@ void main() {
   // 指纹（验收#3 取证当时正缺这一行）。
   debugPrint('[voice] build probe $kVoiceHmsBuildProbe');
   SystemAsr.probe();
+  // 早前批次：iCloud 备份排除（应用支持/文档目录整树——关于页
+  // 「云备份已关闭」承诺的落地；Android 由 allowBackup=false 全局排除无
+  // 对位）。iOS 专属，失败内部留日志不阻塞启动。
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    unawaited(excludeDirsFromICloudBackup());
+  }
   // 演示模式（--dart-define=ZP_DEMO=1）：注入 DemoAppState——纯虚拟
   // 数据驱动真实 UI（截图/演示视频采集用），跳过登录/配对/网络。
   // 注入路径同时跳过 testLaunchArgsReader 与 load()（见 app.dart）。

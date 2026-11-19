@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// 用量统计时区（2026-10-27 用户⑩）：服务端缺省按 UTC 归日，导致
+/// 用量统计时区（2026-10-27 用户）：服务端缺省按 UTC 归日，导致
 /// 本地今天缺失、峰值日期与峰值 tokens 偏移。原生通道只读系统 IANA id。
 const MethodChannel _timeZoneChannel = MethodChannel('companion/timezone');
 

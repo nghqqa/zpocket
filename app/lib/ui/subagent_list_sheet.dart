@@ -1,4 +1,4 @@
-// 会话子代理列表（2026-10-26 批④拍板⑥，方案 A——官方
+// 会话子代理列表（2026-10-26 批④拍板，方案 A——官方
 // SubagentSessionSidePane 的手机化）：会话顶栏入口 → 底部弹层分
 // 「运行中 / 已结束」两段，已结束分页（endedCursor，官方默认 20/页）；
 // 点条目经 childSessionId 下钻现有只读会话页（官方同款 drill-in）。
@@ -49,6 +49,11 @@ class _SubagentListSheetState extends State<_SubagentListSheet> {
   /// 分页加载错误（页脚行内错误——不得把已加载列表整页替换成错误页）。
   String? _moreError;
   bool _loadingMore = false;
+
+  /// ② 逐条停止（早前批次）：在途停止键（taskId/executionId）——
+  /// pending 期间禁用防双发；ACK accepted 后乐观移除该行（投影随后
+  /// 收敛；刷新若仍在则自然回显，不撒谎）。
+  final _stopping = <String>{};
 
   @override
   void initState() {
@@ -143,6 +148,96 @@ class _SubagentListSheetState extends State<_SubagentListSheet> {
     );
   }
 
+  /// ② 逐条停止子代理（官方 stopSubagent 命令）。stopControl 唯一来源=
+  /// 快照 subagents.running 投影（早前批次 ：legacy RPC running 行无此
+  /// 字段），按 childSessionId 联接；live runtime 才写入（冷恢复/已结束
+  /// 行不带=不可停，UI 不出钮）。业务失败（not_running/not_found）按官方
+  /// 词表人话提示+本地移除该行（列表陈旧的自愈），不当成功。
+  Map<String, dynamic>? _stopControlOf(Map<String, dynamic> item) {
+    final running =
+        AppStateScope.of(context)
+            .conversationStates[widget.sessionId]
+            ?.subagentsRunningList ??
+        const <Map<String, dynamic>>[];
+    final child = '${item['childSessionId'] ?? ''}';
+    if (child.isEmpty) return null;
+    for (final r in running) {
+      if ('${r['childSessionId'] ?? ''}' == child) {
+        final c = r['stopControl'];
+        return c is Map ? c.cast<String, dynamic>() : null;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _stopRunning(
+    Map<String, dynamic> item,
+    Map<String, dynamic> control,
+  ) async {
+    final taskId = '${control['taskId'] ?? ''}';
+    final executionId = '${control['executionId'] ?? ''}';
+    if (taskId.isEmpty || executionId.isEmpty) return;
+    final key = '$taskId/$executionId';
+    if (_stopping.contains(key)) return;
+    setState(() => _stopping.add(key));
+    final childToRemove = '${item['childSessionId'] ?? ''}';
+    try {
+      final res = await AppStateScope.of(context)
+          .stopSubagent(widget.sessionId, taskId, executionId);
+      if (!mounted) return;
+      final status = res is Map ? '${res['status'] ?? ''}' : '';
+      final reason = res is Map
+          ? '${res['reasonCode'] ?? res['message'] ?? status}'
+          : '$res';
+      final alreadyEnded =
+          status != 'accepted' && status != 'duplicate' && reason.contains('not_running') ||
+              reason.contains('not_found');
+      if (status == 'accepted' ||
+          status == 'duplicate' ||
+          // not_running/not_found=该子代理已终态：本地陈旧行一并移除自愈。
+          alreadyEnded) {
+        setState(() {
+          _stopping.remove(key);
+          if (childToRemove.isNotEmpty) {
+            _running?.removeWhere(
+              (r) => '${r['childSessionId'] ?? ''}' == childToRemove,
+            );
+          }
+        });
+        unawaited(_load());
+        if (alreadyEnded) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                reason.contains('not_found')
+                    ? tr('没有找到这个子代理任务')
+                    : tr('该子代理已不在运行（可能刚好结束）'),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+      setState(() => _stopping.remove(key));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${tr('停止失败：')}$reason'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _stopping.remove(key));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${tr('停止失败：')}$e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final running = _running;
@@ -150,7 +245,7 @@ class _SubagentListSheetState extends State<_SubagentListSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.65,
       ),
-      // （·渲染低）：Flexible 只放松了列表，外层 Column 仍
+      // （对抗审查·渲染低）：Flexible 只放松了列表，外层 Column 仍
       // max 尺寸撑满 0.65 屏——mainAxisSize.min 让短内容自然收高。
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -362,6 +457,18 @@ class _SubagentListSheetState extends State<_SubagentListSheet> {
     Map<String, dynamic> item, {
     bool running = false,
   }) {
+    // ② 逐条停止：stopControl 来自快照投影联接（_stopControlOf——
+    // 早前批次），只有 live runtime 写入的运行行可停（官方
+    // ConversationStatusPanel.tsx:1589-1611 同款门控——冷恢复/已结束行
+    // 不显示 Stop）。
+    final control = running ? _stopControlOf(item) : null;
+    final stoppable = control != null &&
+        '${control['taskId'] ?? ''}'.isNotEmpty &&
+        '${control['executionId'] ?? ''}'.isNotEmpty;
+    final stoppingKey = stoppable
+        ? '${control['taskId']}/${control['executionId']}'
+        : null;
+    final stopping = stoppingKey != null && _stopping.contains(stoppingKey);
     final status = '${item['status'] ?? ''}';
     final failed = status == 'failed' || status == 'lost';
     final titleColor = failed
@@ -433,7 +540,35 @@ class _SubagentListSheetState extends State<_SubagentListSheet> {
                 color: context.colors.foregroundSubtle,
               ),
             ),
-      trailing: const Icon(Icons.chevron_right, size: 16),
+      trailing: stoppable
+          ? // M3 下 IconButton constraints 不生效——styleFrom 最小尺寸
+            // + shrinkWrap（早前批次 的 60dp 拉宽教训）。
+          IconButton(
+              key: ValueKey('subagent-stop-${item['childSessionId'] ?? ''}'),
+              onPressed: stopping
+                  ? null
+                  : () => _stopRunning(item, control),
+              iconSize: 18,
+              style: IconButton.styleFrom(
+                minimumSize: const Size(40, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: stopping
+                  ? SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.colors.foregroundSubtle,
+                      ),
+                    )
+                  : Icon(
+                      Icons.stop_circle_outlined,
+                      size: 18,
+                      color: context.colors.destructive,
+                    ),
+            )
+          : const Icon(Icons.chevron_right, size: 16),
       onTap: () => _open(item),
     );
   }

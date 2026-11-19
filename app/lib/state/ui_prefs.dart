@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -11,7 +12,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// read/write 等工具活动，仅保留思考条与正文。
 class UiPrefs extends ChangeNotifier {
   UiPrefs({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    // iOS Keychain 定档（早前批次）：first_unlock_this_device=
+    // 首次解锁后即可读（前台通知等场景不因锁屏读挂）+ 条目不随
+    // iCloud/迁移备份恢复到其他设备——对齐 Android allowBackup=false
+    // 隐私口径。aOptions 缺省=Android 行为零变化。
+    : _storage = storage ??
+        const FlutterSecureStorage(
+          iOptions: IOSOptions(
+            accessibility: KeychainAccessibility.first_unlock_this_device,
+          ),
+        );
 
   static const _keyShowToolCalls = 'ui.showToolCalls';
   static const _keyLastModel = 'ui.lastModel'; // "providerId/modelId"
@@ -57,11 +67,11 @@ class UiPrefs extends ChangeNotifier {
   /// 不再打扰）。
   static const _keyFabMenuHintShown = 'ui.fabMenuHintShown';
 
-  /// 宽屏双栏左栏收起态（vivo X Fold 6 真机
+  /// dual-pane-collapse-1：宽屏双栏左栏收起态（vivo X Fold 6 真机
   /// 反馈「左栏没有展开收起选项」）——收起后右栏全宽，顶栏同位钮切换。
   static const _keyDualPaneCollapsed = 'ui.dualPaneCollapsed';
 
-  /// 应用锁：方式三态/自动锁定秒数（0=立即）/锁定期
+  /// 应用锁（app-lock-1）：方式三态/自动锁定秒数（0=立即）/锁定期
   /// FLAG_SECURE 防缩略图泄露/PIN 盐+哈希（不存明文）。
   static const _keyAppLockMode = 'ui.appLockMode';
   static const _keyAppLockAutoLockSeconds = 'ui.appLockAutoLockSeconds';
@@ -69,7 +79,14 @@ class UiPrefs extends ChangeNotifier {
   static const _keyAppLockPinSalt = 'ui.appLockPinSalt';
   static const _keyAppLockPinHash = 'ui.appLockPinHash';
 
-  /// 应用内更新：开关（默认开）+上次自动检查时刻
+  /// （早前批次，对抗审查混搭形态根治）：PIN 材料单键 JSON 存储
+  ///（{salt,hash} 一次写入≈原子）。旧两键分写存在「新盐+旧哈希」混搭
+  /// 窗口——静态健康检查通过但新旧 PIN 验算全败，mode=pin 冷启动即
+  /// 整 app 锁死。读取：单键在场且可解析则以它为准；仅当单键缺席才回
+  /// 落旧两键（并即迁移：写单键+清旧键）。
+  static const _keyAppLockPinMaterial = 'ui.appLockPinMaterial';
+
+  /// 应用内更新（in-app-update-1）：开关（默认开）+上次自动检查时刻
   /// （epoch 毫秒；24h 节流静默检查）。
   static const _keyUpdateInAppEnabled = 'ui.updateInAppEnabled';
   static const _keyUpdateLastCheckAt = 'ui.updateLastCheckAt';
@@ -155,15 +172,19 @@ class UiPrefs extends ChangeNotifier {
   /// （2026-10-24 修复批）：偏好写失败哨兵——统一 write/delete+catch+
   /// 留痕（此前 12 处 catch(_){} 静默回跳，偏好写失败零信号；内存值仍
   /// 生效，仅本次会话丢失持久化）。
-  Future<void> _persist(String key, String? value) async {
+  /// 返回 false=写/删失败（异常吞掉但上浮成败——发布预审：调用方须据
+  /// 此决定是否删旧键，防「材料写失败+旧键删除成功」把唯一副本删光）。
+  Future<bool> _persist(String key, String? value) async {
     try {
       if (value == null) {
         await _storage.delete(key: key);
       } else {
         await _storage.write(key: key, value: value);
       }
+      return true;
     } catch (e) {
       debugPrint('[prefs] write-fail key=$key: $e');
+      return false;
     }
   }
 
@@ -181,7 +202,7 @@ class UiPrefs extends ChangeNotifier {
       // （历史注释：曾为 16 键串行 await；现 28 键并行读）（每键一次平台
       // 通道+Keystore 解密往返）阻塞启动链——Future.wait 并行读（键间
       // 无顺序依赖），解码与默认值语义不变。
-      // 任一键读取异常不得让全部偏好回默认（应用锁静默
+      // 对抗审查 ①M2：任一键读取异常不得让全部偏好回默认（应用锁静默
       // 关闭的 fail-open 面）——逐键捕获为 null（null=默认值语义不变）。
       final readFutures = <Future<String?>>[
         _storage.read(key: _keyShowToolCalls), // 0
@@ -212,7 +233,10 @@ class UiPrefs extends ChangeNotifier {
         _storage.read(key: _keyAppLockPinHash), // 25
         _storage.read(key: _keyUpdateInAppEnabled), // 26
         _storage.read(key: _keyUpdateLastCheckAt), // 27
-        _storage.read(key: _keyUpdateSource), // 28
+        _storage.read(key: _keyUpdateSource), // 28（ZPocket 双通道更新源，v1.3.0 起占用）
+        // 单键材料：必须排在既有键之后（reads 按位置索引——插在
+        // 中间会让 26/27 错位读到材料键，更新开关/时间戳被破坏）。
+        _storage.read(key: _keyAppLockPinMaterial), // 29（上游 v1.0.7 应用锁材料原子化）
       ];
       final reads = await Future.wait(
         readFutures.map(
@@ -253,8 +277,44 @@ class UiPrefs extends ChangeNotifier {
       }
       // 缺省 true（防泄露默认开）；显式 'false' 才关。
       _appLockSecureFlag = reads[23] != 'false';
-      _appLockPinSalt = (reads[24] ?? '').isNotEmpty ? reads[24] : null;
-      _appLockPinHash = (reads[25] ?? '').isNotEmpty ? reads[25] : null;
+      {
+        // 单键 JSON 优先；仅单键缺席才回落旧两键并异步迁移。
+        var migrated = false;
+        final material = reads[29]; // 28 已被 ZPocket updateSource 占用（v1.3.0）
+        if (material != null && material.isNotEmpty) {
+          try {
+            final decoded = jsonDecode(material);
+            if (decoded is Map) {
+              final saltV = '${decoded['salt'] ?? ''}';
+              final hashV = '${decoded['hash'] ?? ''}';
+              if (saltV.isNotEmpty && hashV.isNotEmpty) {
+                _appLockPinSalt = saltV;
+                _appLockPinHash = hashV;
+              }
+            }
+          } catch (_) {
+            // 单键损坏：按缺失处理（回落旧两键）。
+          }
+        }
+        if (_appLockPinSalt == null || _appLockPinHash == null) {
+          final oldSalt = (reads[24] ?? '').isNotEmpty ? reads[24] : null;
+          final oldHash = (reads[25] ?? '').isNotEmpty ? reads[25] : null;
+          if (oldSalt != null && oldHash != null) {
+            _appLockPinSalt = oldSalt;
+            _appLockPinHash = oldHash;
+            migrated = true; // 旧两键成对在场 → 迁移到单键
+          }
+        }
+        if (migrated) {
+          // 迁移半途失败=新旧并存，读路径永远单键优先，无害。
+          unawaited(
+            _migratePinMaterialToSingleKey(
+              _appLockPinSalt!,
+              _appLockPinHash!,
+            ),
+          );
+        }
+      }
       // 更新开关缺省 true；显式 'false' 才关。
       _updateInAppEnabled = reads[26] != 'false';
       _updateLastCheckAt = int.tryParse(reads[27] ?? '') ?? 0;
@@ -417,7 +477,7 @@ class UiPrefs extends ChangeNotifier {
   Set<String> get homeCollapsedGroups =>
       Set.unmodifiable(_homeCollapsedGroups);
 
-  /// 双栏左栏收起态（本机界面偏好，跨会话记忆）。
+  /// dual-pane-collapse-1：双栏左栏收起态（本机界面偏好，跨会话记忆）。
   bool get dualPaneCollapsed => _dualPaneCollapsed;
 
   Future<void> setDualPaneCollapsed(bool value) async {
@@ -427,7 +487,7 @@ class UiPrefs extends ChangeNotifier {
     await _persist(_keyDualPaneCollapsed, value ? 'true' : 'false');
   }
 
-  // ---- 应用锁----
+  // ---- 应用锁（app-lock-1）----
   String get appLockModeRaw => _appLockMode;
   int get appLockAutoLockSeconds => _appLockAutoLockSeconds;
   bool get appLockSecureFlag => _appLockSecureFlag;
@@ -456,24 +516,61 @@ class UiPrefs extends ChangeNotifier {
   }
 
   /// PIN 盐+哈希成对写入（调用方：settings_security_page 设置流程）。
+  /// 单键 JSON 一次写入（消除两键分写的混搭窗口）；旧键顺手清除
+  ///（失败无害——读路径单键优先）。
   Future<void> setAppLockPin(String saltHex, String hashHex) async {
     _appLockPinSalt = saltHex;
     _appLockPinHash = hashHex;
     notifyListeners();
-    await _persist(_keyAppLockPinSalt, saltHex);
-    await _persist(_keyAppLockPinHash, hashHex);
+    // 材料写成功才清旧键——写失败时保留旧对兜底（读路径单键缺席回落
+    // 旧键，冷启动用户至少能用旧 PIN，而非应用锁静默失效）。
+    final ok = await _persist(
+      _keyAppLockPinMaterial,
+      jsonEncode({'salt': saltHex, 'hash': hashHex}),
+    );
+    if (ok) {
+      await _persist(_keyAppLockPinSalt, null);
+      await _persist(_keyAppLockPinHash, null);
+    }
   }
 
-  // ---- 应用内更新----
+  Future<void> _migratePinMaterialToSingleKey(String salt, String hash) async {
+    final ok = await _persist(
+      _keyAppLockPinMaterial,
+      jsonEncode({'salt': salt, 'hash': hash}),
+    );
+    if (ok) {
+      await _persist(_keyAppLockPinSalt, null);
+      await _persist(_keyAppLockPinHash, null);
+    }
+  }
+
+  // ---- 应用内更新（in-app-update-1）----
   bool get updateInAppEnabled => _updateInAppEnabled;
 
-  /// load 是否已完成（AppLockGate 装载门闩——未完成时
+  /// 对抗审查 ①：load 是否已完成（AppLockGate 装载门闩——未完成时
   /// 不得把内存默认值当配置消费）。
   bool get isLoaded => _loadedFlag;
 
   /// 测试缝：标记已就绪（secure storage 在测试环境 read 挂起时注入）。
   @visibleForTesting
   void debugMarkLoadedForTest() => _loadedFlag = true;
+
+  /// 内存就绪（demo 模式，早前批次）：不触碰存储——默认值即
+  /// 最终值，置就绪**并通知**（AppLockGate 冷启动门闩放行）。
+  ///
+  /// 背景：demo 注入路径跳过 load()，而 AppLockGate 在 asserts 环境
+  /// （集成/widget 测试）判定测试环境不兜底拉起 load——曾致 demo 全树
+  /// 永久停在加载占位（零文本）；生产 demo 此前靠 gate 兜底拉起真
+  /// load() 反而触碰 secure storage（违背 demo 纯度约定）。本方法让
+  /// demo 在全部环境统一「内存默认值就绪、零存储」。
+  void markMemoryReady() {
+    if (_loadedFlag) return;
+    loaded = true;
+    _loadedFlag = true;
+    notifyListeners();
+  }
+
   int get updateLastCheckAt => _updateLastCheckAt;
 
   Future<void> setUpdateInAppEnabled(bool value) async {
@@ -505,6 +602,7 @@ class UiPrefs extends ChangeNotifier {
     _appLockPinSalt = null;
     _appLockPinHash = null;
     notifyListeners();
+    await _persist(_keyAppLockPinMaterial, null);
     await _persist(_keyAppLockPinSalt, null);
     await _persist(_keyAppLockPinHash, null);
   }
@@ -606,7 +704,7 @@ class UiPrefs extends ChangeNotifier {
     );
   }
 
-  /// 项目排序（按电脑 sid 分桶；null=未自定义）。
+  /// 项目排序（按电脑 sid 分桶；null=未自定义）。 ：
   /// 返回不可变视图（对齐同文件 homeCollapsedGroups 惯例，防内部列表
   /// 被调用方原地变更绕过持久化）。
   List<String>? projectOrder(String deviceSid) {

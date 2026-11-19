@@ -1,4 +1,4 @@
-// 定时任务编辑闭环回归（2026-11-05 反馈⑤：此前只可查看——整卡无
+// 定时任务编辑闭环回归（2026-11-05 反馈：此前只可查看——整卡无
 // onTap、菜单无编辑、客户端无 updateAutomation）。锁：整卡点击进编辑
 // 页 → 改标题/调度档位 → 保存下发 updateAutomation（scheduleRule 为
 // 调度权威 + cronExpr 兼容 + scheduleEditedByUser）→ 返回刷新列表；
@@ -172,7 +172,7 @@ void main() {
     }
     expect(find.text('巡检'), findsOneWidget, reason: '列表加载完成');
 
-    // 整卡点击（反馈⑤主诉求：卡片此前完全不可点）。
+    // 整卡点击（反馈主诉求：卡片此前完全不可点）。
     await tester.tap(
       find.byKey(const ValueKey('automation-card-tap-a1')).first,
     );
@@ -201,7 +201,7 @@ void main() {
     expect(args!['automationId'], 'a1');
     expect(args['title'], '每日巡检（改）');
     expect(args['prompt'], '跑一遍构建');
-    // 高③修复：只改标题（未动调度）→ 调度字段不下发（防
+    // 对抗审查高③修复：只改标题（未动调度）→ 调度字段不下发（防
     // 有损投影覆写原 rule）。cron/scheduleRule/scheduleEditedByUser
     // 均缺省。
     expect(args.containsKey('cronExpr'), isFalse,
@@ -254,7 +254,7 @@ void main() {
   });
 
   // （2026-11-07 用户批）：weekly 档周几选择器——此前只回填旧值无 UI
-  // 可改（「周几选择器」遗留实际未修完）。红=旧代码无 chip 可点。
+  // 可改（对抗审查「周几选择器」遗留实际未修完）。红=旧代码无 chip 可点。
   testWidgets('每周档：周几选择器可改 → weekdays 随 scheduleRule 下发', (
     tester,
   ) async {
@@ -319,7 +319,7 @@ void main() {
     expect(maxGap - minGap, lessThan(2.0), reason: 'Expanded 等分（相邻 x 间距一致）');
     expect(minGap, greaterThan(20.0), reason: '等分后每格仍有余量，非重叠');
     for (final s in weekdaySizes) {
-      // 紧凑回滚（候选 13 反馈⑤）：单行等分保留，密度回 compact
+      // 紧凑回滚（候选 13 反馈）：单行等分保留，密度回 compact
       //（40dp；红=折成 5+2 两行/过疏 48dp）。
       expect(s.height, greaterThanOrEqualTo(36));
       expect(s.height, lessThanOrEqualTo(44));
@@ -365,9 +365,9 @@ void main() {
     expect(find.text('编辑定时任务'), findsOneWidget, reason: '菜单编辑同达编辑页');
   });
 
-  // 1.0.1 真机验收⑦：模式/模型可编辑（官方对齐）。锁：改模式+换模型
+  // 1.0.1 真机验收：模式/模型可编辑（官方对齐）。锁：改模式+换模型
   // → update 下发 mode+modelSelection；未动不下发。
-  // 1.0.1 真机验收⑦：模式/模型可编辑（官方对齐）。锁：改模式+换模型
+  // 1.0.1 真机验收：模式/模型可编辑（官方对齐）。锁：改模式+换模型
   // → update 下发 mode+modelSelection；未动不下发。
   testWidgets('模式+模型可编辑：改档下发 mode/modelSelection，未动不下发', (
     tester,
@@ -501,7 +501,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  // 高②：官方 automationCronValidation.ts:52-56 对任意 unit 都
+  // 对抗审查高②：官方 automationCronValidation.ts:52-56 对任意 unit 都
   // 要求 hour/minute 整数——minute/hourly 档漏带必被服务端拒（红=旧
   // _buildScheduleRule 只回 unit/interval）。
   testWidgets('每 N 分钟档：scheduleRule 补 hour/minute（否则服务端必拒）', (

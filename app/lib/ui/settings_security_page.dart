@@ -1,4 +1,4 @@
-// 应用锁设置页：方式三态（关/系统锁屏/PIN）+自动锁定
+// 应用锁设置页（app-lock-1）：方式三态（关/系统锁屏/PIN）+自动锁定
 // 时机+锁定期防泄露开关。安全规则：从 system/pin 切走或关闭需先通过
 // 当前方式验证（防旁人关锁）；开启「系统锁屏」前置校验设备有无系统锁
 // （无则人话提示+引导跳系统安全设置，回弹——审批提醒 setAlertsEnabled
@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../core/app_lock.dart';
 import '../core/localized_text.dart';
 import '../core/theme.dart';
+import '../platform/capabilities.dart';
 import '../state/app_state.dart';
 import '../state/app_state_scope.dart';
 import 'app_widgets.dart' show AppSectionHeader;
@@ -38,15 +39,39 @@ class _SettingsSecurityPageState extends State<SettingsSecurityPage> {
       }
     }
     if (m == AppLockMode.pin) {
-      final pin = await _askPin(tr('输入当前 PIN 码以继续'));
+      // 恢复出口：材料不健康（缺失/垃圾）时验证无意义且必然死路
+      //（旧缺陷：设置页被软锁死只能清数据）——直接放行进入重设流程。
+      if (!pinMaterialHealthy(
+        app.uiPrefs.appLockPinSalt,
+        app.uiPrefs.appLockPinHash,
+      )) {
+        return true;
+      }
+      // 验旧不校验形态（validateFormat:false）——只做哈希比对。
+      final pin = await _askPin(
+        tr('输入当前 PIN 码以继续'),
+        validateFormat: false,
+      );
       if (pin == null) return false;
-      return hashPin(pin, app.uiPrefs.appLockPinSalt ?? '') ==
-          app.uiPrefs.appLockPinHash;
+      try {
+        return hashPin(pin, app.uiPrefs.appLockPinSalt ?? '') ==
+            app.uiPrefs.appLockPinHash;
+      } catch (_) {
+        return false;
+      }
     }
     return true;
   }
 
-  Future<String?> _askPin(String title, {String? confirmAgainst}) async {
+  /// [validateFormat]=false 用于**验旧 PIN**：存量 PIN 可能是旧
+  /// int.tryParse 时代合法设置的 +123/0x1f 形态（发布预审：新正则若
+  /// 同时作用于验旧，这类用户被锁死在「验证未通过」无法自救）；设新
+  /// PIN 恒严格校验。
+  Future<String?> _askPin(
+    String title, {
+    String? confirmAgainst,
+    bool validateFormat = true,
+  }) async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -67,7 +92,10 @@ class _SettingsSecurityPageState extends State<SettingsSecurityPage> {
     final v = ctrl.text;
     ctrl.dispose();
     if (ok != true) return null;
-    if (v.length < 4 || v.length > 6 || int.tryParse(v) == null) {
+    // 早前批次：int.tryParse 接受 0x1f/+123 等形态——设新 PIN 统一纯数字
+    // 正则；验旧（validateFormat=false）不校验形态原样比较（存量符号
+    // PIN 用户可自救改锁，发布预审）。
+    if (validateFormat && !RegExp(r'^\d{4,6}$').hasMatch(v)) {
       _showError(tr('PIN 需为 4-6 位数字'));
       return null;
     }
@@ -163,6 +191,16 @@ class _SettingsSecurityPageState extends State<SettingsSecurityPage> {
     }
     final salt = randomPinSalt();
     await app.uiPrefs.setAppLockPin(salt, hashPin(first, salt));
+    // 重装 controller（发布预审：恢复路径（材料损坏→跳验旧→重设）走完
+    // 后若不重装，AppLockGate 已 _armed 不再自动装载——本会话锁保持
+    // 关闭直到冷启动。健康路径重设同享此修复，行为=立即生效）。
+    app.appLock.loadFromPrefs(
+      mode: AppLockMode.pin,
+      autoLockSeconds: app.uiPrefs.appLockAutoLockSeconds,
+      secureFlagPref: app.uiPrefs.appLockSecureFlag,
+      pinSalt: app.uiPrefs.appLockPinSalt,
+      pinHash: app.uiPrefs.appLockPinHash,
+    );
     if (mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(tr('PIN 码已更新'))));
@@ -187,6 +225,42 @@ class _SettingsSecurityPageState extends State<SettingsSecurityPage> {
         listenable: ui,
         builder: (context, _) => ListView(
           children: [
+            // 损坏态横幅：mode=pin 但材料缺失/垃圾——旧验证路径
+            // 必然死路；横幅明示可直接重设（切换/重设流程已跳过验旧 PIN）。
+            if (mode == AppLockMode.pin &&
+                !pinMaterialHealthy(
+                  ui.appLockPinSalt,
+                  ui.appLockPinHash,
+                )) ...[
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.colors.warning.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(color: context.colors.warning),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber_outlined,
+                        size: 16, color: context.colors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tr('应用锁数据已损坏（PIN 材料缺失或无效），验证已被'
+                            '跳过。请重新设置 PIN 码，或切换到其他解锁方式。'),
+                        style: TextStyle(
+                          fontSize: AppType.uiCaption,
+                          height: 1.5,
+                          color: context.colors.foreground,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             AppSectionHeader(tr('解锁方式')),
             _modeTile(app, AppLockMode.none, tr('关闭'), tr('不使用应用锁')),
@@ -239,7 +313,12 @@ class _SettingsSecurityPageState extends State<SettingsSecurityPage> {
                   ),
                 ),
               ),
-              SwitchListTile(
+              // iOS 隐藏（早前批次 对抗审查）：FLAG_SECURE 无
+              // iOS 等价（setSecureFlag 通道 no-op）——开着=假开关违反
+              // 「UI 不撒谎」红线。切换器遮罩的降级形态实现后再以
+              // supportsSecureFlag 语义回归（留项）。
+              if (ZpCapabilities.supportsSecureFlag)
+                SwitchListTile(
                 value: ui.appLockSecureFlag,
                 onChanged: (v) {
                   ui.setAppLockSecureFlag(v);
@@ -263,6 +342,7 @@ class _SettingsSecurityPageState extends State<SettingsSecurityPage> {
             ],
             if (mode == AppLockMode.pin)
               ListTile(
+                key: const ValueKey('settings-change-pin'),
                 leading: const Icon(Icons.pin_outlined),
                 title: Text(tr('修改 PIN 码')),
                 onTap: () => _changePin(app),

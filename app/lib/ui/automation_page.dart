@@ -20,7 +20,7 @@ String friendlyError(Object e) {
 }
 
 /// 定时任务列表页（阶段 3 第三段：列表 + 启停/立即运行/重启/删除；
-/// 2026-11-05 反馈⑤补编辑闭环——整卡点击/菜单进编辑页，官方
+/// 2026-11-05 反馈补编辑闭环——整卡点击/菜单进编辑页，官方
 /// updateAutomation 通道；创建仍属桌面端）。
 ///
 /// 交互对照官方 AutomationsSection.tsx：状态筛选（全部/进行中/已完成/
@@ -137,7 +137,7 @@ class _AutomationPageState extends State<AutomationPage> {
     await _load();
   }
 
-  /// 2026-11-05 反馈⑤：编辑（官方 AutomationsSection.tsx:1700 整卡点击
+  /// 2026-11-05 反馈：编辑（官方 AutomationsSection.tsx:1700 整卡点击
   /// + 菜单编辑双入口对位）；保存成功后刷新列表。
   Future<void> _edit(AutomationEntry e) async {
     final changed = await Navigator.of(context).push<bool>(
@@ -384,7 +384,7 @@ class _AutomationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.sm),
             )
           : null,
-      // 2026-11-05 反馈⑤：整卡可点进编辑（官方 AutomationsSection
+      // 2026-11-05 反馈：整卡可点进编辑（官方 AutomationsSection
       // L1700-1710 onClick 同款）；菜单操作不冒泡（PopupMenu 自带手势域）。
       child: Material(
         color: Colors.transparent,

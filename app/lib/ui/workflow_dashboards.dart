@@ -1,4 +1,4 @@
-// A 批（2026-11-08 拍板⑥）看板产物：预置 spec 宽松解析 + 字段取数 +
+// （2026-11-08 拍板）看板产物：预置 spec 宽松解析 + 字段取数 +
 // 四渲染器数据准备（官方 presets/spec.ts + workflow-artifacts.ts
 // readWorkflowArtifactField 的 Dart 对位）。
 //
@@ -124,7 +124,7 @@ DashboardSpec? parseDashboardSpec(String kind, Object? raw) {
             ];
       if (ys.isEmpty) return null;
       final type = _str(spec['type']);
-      // known-gap：官方 ArtifactChartSpec 还有
+      // known-gap（2026-11-08 对抗审查注记）：官方 ArtifactChartSpec 还有
       // scale（linear|log 对数轴）与 baseline（参考线字段）——手机版未
       // 实现，解析时忽略（恒线性轴、无参考线）；账本由协调员登记。
       return DashboardSpec(
@@ -183,7 +183,7 @@ class ArtifactDataItem {
   final int sequence;
   final Map<String, dynamic>? item;
 
-  /// （声明 key 但该条缺值时官方用
+  /// （对抗审查高①）：行身份兜底——声明 key 但该条缺值时官方用
   /// `siteId@ordinal` 做唯一 id 逐条追加（apply.ts:288-298），我们把
   /// 缺值折叠成 '' 会整组互撞覆盖（数据丢失）。
   final String siteId;
@@ -195,7 +195,7 @@ class ArtifactDataItem {
   String get fallbackId => '$siteId@$ordinal';
 }
 
-/// （中·数字精度）：行 key 用原样字符串（官方
+/// （对抗审查中·数字精度）：行 key 用原样字符串（官方
 /// formatArtifactValue=String 原样）——toFixed(2) 会把 1.234 与 1.23
 /// 两个不同 key 错误合并成同一行。
 String _cellKey(Object? v) {
@@ -297,7 +297,7 @@ List<(String, String)> buildMetricTiles(DashboardSpec spec, List<ArtifactDataIte
   return out;
 }
 
-/// run 状态词（A 批：官方 status 枚举 → 中文；stopReason 展示留后续）。
+/// run 状态词（官方 status 枚举 → 中文；stopReason 展示留后续）。
 String workflowRunStatusWord(String status) => switch (status) {
       'pending' => '等待中',
       'running' => '运行中',
@@ -307,7 +307,7 @@ String workflowRunStatusWord(String status) => switch (status) {
       _ => status,
     };
 
-// ---------- 看板数据页（A 批：workflowRunArtifactData 取数 + 四渲染器） ----------
+// ---------- 看板数据页（workflowRunArtifactData 取数 + 四渲染器） ----------
 
 class WorkflowDashboardPage extends StatefulWidget {
   final String sessionId;
@@ -342,7 +342,7 @@ class _WorkflowDashboardPageState extends State<WorkflowDashboardPage> {
   void initState() {
     super.initState();
     _spec = parseDashboardSpec(_kind, widget.artifact['spec']);
-    // （·渲染中）：initState 阶段生命周期 created，同步
+    // （对抗审查·渲染中）：initState 阶段生命周期 created，同步
     // AppStateScope.of 必抛 FlutterError（debug 实锤）——延到首帧后
     //（workflow_runs_page:58 同款纪律）。
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -859,7 +859,7 @@ class _ChartView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // （高②）：只取「x 有值的条目」同步构建 x 与序列——
+    // （对抗审查高②）：只取「x 有值的条目」同步构建 x 与序列——
     // 旧实现 x 过滤 null 但序列按全量 items 建，任一条目缺 x 即整体
     // 错位。序列键=官方 y0..yN 序号（displayLabel 做键会在同标签时
     // 覆盖丢序列，apply.ts:178-190）。
@@ -1193,7 +1193,7 @@ class _BoardView extends StatelessWidget {
       if (!cards.containsKey(key)) order.add(key);
       cards[key] = (title: title, status: status, detail: detail);
     }
-    // （·board 中三条，官方 apply.ts:358-375）：列=spec 列
+    // （对抗审查·board 中三条，官方 apply.ts:358-375）：列=spec 列
     // 原序 + 未列入的 status 统一落末尾单一「其他」列（不再各造列）；
     // status 缺失/空的卡同样落「其他」不被丢弃。
     final specCols = [...spec.boardColumns];

@@ -1,4 +1,4 @@
-// E 批（2026-11-08 拍板③「对齐桌面+手机端优化」）红绿：Hook 审核
+// （2026-11-08 拍板③「对齐桌面+手机端优化」）红绿：Hook 审核
 // 专用呈现——横幅路由到入口卡（不落通用提问渲染，官方禁令）→
 // 审核页（源文件/逐项开关/计数）→「信任所选」发 respondWorkspaceHookReview
 // {trust_selected, reviewItemIds}。红=旧代码白板横幅无法完成审核。
@@ -275,7 +275,7 @@ void main() {
     }
     // 红点：页面仍在（不 pop），失败人话在场。
     expect(find.byKey(const ValueKey('hook-review-body')), findsOneWidget,
-        reason: '业务拒绝不得当成功 pop（中②）');
+        reason: '业务拒绝不得当成功 pop（对抗审查中②）');
     expect(find.textContaining('信任未生效'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

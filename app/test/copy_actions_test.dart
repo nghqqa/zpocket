@@ -1,6 +1,6 @@
-// 2026-10-23 用户反馈批⑧（回填律）：「桌面端有一键复制，手机端没有」。
+// 2026-10-23 用户反馈批（回填律）：「桌面端有一键复制，手机端没有」。
 // 勘察结论=代码块零复制入口、助手消息只有隐藏的长按复制（且无反馈）。
-// 本批三件：代码块右上角复制按钮（官方 CodeBlockCopyButton 对位）、
+// 本件：代码块右上角复制按钮（官方 CodeBlockCopyButton 对位）、
 // 完成态助手消息尾部常显复制（官方远控形态=常显 action bar）、长按
 // 菜单复制补 SnackBar 反馈。本文件锁三入口的剪贴板内容与反馈。
 import 'package:flutter/material.dart';
@@ -171,6 +171,6 @@ void main() {
     }
     expect(copied, '答');
     expect(find.text('已复制'), findsOneWidget,
-        reason: '2026-10-23 批⑧：长按复制不再静默');
+        reason: '2026-10-23 批：长按复制不再静默');
   });
 }

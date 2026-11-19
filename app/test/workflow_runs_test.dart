@@ -260,10 +260,37 @@ void main() {
 
   testWidgets('旅程：闲时任务卡渲染 + 加号面板工作流入口', (tester) async {
     final app = _WfApp(
-      runsResult: const {'runs': []},
+      // 对抗审查 B-/C- 修正（2026-11-14）：RPC 查询 schema 没有
+      // artifacts 字段（transport.ts .strict()）——夹具按真实形态
+      // 「query 行无 artifacts」，计数来自投影联接（下方 seedProjection）。
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-abc123def456',
+            'toolCallId': 'tc-abc',
+            'label': '每日简报',
+            'status': 'completed',
+            'updatedAt': 1,
+            'resumable': false,
+          },
+        ],
+      },
       detailResult: const {},
       artifactText: 'x',
     );
+    // 投影带 artifacts（快照投影 schema 有该字段——官方权威源）。
+    app.seedProjection(const [
+      {
+        'runId': 'run-abc123def456',
+        'toolCallId': 'tc-abc',
+        'status': 'completed',
+        'lastEventSequence': 100,
+        'artifacts': [
+          {'id': 'report.md', 'kind': 'text'},
+          {'id': 'stats', 'kind': 'chart'},
+        ],
+      },
+    ]);
     // 会话行里放一个 OffPeakCreate 工具行（输出=JSON 串）。
     await _pump(
       tester,
@@ -297,7 +324,8 @@ void main() {
     expect(find.textContaining('已加入闲时队列（第 3 位）'), findsOneWidget);
     expect(find.textContaining('运行在当前会话'), findsOneWidget);
 
-    // 入口在任务菜单（entry-polish-1 方案 A：加号面板回归纯"添加"）。
+    // 入口在顶栏一级（早前批次，2026-11-14 用户拍板：下载图标
+    // 直达产物下载页——指引+收集产物+运行列表同页）。
     await _pump(
       tester,
       _host(
@@ -305,20 +333,41 @@ void main() {
         const ConversationPage(sessionId: 's1', title: '工作流测试'),
       ),
     );
+    await tester.tap(find.byKey(const ValueKey('downloads-entry')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(WorkflowRunsPage), findsOneWidget,
+        reason: '顶栏下载图标直达产物下载页');
+    expect(find.text('产物下载'), findsWidgets, reason: 'hub 形态标题');
+    expect(find.byKey(const ValueKey('hub-collect-button')), findsOneWidget,
+        reason: '收集产物入口在场');
+    expect(find.textContaining('如何下载会话中的文件'), findsOneWidget,
+        reason: '下载指引进场');
+    // 演示模式批：行内产物计数（投影自带元数据；0/缺席不显示）。
+    expect(find.textContaining('产物（2）'), findsOneWidget,
+        reason: '有产物的 run 行显示计数');
+    await tester.pageBack();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    // ⋮ 菜单槽位撤销。
     await tester.tap(find.byKey(const ValueKey('task-menu')));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('工作流运行'), findsOneWidget);
-    // 面板不再有查看型入口（工作流/用量详情都不在加号面板）。
+    expect(find.text('工作流运行'), findsNothing);
     await tester.tapAt(const Offset(200, 40)); // 关菜单
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    // 面板不再有收集产物（已迁产物下载页）与查看型入口。
     await tester.tap(find.byKey(const ValueKey('add-trigger')));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    expect(find.byKey(const ValueKey('add-collect-artifacts')), findsNothing);
+    expect(find.text('收集产物'), findsNothing);
     expect(find.text('工作流运行'), findsNothing);
     expect(find.text('用量详情'), findsNothing);
   });
@@ -549,5 +598,151 @@ void main() {
     expect(app.eventCalls, [null], reason: '无序号=不传 afterSequence（官方从头取）');
     expect(find.text('最早 2 条'), findsOneWidget,
         reason: '从头取的页不许标「最新」（旧实现标题撒谎的红绿）');
+  });
+
+  // 修订链（supersededBy，官方 AmendWorkflow 语义）：run 被「调整」
+  // 停止后 stopped+stopReason=superseded+supersededBy=后继 runId
+  //（WorkflowRunState schema 仅此组合出现）；后继端反向 resumedFrom。
+  // 目录行换停止原因词、详情页血缘行（后继可点直达）、会话内卡换种类词。
+  testWidgets('修订链：目录行「已被替代」→ 详情血缘 → 后继反向血缘', (tester) async {
+    final app = _WfApp(
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'dwfrun-old',
+            'toolCallId': 'tc-old',
+            'label': '旧版自动化',
+            'status': 'stopped',
+            'stopReason': 'superseded',
+            'supersededBy': 'dwfrun-new',
+            'updatedAt': 1,
+            'resumable': false,
+          },
+        ],
+      },
+      detailResult: const {'events': [], 'artifacts': []},
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {
+        'runId': 'dwfrun-old',
+        'toolCallId': 'tc-old',
+        'status': 'stopped',
+        'stopReason': 'superseded',
+        'supersededBy': 'dwfrun-new',
+        'lastEventSequence': 30,
+      },
+      {
+        'runId': 'dwfrun-new',
+        'toolCallId': 'tc-new',
+        'status': 'running',
+        'resumedFrom': 'dwfrun-old',
+        'lastEventSequence': 5,
+      },
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    // 目录行：停止原因词替换状态词（72dp 状态位放不下「已停止 · 已被
+    // 替代」全串；官方目录同信息）。
+    expect(find.text('已被替代'), findsOneWidget,
+        reason: '红=旧实现只显示「已停止」，修订链事实不可见');
+    expect(find.text('已停止'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('workflow-run-dwfrun-old')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    // 详情血缘行：前驱侧=已被替代+后继 runId，投影可联接 → 可点。
+    expect(find.textContaining('已被替代，后继 run dwfrun-new'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('workflow-lineage-supersededBy-dwfrun-new')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    // 后继详情页反向血缘（官方 zh-CN.ts:6890「调整自 run」）。
+    expect(find.textContaining('调整自 run dwfrun-old'), findsOneWidget);
+  });
+
+  testWidgets('修订链负向：普通 stopped 仍「已停止」；自引用血缘不可点',
+      (tester) async {
+    final app = _WfApp(
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-plain',
+            'toolCallId': 'tc-plain',
+            'label': '手动停止的 run',
+            'status': 'stopped',
+            'updatedAt': 1,
+            'resumable': false,
+          },
+        ],
+      },
+      detailResult: const {'events': [], 'artifacts': []},
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      // 自引用畸形：supersededBy 指向自己。
+      {
+        'runId': 'run-plain',
+        'toolCallId': 'tc-plain',
+        'status': 'stopped',
+        'stopReason': 'superseded',
+        'supersededBy': 'run-plain',
+        'lastEventSequence': 9,
+      },
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    // 无 stopReason=superseded（夹具行）→ 状态词保持「已停止」。
+    expect(find.text('已停止'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-plain')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    // 自引用血缘行在场但不可点（防无限叠同页路由）。
+    final selfRef = find.byKey(
+      const ValueKey('workflow-lineage-supersededBy-run-plain'),
+    );
+    expect(selfRef, findsOneWidget);
+    final ink = tester.widget<InkWell>(
+      find.descendant(of: selfRef, matching: find.byType(InkWell)).first,
+    );
+    expect(ink.onTap, isNull, reason: '自引用不给可点跳转（早前批次）');
+  });
+
+  testWidgets('修订链：会话内 run 卡种类词「工作流已被替代」', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        _WfApp(
+          runsResult: const {},
+          detailResult: const {},
+          artifactText: '',
+        ),
+        Scaffold(
+          body: WorkflowRunCard(
+            row: const {
+              'rowId': 9,
+              'kind': 'toolCall',
+              'toolName': 'CreateWorkflow',
+              'toolCallId': 'tc-old',
+              'status': 'success',
+            },
+            runs: const [
+              {
+                'runId': 'dwfrun-old',
+                'toolCallId': 'tc-old',
+                'status': 'stopped',
+                'stopReason': 'superseded',
+                'supersededBy': 'dwfrun-new',
+              },
+            ],
+          ),
+        ),
+      ),
+    );
+    // 官方 v4 轮尾摘要卡（WorkflowCardChrome.tsx:41-54）：stopped+
+    // superseded 换「工作流已被替代」种类词。
+    expect(find.text('工作流已被替代'), findsOneWidget,
+        reason: '红=旧实现显示「已停止」工具态/状态词，修订事实不可见');
   });
 }

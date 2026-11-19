@@ -1,4 +1,4 @@
-// 2026-10-23 用户反馈批⑦（回填律）：「电脑端计划模式可与其他模式并行
+// 2026-10-23 用户反馈批（回填律）：「电脑端计划模式可与其他模式并行
 // （计划+完全访问），手机端不行；且桌面完全访问是橙色的」。
 // refs 实证（V4ComposerModeControls.tsx:40/63/148-165）：计划=独立
 // CheckboxItem 与权限 RadioGroup 并行；e2e 断言 {mode:'yolo',
@@ -208,7 +208,7 @@ void main() {
     await _pump(tester);
     expect(find.text('完全访问'), findsOneWidget);
     expect(find.byKey(const ValueKey('plan-marker')), findsOneWidget,
-        reason: '批⑦核心：计划与权限档并行，不再互斥');
+        reason: '批核心：计划与权限档并行，不再互斥');
   });
 
   testWidgets('旧 config.mode=plan 折算：权限回 build+计划标记亮',

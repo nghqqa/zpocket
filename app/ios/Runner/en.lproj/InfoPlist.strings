@@ -1,0 +1,8 @@
+/* 权限描述英文版（早前批次）：iOS 按系统语言在权限弹窗与
+   设置页显示对应文案；中文为主开发语言（zh-Hans 同目录对位）。 */
+"CFBundleDisplayName" = "ZCode Pocket";
+"NSCameraUsageDescription" = "Uses the camera to scan the pairing QR code";
+"NSFaceIDUsageDescription" = "Uses Face ID to unlock the app";
+"NSLocalNetworkUsageDescription" = "Accesses the local network for the LAN fallback channel to your computer";
+"NSMicrophoneUsageDescription" = "Uses the microphone for voice input";
+"NSSpeechRecognitionUsageDescription" = "Recognizes your speech for voice input";

@@ -36,8 +36,162 @@ class UserItem extends ChatItem {
   /// 源行引用（行级操作 target 的唯一可靠来源——文本反查会在重复
   /// 文本时命中错误行， 2026-10-15 抓出的真实 bug）。
   final Map<String, dynamic> row;
-  const UserItem(this.text, this.row);
+
+  /// 本条的提交配置快照（④ 提交配置溯源；null=旧消息（2026-09-15 前
+  /// 缺省）或 Highspeed 加速轮——不参与变化比较）。
+  final UserSubmitConfig? submitConfig;
+
+  /// 与上一条带配置的消息相比是否有已知维度变化（用户拍板「只在配置
+  /// 变化时显示」；首条带配置消息=基线不显示）。
+  final bool showConfigBadge;
+  const UserItem(
+    this.text,
+    this.row, {
+    this.submitConfig,
+    this.showConfigBadge = false,
+  });
 }
+
+/// userInput 行的提交配置快照（官方 rows.ts:119-172：modelSelection/
+/// mode/planEnabled 三项由 admission 在提交瞬间冻结，2026-09-15 起每条
+/// 新用户消息必带、旧转录缺省=未知）。Highspeed 单轮加速（session-flow
+/// .ts:100-106）：直接发送的加速轮 intent.modelSelection 可能是内部
+/// 加速 Provider，官方编辑态/冷恢复均忽略——本解析同款返回 null，不
+/// 伪造「加速模型 → 原模型」的假切换。
+class UserSubmitConfig {
+  final String providerId;
+  final String modelId;
+
+  /// modelSelection.options.reasoningLevel（思考档，可缺省）。
+  final String? reasoningLevel;
+
+  /// build/edit/plan/yolo/guarded（第一方桌面 Plan 开关发送的是
+  /// build+planEnabled:true，plan 为旧客户端/hydration 形态）。
+  final String? mode;
+  final bool? planEnabled;
+  const UserSubmitConfig({
+    this.providerId = '',
+    this.modelId = '',
+    this.reasoningLevel,
+    this.mode,
+    this.planEnabled,
+  });
+
+  String get identityKey => '$providerId/$modelId';
+  bool get hasModel => modelId.isNotEmpty;
+}
+
+/// 官方加速卡隐藏 Provider 全集（highspeed.ts:21-26）——providerId 命中
+/// 即判定该轮 modelSelection 是加速 Provider（早前批次：官方冷恢复按
+/// providerId 判定而非 highspeed 元数据在场；队列提升的加速轮 intent
+/// 已改回普通模型、应正常参与比较——session-flow.ts:126-152）。
+const _highspeedProviderIds = {
+  'account:zai-highspeed-card',
+  'account:bigmodel-highspeed-card',
+};
+
+bool _isHighspeedProvider(String providerId) =>
+    _highspeedProviderIds.contains(providerId);
+
+UserSubmitConfig? userSubmitConfigOf(Map<String, dynamic> row) {
+  final ms = row['modelSelection'];
+  var providerId = '', modelId = '';
+  String? reasoningLevel;
+  if (ms is Map) {
+    providerId = '${ms['providerId'] ?? ''}';
+    modelId = '${ms['modelId'] ?? ''}';
+    final options = ms['options'];
+    if (options is Map) {
+      final rl = '${options['reasoningLevel'] ?? ''}';
+      if (rl.isNotEmpty) reasoningLevel = rl;
+    }
+  }
+  final modeRaw = '${row['mode'] ?? ''}';
+  final mode = modeRaw.isEmpty ? null : modeRaw;
+  final planEnabled =
+      row['planEnabled'] is bool ? row['planEnabled'] as bool? : null;
+  if (modelId.isEmpty && mode == null && planEnabled == null) return null;
+  // 加速卡 Provider=该轮走的是内部加速模型，配置不算会话事实（官方
+  // 冷恢复/编辑态同款忽略——不更新比较基线，防「加速→原模型」假切换）。
+  if (providerId.isNotEmpty && _isHighspeedProvider(providerId)) return null;
+  return UserSubmitConfig(
+    providerId: providerId,
+    modelId: modelId,
+    reasoningLevel: reasoningLevel,
+    mode: mode,
+    planEnabled: planEnabled,
+  );
+}
+
+/// 已知维度才参与变化判定（缺省维度不误报——官方展示层语义：旧消息
+/// 缺字段按未知处理，不按当前配置补值）。
+bool userSubmitConfigDiffers(UserSubmitConfig a, UserSubmitConfig b) {
+  if (a.hasModel && b.hasModel && a.identityKey != b.identityKey) {
+    return true;
+  }
+  final ta = a.reasoningLevel, tb = b.reasoningLevel;
+  if (ta != null &&
+      ta.isNotEmpty &&
+      tb != null &&
+      tb.isNotEmpty &&
+      ta != tb) {
+    return true;
+  }
+  final ma = a.mode, mb = b.mode;
+  if (ma != null &&
+      ma.isNotEmpty &&
+      mb != null &&
+      mb.isNotEmpty &&
+      ma != mb) {
+    return true;
+  }
+  if (a.planEnabled != null &&
+      b.planEnabled != null &&
+      a.planEnabled != b.planEnabled) {
+    return true;
+  }
+  return false;
+}
+
+/// 思考档/协作模式枚举值的中文展示词（官方 chat.toolbar.thoughtLevel.*
+/// 与 mode.label.glm.* 全集；与 composer_panels _ModelSheetState._valueZh
+/// 同源——改一处必须同步另一处）。
+const submitConfigValueZh = <String, String>{
+  'low': '低',
+  'medium': '中',
+  'high': '高',
+  'max': '最高',
+  'off': '关闭',
+  'none': '无',
+  'minimal': '极低',
+  'on': '开启',
+  'xhigh': '极高',
+  'ultra': '极致',
+  'build': '变更前确认',
+  'plan': '计划模式',
+  'autonomous': '自主模式',
+  'guarded': '自主模式',
+  'default': '默认',
+  'edit': '自动编辑',
+  'yolo': '完全访问',
+  'ask': '变更前确认',
+  'full': '完全访问',
+};
+
+/// 英文侧（协作模式/思考档用官方 en-US label——早前批次 补 xhigh/edit
+/// 官方词，官方 en-US.ts:5254/6416）。
+const submitConfigValueEn = <String, String>{
+  'xhigh': 'Extra high',
+  'edit': 'Edit automatically',
+  'build': 'Ask before changes',
+  'plan': 'Plan mode',
+  'autonomous': 'Autonomous mode',
+  'guarded': 'Autonomous mode',
+  'default': 'Default',
+  'yolo': 'Full access',
+  'ask': 'Ask before changes',
+  'full': 'Full access',
+};
 
 /// 一个 turn 的工作组：header（turnHeader 行，旧会话可缺省）+ 工作行。
 /// work 列表与渲染条目共享引用——占位条目先入列，后续行继续追加。
@@ -98,11 +252,11 @@ class TurnWork {
     );
   }
 
-  /// 轮正常完成（官方轮尾操作行只认 row.state==='complete'
+  /// 轮正常完成（对抗审查 ：官方轮尾操作行只认 row.state==='complete'
   /// ——中断/失败轮的反馈/分支大概率被服务端 guard 拒）。
   bool get completedOk => header?['state'] == 'completedSuccess';
 
-  /// 是否轮内最后一个工作段（guided 追问一轮切多个段，
+  /// 是否轮内最后一个工作段（对抗审查 ：guided 追问一轮切多个段，
   /// 若每段都挂轮尾操作行=一轮 N 条四钮行；官方一轮只一条 action bar）。
   /// buildChatItems 在 guided 切段时把前段置 false。
   bool isLastSegment = true;
@@ -118,7 +272,7 @@ class TurnWork {
   Map<int, Map<String, dynamic>>? pairedSubagentByToolRowId;
   Set<int>? claimedSubagentRowIds;
 
-  /// 整轮全部非空正文段合并（官方轮尾复制=全部 text 段
+  /// 整轮全部非空正文段合并（对抗审查 ：官方轮尾复制=全部 text 段
   /// join("\n\n")，ConversationTurnGroup.tsx:1336——此前只复制最后一段，
   /// 多段轮丢前段；prefixText=切段继承的前序段正文）。
   String get allTextJoined {
@@ -490,7 +644,7 @@ List<ChatItem> buildChatItems(List<Map<String, dynamic>> rows) {
   final items = <ChatItem>[];
   TurnWork? open;
 
-  /// 轮级正文累积（guided 切段继承——轮尾复制=整轮合并，）。
+  /// 轮级正文累积（guided 切段继承——轮尾复制=整轮合并，对抗审查）。
   String turnTextCarry = '';
 
   /// 当前用户消息所属轮的 header（wire 上 turnHeader 先于 userInput 到达）。
@@ -506,18 +660,22 @@ List<ChatItem> buildChatItems(List<Map<String, dynamic>> rows) {
   /// 胶囊偏小；配对聚合本就按轮，计数同口径）。
   var turnSubagentCount = 0;
 
+  /// ④ 提交配置溯源：上一条带配置的 userInput（窗口内单程比较——
+  /// 分页前插后整窗重建，链始终正确；窗口起点首条=基线不显示）。
+  UserSubmitConfig? lastSubmitConfig;
+
   void closeTurn() {
     final lastSeg = open;
     final subagents = turnSubagentCount;
     open = null;
     // 轮结束：轮尾文件变更卡（桌面=最终正文之后的内联折叠卡）。
-    // 数字守卫（首立，批C 组3 铺满）：fileChanges
+    // 数字守卫（对抗审查 首立，批C 组3 铺满）：fileChanges
     // 自身与 files 计数都过守卫——String/非 Map 形态漂移不再打断 build。
     final files = intOrZero(mapOf(turnHeader?['fileChanges'])?['files']);
     final hasEntity = '${turnHeader?['entityId'] ?? ''}'.trim().isNotEmpty;
     // （审计）：fileChanges/rewind 的 target 必须带 entityId（官方
     // ConversationFileSummaryPanel 在缺失时直接不渲染入口）。
-    // 子代理胶囊挂本卡：只读不改文件的轮（files==0
+    // 子代理胶囊挂本卡（对抗审查）：只读不改文件的轮（files==0
     // 但 subagents>0）也发卡——胶囊不得随文件数消失。
     if (turnHeader != null && (files > 0 || subagents > 0) && hasEntity) {
       // 操作行随卡（2026-10-24 用户验收：对齐官方 deferAssistantActions
@@ -574,7 +732,7 @@ List<ChatItem> buildChatItems(List<Map<String, dynamic>> rows) {
         // 全部回合拿空 header（真机实锤"已处理"+运行中被判完成默认
         // 收起，2026-10-22 验收③）；上一轮在下一个 turnHeader 到达时关。
         if (row['guided'] == true && open != null) {
-          // guided 切段（/）：前段不是轮尾段；前段正文
+          // guided 切段（对抗审查 /）：前段不是轮尾段；前段正文
           // 计入轮级累积，新段继承（轮尾复制=整轮合并口径）。
           open!.isLastSegment = false;
           // 前段进入多段口径（工时按段）；结束边界=本触发行
@@ -591,7 +749,22 @@ List<ChatItem> buildChatItems(List<Map<String, dynamic>> rows) {
           // 还开着——在用户消息处收口，防止上一段的行吞掉本轮工作行。
           closeTurn();
         }
-        items.add(UserItem('${row['text'] ?? ''}', row));
+        // ④ 提交配置溯源：与上一条带配置的消息比较，只在变化时挂徽标。
+        final submitConfig = userSubmitConfigOf(row);
+        final prevSubmitConfig = lastSubmitConfig;
+        final showBadge =
+            submitConfig != null &&
+            prevSubmitConfig != null &&
+            userSubmitConfigDiffers(prevSubmitConfig, submitConfig);
+        if (submitConfig != null) lastSubmitConfig = submitConfig;
+        items.add(
+          UserItem(
+            '${row['text'] ?? ''}',
+            row,
+            submitConfig: submitConfig,
+            showConfigBadge: showBadge,
+          ),
+        );
       case 'turnHeader':
         // 新轮开始：关上一轮（发其文件卡）再挂本轮 header。
         closeTurn();
@@ -603,7 +776,7 @@ List<ChatItem> buildChatItems(List<Map<String, dynamic>> rows) {
       // 此前落 default 静默丢弃——进工作段按通用行渲染（displayName
       // 由渲染层映射），不再不可见。
       case 'artifact':
-        // 收敛（2026-10-22，官方 isVisibleAssistantWorkRow +
+        // 对抗审查收敛（2026-10-22，官方 isVisibleAssistantWorkRow +
         // shouldDeferUnclassifiedShellToolCall）：空终态思考行不渲染
         // （首个 delta 前的流式空行同略）；EnterPlanMode 是内部模式切换
         // 边界不算工具；shell 命令参数还没流出（inputText 空）时整行
@@ -831,7 +1004,7 @@ String workBarLabel(TurnWork work, {int? nowMs}) {
       // 'Working for 3m 20s'。
       return '工作中 ${elapsed > 0 ? tr(formatWorkDuration(elapsed)) : tr('1 秒')}';
     case 'interrupted':
-      // B 保留：官方此文案专属 bot 群投递的
+      // B 保留（2026-10-22 对抗审查勘误）：官方此文案专属 bot 群投递的
       // newMessage 中断；我方借用于 editRerun——编辑重发确实是被新消息
       // 打断，信息更准，非官方同条件对齐。
       return '已被新消息中断';
@@ -856,7 +1029,7 @@ String workBarLabel(TurnWork work, {int? nowMs}) {
 bool turnWorkExpandable(List<Map<String, dynamic>> work) => work.isNotEmpty;
 
 /// 思考条标签（官方 reasoning.tsx 文案；纯函数供 _ReasoningTile 与单测）。
-/// [measuredMs]：流式期间客户端实测时长（-1 修复，2026-10-22：
+/// [measuredMs]：流式期间客户端实测时长（对抗审查 2-1 修复，2026-10-22：
 /// 服务端从不下发 reasoning durationMs——官方 reasoning.tsx:129-133 在
 /// 完成边沿用秒表实测值定稿；此前我方测到的值被整体丢弃退化「几秒」）。
 /// 优先级：服务端 durationMs（预留）> measuredMs > 「几秒」兜底。
@@ -1095,7 +1268,7 @@ String? _previewFromArgs(
     'absolute_path',
   ]);
   if (file != null) {
-    // 官方 renderFileChip
+    // 对抗审查 3-8（2026-10-22）：文件名为主——官方 renderFileChip
     // 取叶子名、目录路径窄屏隐藏；手机常态即窄容器，全路径截断
     // 可读性差。
     final leaf = file
@@ -1251,4 +1424,22 @@ class SubagentPairUnit extends WorkUnit {
   final Map<String, dynamic> toolRow;
   final Map<String, dynamic> subagentRow;
   SubagentPairUnit(this.toolRow, this.subagentRow);
+}
+
+/// 顶栏子代理运行中计数（早前批次，用户拍板：子代理图标
+/// 同挂动态角标）：与 SubagentTile 的 running 判定同语义——status 为
+/// running/streaming 计入；终态 success/failed/cancelled 不计；status
+/// 缺席按运行中（与卡 fail-open 一致，流式早期行尚无终态）。
+int countRunningSubagents(List<Map<String, dynamic>> rows) {
+  var n = 0;
+  for (final row in rows) {
+    if (row['kind'] != 'subagent') continue;
+    // 对抗审查 C-（2026-11-14）：fail-open（非终态全计）会把演示行
+    // status:'done' 与未知状态全点亮——改显式白名单宁少勿多（行数据
+    // 无配对工具行上下文，SubagentTile 的「status 空+工具行在跑」分支
+    // 此处不可达，空不计）。
+    final status = '${row['status'] ?? row['state'] ?? ''}';
+    if (status == 'running' || status == 'streaming') n++;
+  }
+  return n;
 }

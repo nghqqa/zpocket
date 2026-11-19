@@ -36,9 +36,18 @@ import sys
 from pathlib import Path
 
 # ---- 扫描范围（按后缀 → 注释语法族）----
-SLASH_EXT = {".dart", ".kt", ".kts", ".java", ".gradle"}    # // 行注释 + /* */ 块
+# .swift 与 .plist/.entitlements 随 iOS 适配进入导出范围（16 路对抗审查
+# H5 扩展名盲区）：Swift 注释语法与 Dart/Kotlin 同族；plist/entitlements
+# 是 XML 文档，`<!-- -->` 正是其注释语法。
+# 发布预审（E 路）补：.strings（C 风格 /* */ 注释——InfoPlist.strings
+# 的批次 slug 曾原样漏出）/.xcprivacy（XML）；.pbxproj/.xcscheme/
+# .storyboard 当前零命中，一并纳入防未来（E 路实测无结构破坏）。
+SLASH_EXT = {".dart", ".kt", ".kts", ".java", ".gradle", ".swift", ".strings"}    # // 行注释 + /* */ 块
+# .pbxproj 不扫（发布预审公树冒烟实证撤回）：其 /* Begin/End section */
+# 是段分隔标记而非注释——块注释逻辑会把段内数据行当注释清洗，破坏
+# 工程注册表（AA51… in Resources 断言红）。
 HASH_EXT = {".yaml", ".yml", ".properties", ".gitignore", ".cfg", ".toml"}
-XML_EXT = {".xml", ".html"}
+XML_EXT = {".xml", ".html", ".plist", ".entitlements", ".xcprivacy", ".xcscheme", ".storyboard"}
 
 # 裸车道码排除集（与合法术语歧义，见文件头）。
 BARE_EXCLUDE = {"M2", "M3", "K3", "R8"}
@@ -55,6 +64,8 @@ REFS_MAP = [
     (re.compile(r"refs/zemote\b"), "zemote 参考仓库"),
     (re.compile(r"refs/paseo\b"), "paseo 参考仓库"),
     (re.compile(r"refs/[A-Za-z0-9_./-]+"), "参考源码快照"),
+    # 内部计划文档路径（slug 无数字形态，ios-adaptation-\d+ 白名单盖不住）。
+    (re.compile(r"docs/ios-adaptation-plan\.md"), "iOS 适配批次表"),
 ]
 
 # 词级改写（两种模式都安全）：裸 "ADR" 一词指向内部决策日志——
@@ -68,8 +79,50 @@ WORD_MAP = [
     (re.compile(r"视觉审查必修(后的形态)?"), "视觉走查结论"),
     (re.compile(r"视觉审查 \d{3,4}"), "视觉走查"),
     (re.compile(r"视觉审查"), "视觉走查"),
+    # 对抗审查的中文等级码（高1b/中2/低10——Swift/Dart 注释里成群出现）。
+    # 只认「对抗审查+等级+数字」整串；不把「高\d」单列规则，避免误伤
+    # 「提高2倍」这类正文（16 路对抗审查 H5 点名）。
+    (re.compile(r"对抗审查(?:高|中|低)\d{1,2}[a-z]?"), "对抗审查发现"),
     (re.compile(r"素材补拍轮|素材英文轮|素材录制发现|宣传素材首拍"), "实测"),
-    (re.compile(r"demo-mode-1|public-media-1(?:-r\d)?"), "演示模式批"),
+    (re.compile(
+        r"demo-mode-1|public-media-1(?:-r\d)?"
+        r"|run-list-artifacts|dark-screenshots-rework"
+    ), "演示模式批"),
+    # 对抗审查 D-8 → CI 46 红修正（2026-11-14）：通用 slug 形态正则
+    # 会误伤测试夹具标识符（turn-tail-5/command-42 等被洗成"早前批次"
+    # 导致公树 CI 全红——私库绿因为清洗只作用于导出）。改白名单制：
+    # 只改写已知批次 slug，新批次发版时补一个词即可。
+    (re.compile(
+        r"\b(?:"
+        r"artifact-share-1|collect-entry-1|conversation-text-share-1"
+        r"|topbar-live-badges-1|topbar-compact-1"
+        r"|acceptance-fix-106-[12]|downloads-hub-1|run-list-artifacts"
+        r"|adversarial-fix-106"
+        r"|issue13-startplan"
+        # iOS 适配批次（16 路对抗审查 H5）：ios-adaptation-N 已随 app/ios
+        # 进导出范围；fix-ios-review-N 为即将落地的修复批 slug，先登记防漏。
+        r"|ios-adaptation-\d+|fix-ios-review-\d+"
+        # 发布预审（五方向双盲 E 路量化：基线为零、本批引入）：107 批
+        # slug 及其缩写。
+        r"|protocol-consume-107(?:-fix-\d+)?|107-fix"
+        r")\b"
+    ), "早前批次"),
+    # 发布预审拍板 1A：清「新类别」——版本批次叙述（\d.\d.\d 批→后续
+    # 版本同匹配）、圈号规格码（⑤A/⑥B/⑧ 等——与维护者对话的功能
+    # 编号，公开注释无意义）、审查形态码（V1/V2/V3、洞①-⑳、三洞）、
+    # iOS 批字母（D 批/D-H 批/批三——slug 清后残留的字母尾巴）。
+    # 基线存量（裸「对抗审查/用户拍板」等）按 2026-10-28 既有拍板保留。
+    (re.compile(r"\d+\.\d+\.\d+ 批"), "早前批次"),
+    (re.compile(r"[⑤⑥⑦⑧⑨⑩⑪][AB]?"), ""),
+    # V[123] 不设通用规则（误伤实证：「V2 登录」=OAuth V2 合法术语，
+    # 自测套钉死）——V 形态码在源头注释手写为中文化。
+
+    (re.compile(r"三洞[①②③]?|洞[①-⑳]"), ""),
+    (re.compile(r"，?[A-J](?:-[A-J])? 批"), ""),
+    (re.compile(r"批[一二三四五]"), ""),
+    # 内部验收/拍板叙事（终审口径：开发过程叙述不入公开注释）。
+    (re.compile(r"用户 \d{4}-\d{2}-\d{2} 拍板"), "设计定稿"),
+    (re.compile(r"真机验收实录|真机验收反馈"), "实测反馈"),
 ]
 
 # 直接删除的内部产物名（docs/ 前缀形在前，防裸名先匹配留下 "docs/" 残片；

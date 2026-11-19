@@ -3,6 +3,8 @@
 // 分发 / cancel 后事件忽略）+ 语音面板系统分派的端到端接线（权限
 // mock 授权 → start 被调 → partial 上屏 → listening 态）。
 // 原生侧（SystemAsrPlugin.kt）不进 Flutter 测试——真机/模拟器冒烟覆盖。
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,9 +29,42 @@ void _pushEvent(Map<String, dynamic> args) {
   );
 }
 
+/// 权限通道 mock：request/check 返回固定麦克风状态（permission_handler
+/// 的 microphone=7，denied=0/granted=1），openAppSettings 记录调用。
+void _mockPermissionChannel({
+  required int micStatus,
+  void Function()? onOpenSettings,
+}) {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(_permCh, (call) async {
+    switch (call.method) {
+      case 'requestPermissions' || 'checkPermissions':
+        return {7: micStatus};
+      case 'openAppSettings':
+        onOpenSettings?.call();
+        return true;
+    }
+    return null;
+  });
+}
+
+/// 泵出语音面板（带 AppStateScope——预览/整理路径需要 uiPrefs）。
+Future<void> _pumpSheet(WidgetTester tester, {AppState? app}) async {
+  await tester.pumpWidget(
+    AppStateScope(
+      app: app ?? (AppState()..loaded = true),
+      child: MaterialApp(
+        home: Scaffold(body: VoiceInputSheet(onSend: (_) {})),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 100));
+}
+
 
 void main() {
-  // 1.0.1 验收⑧红绿：构建传 VOICE_HMS=1 时 bool.fromEnvironment 恒
+  // 1.0.1 验收红绿：构建传 VOICE_HMS=1 时 bool.fromEnvironment 恒
   // false（只认 'true'）——统一 String 语义后 '1'/'true' 均开。
   test('voiceHmsDefineEnabled：1/true/True 开，其余关（构建=1 回归锁）', () {
     expect(voiceHmsDefineEnabled('1'), isTrue,
@@ -67,6 +102,8 @@ void main() {
         .setMockMethodCallHandler(_permCh, null);
     SystemAsr.resetForTest();
     sheet.debugVoiceRecognitionAvailable = null;
+    VoiceInputSheet.debugRefineOverride = null;
+    VoiceInputSheet.debugIosAsrErrorsOverride = null;
   });
 
   group('SystemAsr 客户端协议', () {
@@ -475,5 +512,221 @@ void main() {
       expect(find.textContaining('没听到内容'), findsOneWidget,
           reason: '修复前：空 partial 时 completer 永不完成=面板卡在识别中');
     });
+  });
+
+  // 早前批次：iOS 真人使用五断点的端到端回归。
+  group('早前批次 语音五断点', () {
+    testWidgets('麦克风被拒：失败态提供「去设置」出口（修复前只有关闭）',
+        (tester) async {
+      var opened = 0;
+      _mockPermissionChannel(micStatus: 0, onOpenSettings: () => opened++);
+
+      await _pumpSheet(tester);
+
+      expect(find.textContaining('未授予麦克风权限'), findsOneWidget);
+      expect(find.byKey(const ValueKey('voice-open-settings')), findsOneWidget,
+          reason: '修复前：权限拒绝后 failed 态没有恢复路径');
+      await tester.tap(find.byKey(const ValueKey('voice-open-settings')));
+      await tester.pump();
+      expect(opened, 1, reason: '「去设置」必须实际调用 openAppSettings');
+    });
+
+    testWidgets('iOS 语音识别被拒：人话 + 去设置（不再裸露 [9]）',
+        (tester) async {
+      VoiceInputSheet.debugIosAsrErrorsOverride = true;
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+      expect(calls.map((c) => c.method), contains('start'));
+
+      _pushEvent({'type': 'error', 'code': 9, 'message': '未授权语音识别'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('语音识别权限未开启'), findsOneWidget,
+          reason: '修复前：iOS 用户看到「语音服务不可用：[9]」');
+      expect(find.textContaining('[9]'), findsNothing);
+      expect(find.byKey(const ValueKey('voice-open-settings')), findsOneWidget);
+    });
+
+    testWidgets('iOS 网络类错误：人话网络提示（不再裸露域码）', (tester) async {
+      VoiceInputSheet.debugIosAsrErrorsOverride = true;
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+
+      _pushEvent({'type': 'error', 'code': 1101, 'message': 'Try again'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('网络连接不可用'), findsOneWidget);
+      expect(find.textContaining('[1101]'), findsNothing);
+      expect(find.byKey(const ValueKey('voice-open-settings')), findsNothing,
+          reason: '非权限失败不引导去设置');
+    });
+
+    testWidgets('iOS 没听清（1110 域码）：按「没听到内容」收尾', (tester) async {
+      VoiceInputSheet.debugIosAsrErrorsOverride = true;
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+
+      _pushEvent({'type': 'error', 'code': 1110, 'message': 'No speech'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('没听到内容'), findsOneWidget);
+      expect(find.textContaining('[1110]'), findsNothing);
+    });
+
+    testWidgets('iOS 取消类错误：有部分结果时静默按部分结果进预览',
+        (tester) async {
+      VoiceInputSheet.debugIosAsrErrorsOverride = true;
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+
+      _pushEvent({'type': 'partial', 'text': '已经说的内容'});
+      await tester.pump();
+      _pushEvent({'type': 'error', 'code': 216, 'message': 'canceled'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('检查一下再发送'), findsOneWidget,
+          reason: '取消不得弹失败态/裸露 [216]');
+      expect(find.textContaining('识别失败'), findsNothing);
+      expect(find.textContaining('已经说的内容'), findsWidgets);
+    });
+
+    testWidgets('iOS 取消类错误：零部分结果按「没听到内容」收尾（不悬挂）',
+        (tester) async {
+      VoiceInputSheet.debugIosAsrErrorsOverride = true;
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+
+      _pushEvent({'type': 'error', 'code': 216, 'message': 'canceled'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('没听到内容'), findsOneWidget);
+      expect(find.textContaining('[216]'), findsNothing);
+    });
+
+    testWidgets('Android 错误码语义零变化（仍按原格式提示）', (tester) async {
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+
+      _pushEvent({'type': 'error', 'code': 4, 'message': 'server busy'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('语音服务不可用：[4]'), findsOneWidget,
+          reason: 'iOS 映射不得改变 Android 的既有提示语义');
+    });
+
+    testWidgets('Android 没听清：有部分结果时按部分结果收尾（原语义）',
+        (tester) async {
+      _mockPermissionChannel(micStatus: 1);
+      await _pumpSheet(tester);
+
+      _pushEvent({'type': 'partial', 'text': '部分识别文字'});
+      await tester.pump();
+      _pushEvent({'type': 'error', 'code': 7, 'message': 'no match'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('检查一下再发送'), findsOneWidget,
+          reason: 'Android 6/7 有部分结果时不得判失败（既有语义）');
+      expect(find.textContaining('识别失败'), findsNothing);
+    });
+
+    test('iOS 错误码表：权限/网络/没听清/取消/未知兜底（纯函数）', () {
+      expect(iosVoiceErrorMessage(9), contains('语音识别权限未开启'));
+      expect(iosVoiceErrorMessage(1101), '网络连接不可用，请检查网络');
+      expect(iosVoiceErrorMessage(203), '网络连接不可用，请检查网络');
+      expect(iosVoiceErrorMessage(7), '没听到内容，再试一次');
+      expect(iosVoiceErrorMessage(1110), '没听到内容，再试一次');
+      expect(iosVoiceErrorMessage(216), isNull, reason: '取消类静默');
+      expect(iosVoiceErrorMessage(301), isNull);
+      expect(iosVoiceErrorMessage(-999), isNull);
+      for (final code in [8, 10, 11, 1700, 201, 99999]) {
+        final human = iosVoiceErrorMessage(code);
+        expect(human, isNotNull);
+        expect(human, isNot(contains('[$code]')));
+        expect(RegExp(r'\d').hasMatch(human!), isFalse,
+            reason: '未知/内部码不得把数字丢给用户（code=$code）');
+      }
+      expect(iosVoiceErrorNeedsSettings(9), isTrue);
+      expect(iosVoiceErrorNeedsSettings(1101), isFalse);
+      expect(iosVoiceErrorNeedsSettings(216), isFalse);
+    });
+
+    testWidgets('整理中允许关闭面板；迟到整理结果不落地（_closed 守卫）',
+        (tester) async {
+      final refine = Completer<String>();
+      VoiceInputSheet.debugRefineOverride = (_) => refine.future;
+      addTearDown(() {
+        if (!refine.isCompleted) refine.complete('迟到的整理稿');
+      });
+      _mockPermissionChannel(micStatus: 1);
+      final app = AppState()..loaded = true;
+      // setter 的内存态同步生效；落盘在测试宿主无 secure storage 平台端，
+      // 不 await（await 会在假异步里悬挂，既有设置页用例同款）。
+      unawaited(app.uiPrefs.setVoiceApiKey('sk-test'));
+
+      await tester.pumpWidget(
+        AppStateScope(
+          app: app,
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => TextButton(
+                  onPressed: () => Navigator.of(ctx).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => Scaffold(
+                        body: VoiceInputSheet(onSend: (_) {}),
+                      ),
+                    ),
+                  ),
+                  child: const Text('open-voice'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open-voice'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(VoiceInputSheet), findsOneWidget);
+
+      _pushEvent({'type': 'final', 'text': '帮我看下日志'});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('正在整理成规范指令…'), findsOneWidget);
+
+      final popScope = tester
+          .widgetList<PopScope>(
+            find.byWidgetPredicate((w) => w is PopScope),
+          )
+          .first;
+      expect(popScope.canPop, isTrue,
+          reason: '修复前 refining 态 canPop=false，API 卡住时 40s 动不了');
+
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      expect(await navigator.maybePop(), isTrue);
+      // refining 态有不定进度圈，pumpAndSettle 需给短超时兜底。
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 50),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 5),
+      );
+      expect(find.byType(VoiceInputSheet), findsNothing,
+          reason: 'refining 态必须允许关闭面板');
+      expect(find.text('open-voice'), findsOneWidget,
+          reason: '关闭后应回到打开面板的页面');
+
+      // 面板已销毁后迟到的整理结果必须被 _closed 丢弃（不得 setState）。
+      refine.complete('迟到的整理稿');
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }, timeout: const Timeout(Duration(seconds: 30)));
   });
 }

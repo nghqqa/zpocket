@@ -257,6 +257,12 @@ class ConversationTransport {
 
   /// Commands that require `baseRevision` (CAS; the web client behaves the same) and row-target
   /// commands that also require `baseLogEpoch`.
+  /// editQueueItem 保留在 CAS 集合（发布预审双盲回滚）：官方 3.18 的
+  /// command.ts:413-415 注释明确它不走 CAS，但 3.16–3.17.2（含 stable
+  /// 3.17.2）的 CAS 集合仍含它——缺 baseRevision 直接 proto.invalidPayload
+  /// 拒收且 UI 静默；3.18 上多带该字段属无害冗余（信封非 strict，官方
+  /// decide() 只对集合内命令比较）。README 兼容表承诺 3.16+，按最老
+  /// 支持版本裁剪 wire 字段。
   static const _casCommands = {
     'applyFileRewind',
     'forkAssistant',
@@ -628,7 +634,7 @@ class ConversationTransport {
     ]);
   }
 
-  /// 看板产物取数（A 批 2026-11-08：workflowRunArtifactData——预置看板
+  /// 看板产物取数（2026-11-08：workflowRunArtifactData——预置看板
   /// chart/table/metrics/board 的数据面；cursor=journal sequence 与事件
   /// 日志同语义（afterSequence 严格大于）；缺省页 200、上限 500；返回
   /// {items:[{sequence,siteId,ordinal,item|fields}], hasMore}）。
@@ -695,12 +701,44 @@ class ConversationTransport {
   Future<dynamic> sendCompact(String sessionId) =>
       sendCommand(sessionId, 'compact', const {});
 
-  /// 取消后台工作（B 批 2026-11-08：官方 v4 命令 cancelBackgroundWork
+  /// 取消后台工作（2026-11-08：官方 v4 命令 cancelBackgroundWork
   /// {workId}，command.ts:269；拒绝语义=「没有取消任何东西」人话上抛）。
   Future<dynamic> cancelBackgroundWork(String sessionId, String workId) =>
       sendCommand(sessionId, 'cancelBackgroundWork', {'workId': workId});
 
-  /// E 批（2026-11-08 拍板③）：工作区 Hook 审核决策——decision=
+  /// 逐条停止子代理（② 早前批次：官方 v4 命令 stopSubagent，command.ts
+  /// :215-220 strict payload {taskId, executionId}——两者来自快照
+  /// running 行的 stopControl（只有 live runtime 写入；冷恢复行不带=
+  /// 不可停，不显钮）。非 CAS 命令、不进输入队列；业务失败=ACK failed
+  /// fault.command.subagentStopRejected.not_running/not_found（executionId
+  /// 不匹配=恢复出的新执行不会被旧 Stop 误杀）。幂等按 (sessionId,
+  /// commandId)。
+  Future<dynamic> stopSubagent(
+    String sessionId,
+    String taskId,
+    String executionId,
+  ) => sendCommand(sessionId, 'stopSubagent', {
+        'taskId': taskId,
+        'executionId': executionId,
+      });
+
+  /// ① 上下文组成下钻（早前批次；早前批次 修正通道与信封）：调 zcode-agent
+  /// 服务方法 getContextComposition（zcodeAgent.ts:1105-1111——服务方法名
+  /// ≠CLI wire 名 v4/conversation/contextComposition，服务内部已解包），
+  /// 返回**裸 ContextComposition | null**（不是 {composition: ...} 信封）。
+  /// existing-only：会话不在内存/无运行中 CLI/旧 CLI（-32601
+  /// method-not-found）都返回 null，不启动 CLI（官方语义，UI 呈人话空态）。
+  /// 11 细类 token/字符估算（每类 items≤50 按 token 降序，0 token 类别
+  /// 不下发）；phase=request=最近真实请求组成 / draft-preview=按当前模型
+  /// 预演。tokenMethod 恒 estimated（本地估算，与服务商计数有偏差属预期）。
+  Future<dynamic> contextComposition(String sessionId) async {
+    await handshake();
+    return _channels.call(channel, 'getContextComposition', [
+      {...scope, 'sessionId': sessionId},
+    ]);
+  }
+
+  /// （2026-11-08 拍板③）：工作区 Hook 审核决策——decision=
   /// {action:'trust_selected', reviewItemIds≥1}（官方 command.ts:237）。
   Future<dynamic> respondWorkspaceHookReview(
     String sessionId,
@@ -922,7 +960,7 @@ class ConversationTransport {
     ]);
   }
 
-  /// 会话子代理列表（2026-10-26 批④拍板⑥，官方 zcodeAgentService.
+  /// 会话子代理列表（2026-10-26 批④拍板，官方 zcodeAgentService.
   /// listSessionSubagents 对位——同 zcode-agent 通道的服务方法）。
   /// 返回 {revision, childSessionIds, running[], ended{total, items[],
   /// nextCursor?}}；items 带 childSessionId/title/summary/subagentType/
@@ -1258,7 +1296,7 @@ class ConversationTransport {
       SessionsIndexSubscription._dormant(this);
 
   /// [maxAttempts]：工作区切换传 1——冷/慢启 runtime 单次降级 dormant
-  /// （验收⑤：3 轮耐心最坏 ~10 分钟 spinner；60s 复活定时器兜底），
+  /// （验收：3 轮耐心最坏 ~10 分钟 spinner；60s 复活定时器兜底），
   /// 默认 3 轮留给长连接恢复场景。
   Future<SessionsIndexSubscription> subscribeSessionsIndex({
     int maxAttempts = 3,
@@ -1854,7 +1892,7 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
       await _transport.session.waitHealthy(
         timeout: const Duration(seconds: 45),
       );
-      // disposed 闸门：抖动期 resubscribe 在途（waitHealthy
+      // disposed 闸门（对抗审查）：抖动期 resubscribe 在途（waitHealthy
       // 45s+subscribe 120s）恰逢用户切工作区/退后台 dispose——继续跑会在
       // 已 dispose 的订阅上重挂帧监听器、置新 _subscriptionId（永不退订，
       // 桌面端泄漏）并经 _onStarted 武装一个无人取消的看门狗定时器。
@@ -1949,7 +1987,7 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
     _resubscribe();
   }
 
-  /// resubscribe 互斥：桥恢复通知/看门狗升级/3s 重试三源
+  /// resubscribe 互斥（对抗审查）：桥恢复通知/看门狗升级/3s 重试三源
   /// 并发触发时，两个实例各自 _start 会产生双帧监听器（前者泄漏）+同
   /// ownershipKey 双订阅（服务端驱逐竞态，本项目 //notOwned 同源）。
   bool _resubscribing = false;
@@ -1968,7 +2006,7 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
     try {
       await _transport.handshake();
     } catch (e) {
-      // 桥 degraded 窗口内握手会 30s 超时抛错（此前裸抛
+      // 桥 degraded 窗口内握手会 30s 超时抛错（对抗审查 ：此前裸抛
       // 且不挂 3s 重试——unawaited 调用点无人 catch，恢复只能靠下一次
       // 桥恢复事件）。纳入统一 3s 重试链。
       _transport._log('[$_logTag] resubscribe handshake failed: $e');
@@ -2158,6 +2196,10 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
   }
 
   Future<void> dispose() async {
+    // 幂等闸（早前批次）：registry.close 的 M2 双清遍+外部先行的
+    // 手动 dispose 组合下二次进入曾把已 dispose 的 ConversationState 再
+    // dispose（ChangeNotifier 断言炸）——二次调用直接返回。
+    if (_disposed) return;
     _disposed = true;
     _resubscribeTimer?.cancel();
     _fragmentCleanup?.cancel();
@@ -3743,7 +3785,7 @@ class ConversationState extends ChangeNotifier {
     }
   }
 
-  /// （高③）：快照 workflowRuns 投影（官方 snapshot.ts:527
+  /// （对抗审查高③）：快照 workflowRuns 投影（官方 snapshot.ts:527
   /// ——工具卡→run 的联接权威源；run.toolCallId 是关联键）。
   List<Map<String, dynamic>> get workflowRunsList {
     final w = snapshot?['workflowRuns'];
@@ -3757,6 +3799,19 @@ class ConversationState extends ChangeNotifier {
     final list = snapshot?['backgroundWorks'];
     if (list is! List) return const [];
     return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+  }
+
+  /// ② 逐条停止（早前批次）：快照 subagents.running 投影——stopControl
+  /// 的**唯一来源**（官方 snapshot.ts:420-436 runningSubagentSummarySchema，
+  /// live runtime 写入、冷恢复清空；legacy listSessionSubagents RPC 的
+  /// running 行是 strict schema 且**没有 stopControl**——zcode-protocol/
+  /// index.ts:1982-1999）。UI 停止钮按 childSessionId 从这里联接。
+  List<Map<String, dynamic>> get subagentsRunningList {
+    final subs = snapshot?['subagents'];
+    if (subs is! Map) return const [];
+    final running = subs['running'];
+    if (running is! List) return const [];
+    return running.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
   }
 
   Map<String, dynamic>? get goal =>

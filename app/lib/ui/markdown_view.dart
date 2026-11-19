@@ -148,7 +148,8 @@ class MarkdownView extends StatelessWidget {
     MarkdownStyleSheet base,
   ) =>
       base.copyWith(
-// 排版密度对齐官方。
+// 排版密度对齐官方（2026-10-22 对抗审查收敛项：正文 1.6 无字距
+        // vs 官方 leading-[1.75] tracking-wide，message.tsx:1368）。
         p: TextStyle(
           fontSize: AppType.uiBase,
           color: context.colors.foreground,
@@ -283,7 +284,7 @@ class _PreHighlightBuilder extends MarkdownElementBuilder {
     final language = enabled ? languages[source.trim()] : null;
     final spans =
         language != null ? highlightCode(source, language, brightness: brightness) : null;
-    // 2026-10-23 用户反馈批⑧：代码块右上角一键复制（官方
+    // 2026-10-23 用户反馈批：代码块右上角一键复制（官方
     // CodeBlockCopyButton code-block.tsx:454 对位，复制代码原文非渲染
     // 文本）。按钮浮在横向滚动壳之上，不随代码横向滚动。
     return Stack(

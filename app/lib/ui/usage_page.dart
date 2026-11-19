@@ -11,6 +11,7 @@ import '../core/usage_format.dart';
 import '../core/usage_timezone.dart';
 import '../state/app_state.dart';
 import '../state/app_state_scope.dart';
+import 'conversation_page.dart' show inferEntPlanKind;
 import '../transport/channel_client.dart';
 import '../transport/companion_client.dart';
 import 'coding_plan_reset.dart';
@@ -85,7 +86,10 @@ class _UsagePageState extends State<UsagePage>
   bool _familyFallbackTried = false;
 
   /// 套餐来源（2026-10-27 用户其他需求④）：个人套餐 / Start Plan。
+  /// issue #13（首份外部用户报告）：初始档不再硬编码——首载时从活跃
+  /// 会话推导（inferEntPlanKind 同源），纯 Start Plan 账号首进即落对档。
   String _planKind = 'individual-coding-plan';
+  bool _planKindSeeded = false;
 
   /// （2026-10-24 修复批）stale-while-revalidate：已有数据时切档/
   /// 刷新不整页转圈——保留旧值渲染，列表顶部细进度条示刷新中；
@@ -299,6 +303,18 @@ class _UsagePageState extends State<UsagePage>
   /// bigmodel；entitlement 不可用时再回退尝试另一家族。
   void _deriveFamily() {
     final app = AppStateScope.of(context);
+    // issue #13：同时推导套餐档（provider 含 start-plan 即 Start Plan
+    /// 账号）——仅首载 seed，用户手动切换后不再覆盖。
+    if (!_planKindSeeded) {
+      final providers = <String>[];
+      for (final state in app.conversationStates.values) {
+        final cfg = state.snapshot?['config'];
+        final provider = cfg is Map ? '${cfg['provider'] ?? ''}' : '';
+        if (provider.isNotEmpty) providers.add(provider);
+      }
+      _planKind = inferEntPlanKind(allProviders: providers);
+      _planKindSeeded = true;
+    }
     for (final state in app.conversationStates.values) {
       final cfg = state.snapshot?['config'];
       final provider = cfg is Map ? '${cfg['provider'] ?? ''}' : '';
@@ -925,28 +941,55 @@ class _UsagePageState extends State<UsagePage>
       );
     }
     if (_cpError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                // 去掉 translate:false——五条 reason
-                // 人话均已入词典（超时分支赋值处已预译为纯英文，tr 对无
-                // CJK 串原样返回，不受影响）。
-                _cpError!,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: AppType.uiCaption,
-                  color: context.colors.foregroundSubtle,
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _loadPlan, child: const Text('重试')),
-            ],
+      // issue #13：错误态保留档位切换行——纯 Start Plan 账号默认档
+      // 查询必失败，切换入口被吞=死锁（报告实证）。切档即按新档重查。
+      return ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(16),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 8,
+              children: [
+                for (final entry in const [
+                  ('individual-coding-plan', '个人套餐'),
+                  ('start-plan', 'Start Plan'),
+                ])
+                  ChoiceChip(
+                    key: ValueKey('plan-kind-error-${entry.$1}'),
+                    label: Text(entry.$2),
+                    selected: _planKind == entry.$1,
+                    onSelected: (_) => _selectPlanKind(entry.$1),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
           ),
-        ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 48),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    // 去掉 translate:false——五条 reason
+                    // 人话均已入词典（超时分支赋值处已预译为纯英文，tr 对无
+                    // CJK 串原样返回，不受影响）。
+                    _cpError!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppType.uiCaption,
+                      color: context.colors.foregroundSubtle,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _loadPlan, child: const Text('重试')),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     }
     return RefreshIndicator(
@@ -1656,7 +1699,7 @@ class _UsagePageState extends State<UsagePage>
         _DailyUsage(
           date: '${d['date'] ?? ''}',
           total: total,
-          // C 批（2026-11-08 用户实锤）：单日 >3 模型不全显示——明细卡
+          // （2026-11-08 用户实锤）：单日 >3 模型不全显示——明细卡
           // 全量（折线图保持 top3 可读性）。
           topModels: models.toList(),
         ),
@@ -2280,7 +2323,7 @@ class UsageHeatmapView extends StatefulWidget {
 /// 协议不支持，不伪造（两档即协议上限）。
 enum _Heatmode { total, model }
 
-/// C 批（2026-11-08 拍板 B）：时间粒度三档（官方 TOKEN_ACTIVITY_MODES
+/// （2026-11-08 拍板 B）：时间粒度三档（官方 TOKEN_ACTIVITY_MODES
 /// 对位）——每日=现状（服务端 level）；每周/累计=客户端对同一份
 /// weeks 数据聚合（每周 Σ totalTokens；累计=逐周滚动求和）。
 enum _HeatGran { daily, weekly, cumulative }
@@ -2291,7 +2334,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
 
   _Heatmode _mode = _Heatmode.total;
 
-  /// C 批：时间粒度（每日/每周/累计）；周档选中=weekIndex。
+  /// 时间粒度（每日/每周/累计）；周档选中=weekIndex。
   _HeatGran _gran = _HeatGran.daily;
   int? _selWeek;
 
@@ -2425,14 +2468,14 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
     Map<String, dynamic>? selDay;
     if (_sel != null) {
       final (w, d) = _sel!;
-      // 双侧越界守卫：档间切换周数缩档（已缓存档的
+      // 双侧越界守卫（对抗审查）：档间切换周数缩档（已缓存档的
       // State 存活、_sel 残留），week 侧此前无守卫——weeks[w] 直接
       // RangeError 崩溃（release 同崩）。
       final days = w < weeks.length ? weeks[w]['days'] : null;
       final day = days is List && d < days.length ? days[d] : null;
       selDay = day is Map ? day.cast<String, dynamic>() : null;
     }
-    // C 批：周聚合（每周/累计档的格子值与明细数据源）。
+    // 周聚合（每周/累计档的格子值与明细数据源）。
     final weekAggs = <({double total, int turns, int tools, String first, String last})>[];
     var runTotal = 0.0;
     for (var wi = 0; wi < weeks.length; wi++) {
@@ -2457,7 +2500,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
       weekAggs.add((total: value, turns: turns, tools: tools, first: first ?? '', last: last ?? ''));
     }
     final weekMax = weekAggs.fold(0.0, (a, w) => a > w.total ? a : w.total);
-    // 当日按模型明细（C 批改全量）；结构化行展示，
+    // 当日按模型明细（改全量）；结构化行展示，
     // 不再把“日期/总量/轮次/模型”挤成两行小字。
     final dayModels = <({String name, num tokens})>[];
     if (selDay != null) {
@@ -2478,7 +2521,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
       }
       dayModels.sort((a, b) => b.tokens.compareTo(a.tokens));
     }
-    // C 批：明细卡全量（同上，去 take(3)）。
+    // 明细卡全量（同上，去 take(3)）。
     final topModels = dayModels.toList();
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2493,7 +2536,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
         );
         final visualCell = (hitWidth - 4).clamp(
           11.0,
-          // 少周数允许大格子铺满（用户⑤：右侧不再大片空白）；
+          // 少周数允许大格子铺满（用户：右侧不再大片空白）；
           // 多周数仍保持小格+横滚。
           weeks.length <= 8 ? double.infinity : 28.0,
         );
@@ -2514,12 +2557,12 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
                   width: contentWidth,
                   child: Row(
                     children: [
-                      // C 批：每周/累计档=每周一格单行（官方同构：同列
+                      // 每周/累计档=每周一格单行（官方同构：同列
                       // 网格换聚合，色阶按值/最大值归一 1-4）。
                       if (_gran != _HeatGran.daily)
                         for (var wi = 0; wi < weeks.length; wi++)
                           Padding(
-                            // （daily 子项宽
+                            // （对抗审查·渲染中）：补 gap——daily 子项宽
                             // hitWidth+gap，周档漏 gap 会右空 132dp（53 周）。
                             padding: EdgeInsets.only(right: gap),
                             child: Builder(builder: (_) {
@@ -2613,7 +2656,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
                                             : emptyCell;
                                       }
                                       final selected = _sel == (wi, d);
-                                      // 命中盒外扩：视觉格子
+                                      // 命中盒外扩（对抗审查）：视觉格子
                                       // 11px 低于 44 触控纪律——命中区扩大到
                                       // 22×22（含邻缝），视觉尺寸不变。
                                       return GestureDetector(
@@ -2666,7 +2709,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
               ),
             ),
             const SizedBox(height: 6),
-            // C 批：时间粒度三档（每日/每周/累计，官方 Tabs 对位的
+            // 时间粒度三档（每日/每周/累计，官方 Tabs 对位的
             // 手机胶囊形态）；切换清两套选中。
             // 320dp/1.3x 档三只胶囊+间距会溢出（实证 90px）——Wrap
             // 换行兜底，宽屏仍单行。
@@ -2787,7 +2830,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
               ],
             ),
             const SizedBox(height: 6),
-            // C 批：周档明细卡（每周/累计共用——累计档数值为截至该周
+            // 周档明细卡（每周/累计共用——累计档数值为截至该周
             // 的滚动累计，明细仍列该周内按日数据）。
             if (_gran != _HeatGran.daily && _selWeek != null) ...[
               Builder(builder: (_) {
@@ -2814,7 +2857,7 @@ class _UsageHeatmapViewState extends State<UsageHeatmapView> {
                   for (final e in mTotals.entries)
                     (name: e.key, tokens: e.value),
                 ]..sort((a, b) => b.tokens.compareTo(a.tokens));
-                // （·口径混用）：总额=累计、轮次/工具/模型行=当周
+                // （对抗审查·口径混用）：总额=累计、轮次/工具/模型行=当周
                 // ——两组口径并存须显式标注，标题已带「累计（截至本周）」，
                 // 计数行前缀「本周」消歧。
                 final label = _gran == _HeatGran.cumulative ? '累计（截至本周）' : '本周';

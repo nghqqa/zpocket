@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart' show MethodChannel;
 
 import '../core/localized_text.dart';
+import '../platform/capabilities.dart';
 import '../core/l10n.dart';
 
 import '../core/theme.dart';
@@ -139,14 +140,23 @@ class _PairingPageState extends State<PairingPage> {
       if (!mounted) return;
       // V1 路径同接“扫码后重建 Activity”防线（相机
       // 会话开合即触发面，与协议版本无关）；纯粘贴路径零打扰。
-      if (_usedScanner) {
+      if (_usedScanner && ZpCapabilities.supportsSurfaceRecreate) {
         debugPrint('[pairing-perf] scanner used (v1), recreating activity');
         await _surface
             .invokeMethod('recreate', {'reason': 'paired'})
             .catchError((_) {});
         return;
       }
-      Navigator.of(context).pop();
+      // iOS（早前批次 对抗审查发现）：无 Activity.recreate 对位
+      // （surface 恒 false 且不抛错）——此前无条件 return 会让扫码配对
+      // 成功后页面永不退出（V1 还 _connecting 永久 true）。落回正常
+      // pop 收尾（相机会话由 qr_scan_page 退出时停用兜底）。
+      // 首次使用时本页是 HomeShell 的 home 内容（根路由，栈底无其它
+      // 路由），pop 会把根路由弹掉黑屏（早前批次 对抗审查发现；Android 粘贴配对
+      // 不走扫码、也落这一行，同中招）——canPop 门控：仅推入形态弹回
+      // 调用页，根形态由 HomeShell 在 profiles 非空后自动换页收尾。
+      final nav = Navigator.of(context);
+      if (nav.canPop()) nav.pop();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -222,14 +232,19 @@ class _PairingPageState extends State<PairingPage> {
       // 预览纹理无关）在部分华为机型把渲染管线楔死（agent 实证 2/4，
       // 三层防御+去纹理均不治）。用过扫码→配对成功后重建 Activity
       // 换新表面，确定性消除；纯粘贴路径零打扰。
-      if (_usedScanner) {
+      if (_usedScanner && ZpCapabilities.supportsSurfaceRecreate) {
         debugPrint('[pairing-perf] scanner used, recreating activity');
         await _surface
             .invokeMethod('recreate', {'reason': 'paired'})
             .catchError((_) {});
         return;
       }
-      Navigator.of(context).pop();
+      // iOS：同 V1——无 recreate 对位，落回正常 pop（审查高2）。
+      // 同 V1 的根形态修复（早前批次 对抗审查发现）：首次使用时本页是 HomeShell
+      // 的 home 内容，pop 会弹根路由黑屏——canPop 门控 + HomeShell 自动
+      // 换页收尾，仅推入形态弹回调用页。
+      final nav = Navigator.of(context);
+      if (nav.canPop()) nav.pop();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -268,8 +283,9 @@ class _PairingPageState extends State<PairingPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '在电脑上打开 ZCode → 设置 → 远程控制，点击「手机连接」显示二维码；'
-                      '用本机扫码，或复制链接粘贴到下方。链接即凭据，请勿转发他人。',
+                      '在电脑上打开 ZCode，点击左侧边栏底部的「移动端远程控制」'
+                      '显示二维码；用本机扫码，或复制链接粘贴到下方。'
+                      '链接即凭据，请勿转发他人。',
                       style: TextStyle(
                         fontSize: AppType.uiCaption,
                         color: context.colors.foreground,
@@ -435,7 +451,7 @@ class _PairingPageState extends State<PairingPage> {
   /// lastUsed 与既有绑定不同）属破坏性操作，弹确认后 forceRebind。
   ///
   /// 返回 true=档案已添加/已改绑，false=用户取消改绑（调用方不得把
-  /// 取消当成功 pop/recreate——2026-11-08 ）。
+  /// 取消当成功 pop/recreate——2026-11-08 对抗审查）。
   Future<bool> _addProfileResolvingRebind(
     AppState app,
     dynamic params, {

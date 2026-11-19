@@ -62,7 +62,7 @@ String humanBytes(int n) {
   return '$n B';
 }
 
-/// 输入卡上方的待发送附件区（2026-10-22 验收回填⑩：用户反馈竖排观感差，
+/// 输入卡上方的待发送附件区（2026-10-22 验收回填：用户反馈竖排观感差，
 /// 改微信/Telegram 范式——**图片=3 列方形缩略图网格**（上传进度/失败
 /// 重试/移除角标），非图片文件=官方 attachments.tsx inline 单行 chip；
 /// 区域限高滚动（8 张图最多 3 行可见，输入卡不再把输入框顶到键盘底下）。
@@ -199,7 +199,7 @@ class PendingAttachmentChips extends StatelessWidget {
   }
 }
 
-/// 图片附件缩略图网格（验收回填⑩：3 列方形，官方 grid 变体
+/// 图片附件缩略图网格（验收回填：3 列方形，官方 grid 变体
 /// size-24 方块观感的手机化）。
 class _ImageGrid extends StatelessWidget {
   final List<PendingAttachment> images;

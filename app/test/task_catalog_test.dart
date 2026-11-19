@@ -343,7 +343,7 @@ void main() {
     await h.catalog.detach();
   });
 
-  // 1.0.1 真机验收⑩：保活分支后台退订 tasks-index——旧订阅的 state
+  // 1.0.1 真机验收：保活分支后台退订 tasks-index——旧订阅的 state
   // 通知不再驱动 catalog（5s notify 帧断流）；数据保留；resume 重订阅。
   test('pauseTasksIndexForBackground：断流+数据保留+resume 重订阅', () async {
     final ti = _TasksSub(() {});

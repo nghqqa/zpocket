@@ -82,7 +82,7 @@ class AppColors {
 
   /// 品牌强调色=智谱蓝。浅=#134CFF（开放平台主蓝，白字 6.0:1 过 AA），
   /// 只做点睛位（FAB/发送键按下态/空态插图/扫码框线/配对页主视觉点缀）。
-  /// 深=官方深蓝基准 #4099FF（批 1 横向校准定稿， 拍板⑤）。
+  /// 深=官方深蓝基准 #4099FF（批 1 横向校准定稿， 拍板）。
   final Color brandAccent;
 
   /// 深色下置于品牌蓝淡底上的可读强调字（浅色=brandAccent 本尊；
@@ -253,7 +253,7 @@ class AppThemeSpec extends ThemeExtension<AppThemeSpec> {
   final AppGitColors git;
   final AppChartPalette charts;
 
-  /// 阴影档位由 colors.shadowXs/shadowMd 单源派生（ ：
+  /// 阴影档位由 colors.shadowXs/shadowMd 单源派生（对抗审查路C ：
   /// 原先 BoxShadow 字面量与 AppColors 双源同值独立维护，改一处漏一处
   /// 不会被测试抓——派生后只维护 colors 侧，两套测试各自锁值即闭环）。
   AppShadows get shadows => AppShadows(
@@ -395,7 +395,7 @@ class AppThemeSpec extends ThemeExtension<AppThemeSpec> {
       borderHover: Color(0x26FFFFFF), // 白 15%
       brand: Color(0xFFFFFFFF), // 黑白反转（拍板④）
       onBrand: Color(0xFF000000),
-      // 智谱蓝深色基准 #4099FF（官方深蓝/terminal-blue，拍板⑤；批 1
+      // 智谱蓝深色基准 #4099FF（官方深蓝/terminal-blue，拍板；批 1
       // 横向校准后如偏离须回填此处+决策记录 留痕）。
       brandAccent: Color(0xFF4099FF),
       brandAccentBright: Color(0xFF7FB4FF), // 深色提亮档（淡底上≈5.8:1）
@@ -556,7 +556,7 @@ abstract final class AppType {
 abstract final class AppRadius {
   static const sm = 8.0; // 小控件
   static const bubble = 12.0; // 气泡（右上 2px 指向）
-  static const block = 12.0; // 代码块（官方 rounded-xl，）
+  static const block = 12.0; // 代码块（官方 rounded-xl，对抗审查 2026-10-22）
   static const bubbleTail = 2.0; // 气泡右上指向角（官方 rounded-tr-xs；批次 B 入单源）
   static const card = 16.0; // 输入卡/审批卡/弹窗
   static const glassChrome = 20.0; // 悬浮 chrome 容器（输入卡/悬浮胶囊）
@@ -574,14 +574,14 @@ abstract final class AppAlpha {
   static const mid = 0.35; // 次级描边/遮罩
   static const strong = 0.45; // 描边强调
   static const heavy = 0.6; // 高对比遮罩
-  // 空态欢迎屏 Z 水印（2026-10-23 用户反馈批⑥，对齐官方欢迎屏
+  // 空态欢迎屏 Z 水印（2026-10-23 用户反馈批，对齐官方欢迎屏
   // 「若隐若现」定调：官方浅=foreground-subtlest 线框+.7 透明、
   // 深=暗资产渐变 #444→#1A1A1A，双主题取同一净观感档——
   // 首版 0.12 目检偏强半档，收到 0.08「第二眼才注意到」档）。
   static const watermark = 0.08;
 }
 
-/// 空态欢迎屏 Z 水印下端渐隐遮罩（2026-10-23 用户反馈批⑥；ShaderMask
+/// 空态欢迎屏 Z 水印下端渐隐遮罩（2026-10-23 用户反馈批；ShaderMask
 /// dstIn 用——白=遮罩全透通道、透明=渐隐，非渲染色，官方 mask-image
 /// linear-gradient(to bottom, black 0, transparent 70%→100%) 同款语义）。
 const LinearGradient kBottomFadeMask = LinearGradient(
@@ -625,7 +625,7 @@ ThemeData buildAppTheme([Brightness brightness = Brightness.light]) {
       surface: c.card,
       error: c.destructive,
       brightness: brightness,
-      // B （2026-10-23）：M3 默认 surfaceContainer*/secondaryContainer
+      // 对抗审查路B （2026-10-23）：M3 默认 surfaceContainer*/secondaryContainer
       // 等槽位带紫调（#2B2930/#4A4458 系），深色下大面积漏出（弹层/chip/
       // snackbar/未覆盖文字）——深色分支收口到官方灰阶；浅色侧 2026-11-07
       // 用户拍板同批收口到**智谱蓝图系**（「纯黑白过于冷淡」——原紫调

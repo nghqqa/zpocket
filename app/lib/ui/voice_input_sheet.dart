@@ -23,7 +23,7 @@ import '../state/app_state_scope.dart';
 bool? debugVoiceHmsOverride;
 const String _kVoiceHmsDefineValue = String.fromEnvironment('VOICE_HMS');
 
-/// 1.0.1 验收⑧根因：`bool.fromEnvironment('VOICE_HMS')` 只认字面
+/// 1.0.1 验收根因：`bool.fromEnvironment('VOICE_HMS')` 只认字面
 /// 'true'——构建传 `=1` 时探针串（String 语义）'zp-voice-hms:1' 断言
 /// 通过而运行时 bool 恒 false（HMS 静默走系统通道=零回调；
 /// 「正则改 (true|1)」恰好盖住此错配）。统一走 String 语义+宽容解析。
@@ -47,10 +47,44 @@ bool get voiceRecognitionAvailable {
   if (SystemAsr.available) return true;
   // 缓存为空=启动探测尚未完成或开机瞬时失败（probe 失败不落缓存）。
   // 消费点按节流兜底重探，服务恢复后入口不会整会话隐藏（2026-11-08
-  // ；成功结果在下一次页面重建时可见）。
+  // 对抗审查；成功结果在下一次页面重建时可见）。
   SystemAsr.probeIfUnknown();
   return false;
 }
+
+/// iOS 系统语音错误码 → 用户可读文案（早前批次，纯函数）。
+///
+/// 返回 null=取消类静默（不弹失败态，有部分结果按部分结果收尾）。
+/// 码表来源：
+/// - AsrChannel.swift 自定义码 8（识别服务不可用）/ 9（未授权语音识别）/
+///   10（音频会话被系统中断）/ 11（音频会话或引擎启动失败）；
+/// - AsrChannel.errorCode(from:) 把 kAFAssistantErrorDomain 1110（未检测
+///   到语音）折成 7，其余 NSError.code 原样透传；
+/// - Apple Speech 框架没有公开稳定的数字码表，下列常见域码取自社区长期
+///   实证：kAFAssistantErrorDomain 203/1101/1107=服务暂不可用或网络不稳，
+///   216/301=识别被取消（例如被 Siri 等系统会话抢占），1700 与
+///   kLSRErrorDomain 201=系统听写被禁用（与内部服务错误同收口）；
+///   NSURLError -1001/-1005/-1009 为网络域失败。
+/// 未知码一律收口到「语音服务未响应」人话，不再把数字丢给用户。
+String? iosVoiceErrorMessage(int code) {
+  switch (code) {
+    case 9:
+      return '语音识别权限未开启，请在系统设置中允许本应用访问语音识别';
+    case 6 || 7 || 1110:
+      return '没听到内容，再试一次';
+    case 203 || 1101 || 1107 || -1001 || -1005 || -1009:
+      return '网络连接不可用，请检查网络';
+    case 216 || 301 || -999:
+      return null; // 取消类：静默，不弹失败文案
+    case 8 || 10 || 11 || 1700 || 201:
+    default:
+      return '语音服务未响应，请重试或改用键盘输入';
+  }
+}
+
+/// iOS 权限类错误（语音识别被拒）需要「去设置」出口。
+/// 麦克风被拒由面板内 Permission.microphone 分支单独标记。
+bool iosVoiceErrorNeedsSettings(int code) => code == 9;
 
 /// 语音输入面板（阶段 3 第三段， 决策 5 / 四坑照单）。
 ///
@@ -64,12 +98,25 @@ bool get voiceRecognitionAvailable {
 /// - 识别：HMS ML ASR 无界面流式（zh-CN + FEATURE_WORDFLUX，真机
 ///   4.35s 全程实测可用）；x86 模拟器无 HMS 走不可用分支（ABI 护栏，
 ///   2026-10-19 装机窗口实锤）。
+/// - iOS 错误码人话映射（早前批次）：原生 NSError.code 原样
+///   透传时直接展示 `[9]` 是用户天书；由 [iosVoiceErrorMessage] 翻成
+///   人话，Android 6/7 及既有失败文案语义不变。
 class VoiceInputSheet extends StatefulWidget {
   final void Function(String text) onSend;
 
   /// 测试缝：直接进可编辑预览态，跳过麦克风权限/HMS 平台通道。
   @visibleForTesting
   static String? debugPreviewText;
+
+  /// 测试缝：替换口语整理请求（null=生产 [refineDictation]）。refining
+  /// 态与迟到结果用例用 Completer 挂起，不依赖真实网络与 10s 总期限。
+  @visibleForTesting
+  static Future<String> Function(String raw)? debugRefineOverride;
+
+  /// 测试缝：强制按 iOS 错误码表解释系统识别错误（null=跟随运行平台）。
+  /// 测试宿主不是 iOS，widget 用例用它模拟 iOS 而无需改全局平台变量。
+  @visibleForTesting
+  static bool? debugIosAsrErrorsOverride;
 
   const VoiceInputSheet({super.key, required this.onSend});
 
@@ -86,6 +133,10 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
   String? _original; // 听写原文（整理成功时的回切目标）
   bool _refineOk = false;
   bool _refineAttempted = false;
+
+  /// 失败是否属权限类（麦克风或语音识别被拒）——决定 failed 态是否给
+  /// 「去设置」出口（早前批次；非权限失败不该引导用户去设置页）。
+  bool _needsSettings = false;
   HmsAsrSession? _hmsSession;
   SystemAsrSession? _systemSession;
   final Completer<String> _finalCompleter = Completer<String>();
@@ -136,6 +187,11 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
   String get _asrLanguage =>
       L10n.resolvedLocale == 'en-US' ? 'en-US' : 'zh-CN';
 
+  /// 系统识别错误是否按 iOS 码表解释（测试缝可强制覆盖）。
+  bool get _iosAsrErrors =>
+      VoiceInputSheet.debugIosAsrErrorsOverride ??
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   Future<void> _start() async {
     _log('hmsVoiceConfigured=$hmsVoiceConfigured（VOICE_HMS=$_kVoiceHmsDefineValue）');
     final debugPreview = VoiceInputSheet.debugPreviewText;
@@ -183,6 +239,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
     if (mic != PermissionStatus.granted) {
       setState(() {
         _phase = _VoicePhase.failed;
+        _needsSettings = true;
         _error = tr('未授予麦克风权限（设置→应用→权限）');
       });
       return;
@@ -244,12 +301,22 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
     if (mic != PermissionStatus.granted) {
       setState(() {
         _phase = _VoicePhase.failed;
-        _error = tr('未授予麦克风权限（设置→应用/权限）');
+        _needsSettings = true;
+        _error = tr('未授予麦克风权限（设置→应用→权限）');
       });
       return;
     }
     setState(() => _phase = _VoicePhase.starting);
-    _armEngineWatchdog();
+    // iOS 首启宽窗（早前批次 对抗审查）：系统通道在 start
+    // 内两段式请求语音识别权限（AsrChannel.requestAuthorization）——
+    // 首次使用会弹系统权限框，用户停留超 10s 会被零回调看门狗判死
+    // （cancel 后授权回调因代际不符被弃），授权了仍失败态。Android
+    // 权限由 permission_handler 先行完成，10s 语义不变。
+    _armEngineWatchdog(
+      defaultTargetPlatform == TargetPlatform.iOS
+          ? const Duration(seconds: 45)
+          : const Duration(seconds: 10),
+    );
     _listenFinal();
     _systemSession = SystemAsr.start(
       language: _asrLanguage,
@@ -275,9 +342,22 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
         _log('sys error code=$code msg=$message');
         if (_finalCompleter.isCompleted) return;
         // 已有部分结果时"没听清/超时"（code 6/7）不判失败，按部分结果
-        // 收尾；其余码复用既有失败文案（零新增翻译串）。
+        // 收尾；其余码按平台映射（Android 原样，iOS 人话——早前批次）。
         if ((code == 6 || code == 7) && _partial.trim().isNotEmpty) {
           _finalCompleter.complete(_partial);
+          return;
+        }
+        if (_iosAsrErrors) {
+          final human = iosVoiceErrorMessage(code);
+          if (human == null) {
+            // 取消类（被 Siri 等系统会话抢占/任务取消）：静默，不弹失败
+            // 态；有部分结果按部分结果收尾，否则走「没听到内容」。
+            _finalCompleter
+                .complete(_partial.trim().isNotEmpty ? _partial : '');
+            return;
+          }
+          if (iosVoiceErrorNeedsSettings(code)) _needsSettings = true;
+          _finalCompleter.completeError(tr(human));
           return;
         }
         _finalCompleter.completeError(
@@ -342,7 +422,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
       _finalCompleter.complete(_partial);
     } else {
       // 零部分结果：不能只挂监听——completer 永不完成，按钮点了毫无
-      // 反馈且面板卡在拾音态。先取消引擎（隐私：
+      // 反馈且面板卡在拾音态（2026-11-08 对抗审查）。先取消引擎（隐私：
       // 不再等 native final），再以空稿收尾——_enterPreview 的空文本分支
       // 给出「没听到内容」失败态。
       _engineAlive();
@@ -396,11 +476,14 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
     if (configured) {
       setState(() => _phase = _VoicePhase.refining);
       attempted = true;
-      final refined = await refineDictation(
-        apiKey: prefs.voiceApiKey,
-        raw: text,
-        providerId: prefs.voiceApiProvider,
-      );
+      final override = VoiceInputSheet.debugRefineOverride;
+      final refined = override != null
+          ? await override(text)
+          : await refineDictation(
+              apiKey: prefs.voiceApiKey,
+              raw: text,
+              providerId: prefs.voiceApiProvider,
+            );
       if (refined.trim().isNotEmpty && refined.trim() != text) {
         result = refined.trim();
         ok = true;
@@ -417,6 +500,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
 
   /// 预览「用原文/用整理稿」一键切换。
   void _toggleOriginal() {
+    if (_closed) return;
     final orig = _original;
     if (orig == null || orig == _draft.text) return;
     final cur = _draft.text;
@@ -439,7 +523,10 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
   Widget build(BuildContext context) {
     final phase = _phase;
     return PopScope(
-      canPop: phase != _VoicePhase.refining,
+      // 早前批次：refining 态曾 canPop=false，整理 API 卡住时用户
+      // 40 秒无法关闭面板。整理结果迟到由 dispose 的 _closed 守卫丢弃
+      //（_enterPreview 在 await 前后都检查），关面板不再有副作用。
+      canPop: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         child: Column(
@@ -609,6 +696,14 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
                 ),
               ),
               const SizedBox(height: 8),
+              if (_needsSettings)
+                TextButton(
+                  key: const ValueKey('voice-open-settings'),
+                  // 早前批次：权限被拒后的唯一恢复路径（非权限失败
+                  // 不显示——去设置页解决不了网络/服务问题）。
+                  onPressed: () => openAppSettings(),
+                  child: const Text('去设置'),
+                ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('关闭'),

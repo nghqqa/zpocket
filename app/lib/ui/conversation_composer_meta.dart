@@ -22,6 +22,9 @@ class ContextDetailsCard extends StatelessWidget {
   /// 压缩上下文动作（compact-command-1：官方 contextUsage 压缩按钮
   /// 对位——空载荷 compact 命令）；null=不显示。
   final VoidCallback? onCompact;
+
+  /// ① 上下文组成下钻（早前批次）：null=无 sessionId 不显示入口。
+  final VoidCallback? onDrillDown;
   const ContextDetailsCard({
     required this.state,
     this.entitlement,
@@ -30,6 +33,7 @@ class ContextDetailsCard extends StatelessWidget {
     this.onUseReset,
     this.cachedBreakdown,
     this.onCompact,
+    this.onDrillDown,
   });
 
   /// 来源圆点取色序（官方 7 类；与 _sourceLabels 键一致——确定性映射，
@@ -198,12 +202,41 @@ class ContextDetailsCard extends StatelessWidget {
             // 用量构成
             if (items.isNotEmpty && totalChars > 0) ...[
               const SizedBox(height: 12),
-              Text(
-                stale ? tr('上下文来源（上次）') : tr('上下文来源'),
-                style: const TextStyle(
-                  fontSize: AppType.uiSm,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      stale ? tr('上下文来源（上次）') : tr('上下文来源'),
+                      style: const TextStyle(
+                        fontSize: AppType.uiSm,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  // ① 上下文组成下钻入口：7 粗类 → 11 细类逐项页面。
+                  if (onDrillDown != null)
+                    GestureDetector(
+                      key: const ValueKey('ctxcomp-entry'),
+                      onTap: onDrillDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            tr('组成明细'),
+                            style: TextStyle(
+                              fontSize: AppType.uiXs,
+                              color: context.colors.linkBlue,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 13,
+                            color: context.colors.linkBlue,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 6),
               // 按官方 BREAKDOWN_SOURCE_ORDER 排序后按占比渲染
@@ -377,7 +410,7 @@ class InfoRow extends StatelessWidget {
   final String? sessionId;
   final String modeLabel;
 
-  /// 批⑦（2026-10-23）：权限档图标与配色——完全访问=warning 橙+
+  /// 批（2026-10-23）：权限档图标与配色——完全访问=warning 橙+
   /// 盾牌警示图标、自主=brandAccent 蓝（官方 text-warning /
   /// text-icon-blue 药丸视觉）。
   final IconData? modeIcon;
@@ -535,7 +568,7 @@ class InfoRow extends StatelessWidget {
           else
             modePill,
 
-          // 计划模式标记药丸（批⑦：计划与权限并行——开启时模式药丸
+          // 计划模式标记药丸（批：计划与权限并行——开启时模式药丸
           // 右侧出「计划」标记，点按回模式面板可关；对位官方 plan
           // marker 的手机端常显形态）。
           if (planEnabled) ...[

@@ -30,7 +30,7 @@ String? createSessionProjectId(Map<String, dynamic>? projectIntent) {
   return id is String && id.trim().isNotEmpty ? id : null;
 }
 
-/// 归属回落：suspend/重启恢复路径按 workspace-list 恢复
+/// 归属回落（对抗审查）：suspend/重启恢复路径按 workspace-list 恢复
 /// 开的是**tab 桥**（无 project intent）——若恢复键恰为某项目根，用户
 /// 在该项目下新建的归属会静默丢失（症状与本批修复的原始 bug 相同）。
 /// 仅"工作区键=rootPath 直配"时回落；任务归属/projectForWorkspaceKey
@@ -235,7 +235,7 @@ class ComputerStack extends ChangeNotifier {
         return '等待桌面端配对';
       case LinkPhase.connecting:
         // 真话区分（2026-10-26 断线批）：relay 已配上但桥未建≠连接
-        // 恢复中——此前空串让横幅渲染成"连接恢复中…"空括号。
+        // 恢复中——此前空串让横幅渲染成"连接恢复中…（）"空括号。
         if (client.relay.state == RelayState.paired && _bridge == null) {
           return '中继已连，正在恢复工作区';
         }
@@ -339,7 +339,7 @@ class ComputerStack extends ChangeNotifier {
   /// channelActive）已有 sanitize，sessions 这一路此前原样进预渲，dormant
   /// 模型把已结束回合渲染成"运行中"。落盘保留原值（真实数据到达自然
   /// 覆盖），仅读取侧清洗为 idle；running 行的 pendingInteraction 一并
-  /// 清空（陈旧交互提示在预渲窗口是死按钮）。与 2026-10-27 用户⑨
+  /// 清空（陈旧交互提示在预渲窗口是死按钮）。与 2026-10-27 用户
   /// "running/waiting 清洗、不冒充当前仍运行"契约对齐。
   static List<Map<String, dynamic>> _sanitizePreviewSessions(
     List<Map<String, dynamic>> sessions,
@@ -481,7 +481,7 @@ class ComputerStack extends ChangeNotifier {
     _client = client;
     _failureSub = client.relay.failures.listen((f) {
       // error 档人话（此前 computeStatusDetail 对 error 返回空串，
-      // 横幅渲染成"连接恢复中…"）。
+      // 横幅渲染成"连接恢复中…（）"）。
       _lastFailureMessage = f.message;
       onFailure(this, f);
       notifyListeners();
@@ -570,7 +570,7 @@ class ComputerStack extends ChangeNotifier {
   void reportViewState({String? taskId}) =>
       _workspaceController.reportViewState(taskId: taskId);
 
-  /// 会话子代理列表（2026-10-26 批④拍板⑥）：活跃工作区会话传输上的
+  /// 会话子代理列表（2026-10-26 批④拍板）：活跃工作区会话传输上的
   /// listSessionSubagents 透传（官方 zcodeAgentService 对位）。
   Future<Map<String, dynamic>> sessionSubagents(
     String sessionId, {
@@ -703,6 +703,21 @@ class ComputerStack extends ChangeNotifier {
   Future<dynamic> deleteArchivedTasks(List<String> taskIds) =>
       _taskCatalog.deleteArchivedTasks(taskIds);
 
+  /// ③ 会话永久删除两阶段（早前批次，官方 previewArchivedTaskDeletion/
+  /// permanentlyDeleteArchivedTask）。
+  Future<dynamic> previewArchivedTaskDeletion(String taskId) =>
+      _taskCatalog.previewArchivedTaskDeletion(taskId);
+
+  Future<dynamic> permanentlyDeleteArchivedTask(
+    String taskId, {
+    required String revision,
+    required String operationId,
+  }) => _taskCatalog.permanentlyDeleteArchivedTask(
+        taskId,
+        revision: revision,
+        operationId: operationId,
+      );
+
   /// 取消归档（撤销入口，snackbar 撤销用）。
   Future<dynamic> unarchiveTask(String taskId) =>
       _taskCatalog.unarchiveTask(taskId);
@@ -793,7 +808,7 @@ class ComputerStack extends ChangeNotifier {
     // host 端 reserveCreatedTask 按 params.projectId 写 tasks.project_id，
     // 缺省即落桌面「任务」默认区。取值规则见 createSessionProjectId；
     // 桥 intent 缺席时按项目根直配回落（rootMatchedProjectId——恢复路径
-    // 的 tab 桥场景，）。
+    // 的 tab 桥场景，对抗审查）。
     // 任务桥不回落（2026-10-24 真机实锤"选任务工作区新建却建到项目里"）：
     // 任务桥的 workspaceKey 可能恰为项目根（未归类任务跑在项目根目录，
     // 如临时性验证任务场景）——任务入口的语义是"跟随该任务目录"，
@@ -828,7 +843,7 @@ class ComputerStack extends ChangeNotifier {
   Future<void> suspendConversationSubscriptions() =>
       _conversationRegistry.suspendForBackground();
 
-  /// 1.0.1 真机验收⑩：保活分支后台再退订 tasks-index（5s notify 帧=
+  /// 1.0.1 真机验收：保活分支后台再退订 tasks-index（5s notify 帧=
   /// 驻留后剩余推帧大头），数据保留，回前台重订阅增量补齐。
   Future<void> pauseTasksIndexForBackground() =>
       _workspaceController.pauseTasksIndexForBackground();

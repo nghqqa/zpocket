@@ -1,0 +1,8 @@
+/* 权限描述简体中文版（主开发语言，与 Info.plist 内写死值一致——
+   strings 在场时按系统语言取用，缺失语言回落 developmentRegion=en）。 */
+"CFBundleDisplayName" = "ZCode Pocket";
+"NSCameraUsageDescription" = "扫码连接电脑时使用相机";
+"NSFaceIDUsageDescription" = "应用锁使用面容 ID 验证";
+"NSLocalNetworkUsageDescription" = "连接局域网内电脑的备用通道时访问本地网络";
+"NSMicrophoneUsageDescription" = "语音输入时使用麦克风";
+"NSSpeechRecognitionUsageDescription" = "语音输入时识别你说的话";

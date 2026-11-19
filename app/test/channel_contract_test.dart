@@ -1,10 +1,11 @@
-// /②：Dart 侧 invokeMethod 的方法名必须与原生 when 分支
+// 对抗审查 ④/②：Dart 侧 invokeMethod 的方法名必须与原生 when 分支
 // 一一对应——通道名/方法名错配在运行时表现为 MissingPluginException 被
 // catch 吞掉（应用内更新"永远已是最新"事故）。本测试静态解析两侧源码
 // 做契约断言（android_manifest_guard 同族静态守卫先例）。
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zpocket/platform/companion_channels.dart';
 
 void main() {
   late final String updateFlow;
@@ -46,13 +47,24 @@ void main() {
     expect(
       updateFlow.contains("invokeMethod<Map<dynamic, dynamic>>('get')"),
       isTrue,
-      reason: '版本号必须走 appinfo.get（修复点）',
+      reason: '版本号必须走 appinfo.get（对抗审查修复点）',
     );
     expect(
       updateFlow.contains("'appVersion'"),
       isFalse,
       reason: 'companion/update 无 appVersion 方法——不得回退错误调用',
     );
+  });
+
+  test('artifact_share 的 shareFile 调用有原生分支（早前批次）', () {
+    final shareSrc = File('lib/core/artifact_share.dart').readAsStringSync();
+    expect(shareSrc.contains('companion/share'), isTrue,
+        reason: '解析失败会让本守卫失效');
+    // Kotlin companion/share 的 shareFile 分支。
+    final shareBlock = _channelBlock(mainActivity, 'companion/share');
+    expect(shareBlock, isNotNull, reason: 'companion/share 通道缺失');
+    expect(shareBlock!.contains('"shareFile"'), isTrue,
+        reason: 'shareFile 方法在 companion/share 无分支');
   });
 
   test('app_lock/system_inset 的通道调用也有原生分支', () {
@@ -88,6 +100,70 @@ void main() {
       );
     }
     expect(insetSrc.contains('refreshSystemInset'), isTrue);
+  });
+
+  group('companion 通道注册表（早前批次 平台缝）', () {
+    test('注册表与 lib/ 通道字面量双向一致（防漂移）', () {
+      final literals = <String>{};
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final src = entity.readAsStringSync();
+        for (final m in RegExp(
+          // [a-z_]+ 收紧：文档注释里的 MethodChannel('companion/...')
+          // 形态（platform/companion_channels.dart 自述）不入账。
+          r"MethodChannel\('(companion/[a-z_]+)'\)",
+        ).allMatches(src)) {
+          literals.add(m.group(1)!);
+        }
+      }
+      expect(literals, isNotEmpty, reason: '解析失败会让本守卫失效');
+      final registered = kCompanionChannels.map((c) => c.name).toSet();
+      expect(
+        registered.length,
+        kCompanionChannels.length,
+        reason: '注册表通道名重复',
+      );
+      final unregistered = literals.difference(registered);
+      expect(
+        unregistered,
+        isEmpty,
+        reason: 'lib/ 出现未登记通道 $unregistered——新通道必须登记进 '
+            'platform/companion_channels.dart（含 iOS 计划）',
+      );
+      final stale = registered.difference(literals);
+      expect(
+        stale,
+        isEmpty,
+        reason: '注册表登记但 lib/ 已无调用点（陈旧条目）：$stale——通道'
+            '退役须同步清理注册表',
+      );
+    });
+
+    test('注册表通道名必须在 Android Kotlin 源出现（原生侧删改即拦）', () {
+      // 公树 HMS 剥离形态（strip_public_hms 删除 android/app/src/voiceHms）：
+      // Dart 侧 companion/hms_asr 客户端保留但默认关闭（VOICE_HMS=false），
+      // 原生载体 HmsAsrPlugin.kt 不在场属预期，跳过该通道断言。私库该
+      // 目录在场，断言照旧全量（原生侧删改仍即时拦下）。
+      final voiceHmsPresent =
+          Directory('android/app/src/voiceHms').existsSync();
+      final kt = StringBuffer();
+      for (final entity
+          in Directory('android/app/src').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.kt')) continue;
+        kt.writeln(entity.readAsStringSync());
+      }
+      final text = kt.toString();
+      expect(text, isNotEmpty, reason: '解析失败会让本守卫失效');
+      for (final ch in kCompanionChannels) {
+        if (!voiceHmsPresent && ch.name == 'companion/hms_asr') continue;
+        expect(
+          text.contains('"${ch.name}"'),
+          isTrue,
+          reason: '${ch.name} 未在 Android Kotlin 源出现——原生侧删通道/'
+              '改名须同步注册表（双向契约）',
+        );
+      }
+    });
   });
 }
 

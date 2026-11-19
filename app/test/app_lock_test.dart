@@ -1,4 +1,4 @@
-// 应用锁：纯逻辑（autoLock 判定/PIN hash/爆破冷却/mode
+// 应用锁（app-lock-1）：纯逻辑（autoLock 判定/PIN hash/爆破冷却/mode
 // 解析）+ 锁遮罩旅程（PIN 模式解锁/系统模式通道）+ 设置页三态切换。
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
@@ -152,7 +152,7 @@ void main() {
     });
   });
 
-  test('：回前台合成 hidden 不得重置计时（真实序列 30/60/300 档生效）', () {
+  test('①H2：回前台合成 hidden 不得重置计时（真实序列 30/60/300 档生效）', () {
     final c = AppLockController();
     var now = DateTime(2026, 11, 12, 10);
     c.now = () => now;
@@ -178,7 +178,7 @@ void main() {
     c.dispose();
   });
 
-  test('：系统验证成功后紧随的 resumed 不得再锁（抑制标记）', () async {
+  test('①H3：系统验证成功后紧随的 resumed 不得再锁（抑制标记）', () async {
     final c = AppLockController();
     var now = DateTime(2026, 11, 12, 10);
     c.now = () => now;
@@ -204,7 +204,7 @@ void main() {
     c.dispose();
   });
 
-  test('：mode=pin 而材料缺失 → 降级 none 且置 pinMaterialMissing（不软锁死）', () {
+  test('①H4：mode=pin 而材料缺失 → 降级 none 且置 pinMaterialMissing（不软锁死）', () {
     final c = AppLockController();
     c.loadFromPrefs(
       mode: AppLockMode.pin,
@@ -274,7 +274,7 @@ void main() {
       expect(find.text('GATE-CHILD'), findsOneWidget);
     });
 
-    testWidgets('：冷启动真实时序——prefs 未就绪不渲染内容，load 完成后锁屏出现', (tester) async {
+    testWidgets('①H1：冷启动真实时序——prefs 未就绪不渲染内容，load 完成后锁屏出现', (tester) async {
     // 关键差异：先 pump（此时 prefs.load 尚未完成=真实冷启动首帧），
     // 再补 load—— 修复前 gate 一次性闩锁把默认 none 当配置。
     final storage = _MemStorage();
@@ -333,6 +333,65 @@ void main() {
           reason: 'none 装载时关 FLAG_SECURE 只在曾开启过时调用');
     });
   });
+
+  group('PIN 材料单键存储（早前批次 混搭形态根治）', () {
+    test('setAppLockPin：单键 JSON 一次写+旧两键清除', () async {
+      final storage = _MemStorage();
+      final prefs = UiPrefs(storage: storage);
+      await prefs.load();
+      // 预置旧两键（模拟升级前状态）。
+      await storage.write(key: 'ui.appLockPinSalt', value: 'aa');
+      await storage.write(key: 'ui.appLockPinHash', value: 'bb');
+      await prefs.setAppLockPin('cc', 'dd');
+      expect(storage.data['ui.appLockPinMaterial'], contains('"cc"'));
+      expect(storage.data['ui.appLockPinMaterial'], contains('"dd"'));
+      expect(storage.data.containsKey('ui.appLockPinSalt'), isFalse,
+          reason: '旧键必须清除（读路径单键优先，但清了干净）');
+      expect(storage.data.containsKey('ui.appLockPinHash'), isFalse);
+    });
+
+    test('旧两键在场 → load 回落+自动迁移单键', () async {
+      final storage = _MemStorage();
+      await storage.write(key: 'ui.appLockPinSalt', value: 'aa');
+      await storage.write(key: 'ui.appLockPinHash', value: 'bb');
+      final prefs = UiPrefs(storage: storage);
+      await prefs.load();
+      expect(prefs.appLockPinSalt, 'aa');
+      expect(prefs.appLockPinHash, 'bb');
+      // 迁移为异步——轮询等到旧键被清（写单键在删旧键之前）。
+      for (var i = 0; i < 50; i++) {
+        if (!storage.data.containsKey('ui.appLockPinSalt')) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(storage.data['ui.appLockPinMaterial'], contains('"aa"'));
+      expect(storage.data.containsKey('ui.appLockPinSalt'), isFalse);
+    });
+
+    test('单键在场则优先于旧两键（防混搭复活）', () async {
+      final storage = _MemStorage();
+      await storage.write(key: 'ui.appLockPinSalt', value: 'OLD');
+      await storage.write(key: 'ui.appLockPinHash', value: 'OLD');
+      await storage.write(
+        key: 'ui.appLockPinMaterial',
+        value: '{"salt":"NEW","hash":"NEW"}',
+      );
+      final prefs = UiPrefs(storage: storage);
+      await prefs.load();
+      expect(prefs.appLockPinSalt, 'NEW',
+          reason: '单键是权威源——旧键残留不得覆盖（混搭防线）');
+      expect(prefs.appLockPinHash, 'NEW');
+    });
+
+    test('单键 JSON 损坏 → 按缺失处理（回落旧对）', () async {
+      final storage = _MemStorage();
+      await storage.write(key: 'ui.appLockPinMaterial', value: '{oops');
+      await storage.write(key: 'ui.appLockPinSalt', value: 'aa');
+      await storage.write(key: 'ui.appLockPinHash', value: 'bb');
+      final prefs = UiPrefs(storage: storage);
+      await prefs.load();
+      expect(prefs.appLockPinSalt, 'aa');
+    });
+  });
 }
 
 Widget _wrap(_GateApp app) {
@@ -373,6 +432,21 @@ class _MemStorage extends FlutterSecureStorage {
     WindowsOptions? wOptions,
   }) async {
     data[key] = value ?? '';
+  }
+
+  /// 106B/早前批次：setAppLockPin 现会删旧键（单键迁移）——缺 delete
+  /// 覆写会落到真通道（testWidgets 假区真 IO 永不完成=挂起家族）。
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    data.remove(key);
   }
 }
 

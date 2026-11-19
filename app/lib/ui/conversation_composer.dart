@@ -520,7 +520,7 @@ class ToolbarPill extends StatelessWidget {
   final bool pending;
   final bool outlined;
 
-  /// 主文字色（批⑦：完全访问药丸整颗变 warning 橙——官方
+  /// 主文字色（批：完全访问药丸整颗变 warning 橙——官方
   /// text-warning 药丸视觉，null=默认前景色）。
   final Color? labelColor;
 
@@ -605,7 +605,7 @@ class ToolbarPill extends StatelessWidget {
                 ),
               if (subLabel != null && subLabel!.isNotEmpty) ...[
                 const SizedBox(width: 4),
-                // Flexible：次级档位文字裸 Text 先量先占，
+                // Flexible（对抗审查）：次级档位文字裸 Text 先量先占，
                 // 档位名过长时会把 Flexible 的主模型名压到 0——同 label
                 // 处理，双弹性收缩。
                 Flexible(

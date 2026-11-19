@@ -3,7 +3,7 @@
 // 放进二级页面」+桌面端收起形态参考（收起=零占位，展开才占空间）。
 // 交付：完全撤出输入区一级空间，入口=会话 ⋮ 任务菜单（有后台工作才
 // 出现，带计数），页面=列表+运行项取消；一级感知保留任务卡后台小点
-//（B 批既有）。数据=传入 ConversationState（与订阅同源，Listenable
+//（既有）。数据=传入 ConversationState（与订阅同源，Listenable
 // 实时刷新）。行渲染沿用原 BackgroundWorksPanel 语义（kind 三族图标+
 // 人话状态词），原面板组件随本批退役。
 import 'package:flutter/material.dart' hide Text;

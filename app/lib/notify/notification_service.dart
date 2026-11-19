@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ui' show DartPluginRegistrant;
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -14,6 +15,17 @@ abstract class NotificationBackend {
   /// 热点击回调接线（生产后端把插件的回调转发到这里）。
   void setTapHandler(void Function(NotifyTapPayload payload)? handler) {}
   Future<bool> requestPermission();
+
+  /// 系统通知权限现状（true=有权限 / false=无 / null=查询不可用）。
+  ///
+  /// 与 [initialize]/[requestPermission] 分工（早前批次）：
+  /// initialize 只回答「后端可调用」（iOS 恒 true 的就绪语义，见生产
+  /// 实现），requestPermission 会弹系统授权框；本方法只读查询，供冷
+  /// 启动复查——用户先在系统设置关掉通知后，开关不应仍显示为开、发
+  /// 通知静默失败。null=平台通道未就绪或查询异常，调用方据此不改开
+  /// 关态（宁可维持现状，不误翻开关）。
+  Future<bool?> checkPermission() async => null;
+
   Future<void> show(int id, String title, String body, String channel, String payload,
       {List<NotifyNotificationAction> actions = const []});
   Future<void> cancel(int id);
@@ -155,6 +167,24 @@ class NotificationService {
   static const channelTasks = 'tasks'; // 完成/失败
   static const channelGoals = 'goals'; // Goal 里程碑
 
+  /// 遗留通知通道判定（早前批次）。channelId 路=Android 8+；
+  /// kind 路=iOS 回退（payload 的 NotifyEventKind.name → 通道归属，
+  /// 与 notify_core 事件→通道归属同源）。
+  static NotifyChannel? _channelFromId(String id) => switch (id) {
+        channelTasks => NotifyChannel.tasks,
+        channelGoals => NotifyChannel.goals,
+        channelApprovals => NotifyChannel.approvals,
+        _ => null,
+      };
+
+  static NotifyChannel? _channelFromKind(String? kind) => switch (kind) {
+        'approvalPending' => NotifyChannel.approvals,
+        'goalSettled' || 'goalVerifying' => NotifyChannel.goals,
+        'taskCompleted' || 'taskFailed' || 'awayAggregated' =>
+          NotifyChannel.tasks,
+        _ => null,
+      };
+
   String channelOf(NotifyChannel c) => switch (c) {
     NotifyChannel.approvals => channelApprovals,
     NotifyChannel.tasks => channelTasks,
@@ -198,13 +228,20 @@ class NotificationService {
         // （复审）②：_nextId 先越过**全部**遗留 id（含将被清除的
         // tasks/goals）——避免新通知按 id 覆盖任何在栏条目。
         if (n.id >= _nextId) _nextId = n.id + 1;
-        if (n.channelId == channelTasks || n.channelId == channelGoals) {
+        // 通道判定双路（早前批次）：channelId 仅 Android 8+
+        // 返回（插件 types.dart:74-77「Returned only on Android」）——
+        // iOS 按遗留条目 payload 的 kind 回退（与 post 时的
+        // kind→channel 归属同源）。
+        final ch = n.channelId != null
+            ? _channelFromId(n.channelId!)
+            : _channelFromKind(NotifyTapPayload.decode(n.payload)?.kind);
+        if (ch == NotifyChannel.tasks || ch == NotifyChannel.goals) {
           await backend.cancel(n.id);
           continue;
         }
         // （复审）①：遗留审批条目接管进本进程簿——clearStale 从此
         // 清得掉（审批不过期）。
-        if (n.channelId == channelApprovals) {
+        if (ch == NotifyChannel.approvals) {
           final pl = NotifyTapPayload.decode(n.payload);
           if (pl != null) {
             _active[n.id] = (pl.taskId, NotifyChannel.approvals);
@@ -409,7 +446,15 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
   @override
   Future<bool> initialize() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: android);
+    // Darwin（早前批次）：初始化不自动请求权限——由
+    // 「审批提醒」开关触发的 requestPermission 按需请求（对齐 Android
+    // 侧权限被拒回弹开关的语义；弹窗时机=用户主动开启，不冷启骚扰）。
+    const darwin = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const settings = InitializationSettings(android: android, iOS: darwin);
     final ok = await _plugin.initialize(
       settings: settings,
       onDidReceiveNotificationResponse: (response) {
@@ -422,14 +467,58 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
       onDidReceiveBackgroundNotificationResponse:
           notificationActionBackgroundHandler,
     );
+    // iOS 返回值语义修正（早前批次 对抗审查发现）：插件把
+    // 「本次是否请求/获得权限」当 initialize 返回值——按需请求形态
+    // （三项 false）下恒回 NO（插件 .m requestPermissionsImpl 同步
+    // result(NO)）。Android 无条件 true。若把 NO 当「后端未就绪」，
+    // post() 首行短路 → iOS 一条通知都发不出。iOS 就绪门=调用完成
+    // 不抛（恒 true 语义保留）；真实可用性由 requestPermission 按需
+    // 请求、冷启动复查由 checkPermission 只读探得——两者都不改变本
+    // 方法的就绪判定。
+    if (defaultTargetPlatform == TargetPlatform.iOS) return true;
     return ok ?? false;
   }
 
   @override
   Future<bool> requestPermission() async {
+    // iOS：alert/sound/badge 三项一次请求（不用 provisional——
+    // 静默横幅非本产品形态，审批提醒需要醒目呈现）。
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      return await ios.requestPermissions(alert: true, sound: true, badge: true) ??
+          false;
+    }
     final impl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     return await impl?.requestNotificationsPermission() ?? false;
+  }
+
+  @override
+  Future<bool?> checkPermission() async {
+    try {
+      final ios = _plugin.resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>();
+      if (ios != null) {
+        // 22.3.2 实查（pub 缓存 platform_flutter_local_notifications.dart:
+        // 780 与 notification_enabled_options.dart）：checkPermissions()
+        // 返回 NotificationsEnabledOptions?，字段均以 is* 前缀命名
+        // ——没有名为 alert 的字段，呈现权限字段是 isAlertEnabled。
+        // 本产品请求 alert/sound/badge 三项，alert 关=横幅/弹窗被系统
+        // 压掉（审批提醒的实际可达性），按「无权限」处理。
+        final options = await ios.checkPermissions();
+        return options?.isAlertEnabled;
+      }
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      // Android 13+ 实查用户开关；旧版本无应用级开关恒回 true。
+      // 方法签名 Future<bool?>（platform_flutter_local_notifications.dart:
+      // 624），通道未就绪时 null 原样上抛语义=查询不可用。
+      return await android?.areNotificationsEnabled();
+    } catch (_) {
+      // 平台通道未就绪/插件异常：查询不可用，调用方维持现有开关态。
+      return null;
+    }
   }
 
   @override
@@ -462,11 +551,27 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
       // 生效（本项目唯一平台）。
       timeoutAfter: notificationTtlMs(channel),
     );
+    // Darwin（早前批次）：iOS 无 channel/timeoutAfter 概念
+    // ——呈现等价（默认呈现层级，权限已含 alert/sound）；「不过期」语义
+    // 与 Android approvals 档一致（tasks/goals 的 30 分钟出栏仅 Android，
+    // iOS 由用户划掉，量级相同无噪声顾虑）。
+    // 早前批次 ：interruptionLevel 分档——审批是有时效的交
+    // 互（180s 倒计时），专注模式下普通 active 档会被系统压掉，故
+    // approvals 用 timeSensitive（需配套 Time Sensitive entitlement，见
+    // ios/Runner/*.entitlements）；其余通道维持 active（系统默认档的
+    // 显式写法，语义与旧行为一致）。
     await _plugin.show(
       id: id,
       title: title,
       body: body,
-      notificationDetails: NotificationDetails(android: details),
+      notificationDetails: NotificationDetails(
+        android: details,
+        iOS: DarwinNotificationDetails(
+          interruptionLevel: channel == NotificationService.channelApprovals
+              ? InterruptionLevel.timeSensitive
+              : InterruptionLevel.active,
+        ),
+      ),
       payload: payload,
     );
   }

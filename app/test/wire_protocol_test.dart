@@ -226,7 +226,7 @@ void main() {
     // 官方 3.17.1 源码快照 command.ts:169）。
   });
 
-  test('cancelBackgroundWork 命令信封：workId 载荷（B 批 2026-11-08）',
+  test('cancelBackgroundWork 命令信封：workId 载荷（2026-11-08）',
       () async {
     await conv.cancelBackgroundWork('s-1', 'w-9');
     final sent = channel.calls
@@ -237,6 +237,40 @@ void main() {
     expect(cmd['payload'], {'workId': 'w-9'}, reason: '官方 command.ts:269');
     expect(cmd['sessionId'], 's-1');
     expect(cmd['commandId'], isNotEmpty);
+  });
+
+  test('contextComposition RPC：getContextComposition 方法名+平铺参数（H1 钉死）',
+      () async {
+    await conv.contextComposition('s-1');
+    // 早前批次 ：zcode-agent 服务方法名是 getContextComposition
+    //（zcodeAgent.ts:1105-1111）——不是 CLI wire 名的仿造
+    // conversationContextCompositionV4。此钉防通道名再串线（真机
+    // method-not-found 级死链）。
+    final sent = channel.calls
+        .firstWhere((c) => c.$1 == 'getContextComposition')
+        .$2;
+    expect(sent['sessionId'], 's-1');
+    expect(sent['workspacePath'], r'C:\demo',
+        reason: 'ZCodeAgentWorkspaceTarget 平铺（无嵌套 workspace 对象）');
+    // 返回值原样透传（裸 ContextComposition|null），解包在页面层
+    //（compositionOf）——传输层不得读 ['composition'] 键。
+  });
+
+  test('stopSubagent 命令信封：taskId/executionId strict 载荷（② 1.0.7）',
+      () async {
+    await conv.stopSubagent('s-1', 'agent-7', 'exec-a');
+    final sent = channel.calls
+        .firstWhere((c) => c.$1 == 'sendConversationCommandV4')
+        .$2;
+    final cmd = (sent['envelope'] as Map).cast<String, dynamic>();
+    expect(cmd['type'], 'stopSubagent');
+    // 官方 command.ts:215-220 .strict()——多传字段即拒；无 agentId/
+    // index 变体。
+    expect(cmd['payload'], {'taskId': 'agent-7', 'executionId': 'exec-a'});
+    expect(cmd['sessionId'], 's-1');
+    // 非 CAS 命令（不在 COMMANDS_REQUIRING_BASE_REVISION）。
+    expect(cmd.containsKey('baseRevision'), isFalse);
+    expect(cmd.containsKey('baseLogEpoch'), isFalse);
   });
 
   test('sendText 重放沿用钉住的 commandId（队列双发红线）', () async {

@@ -66,7 +66,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
   bool _searchOpen = false;
   String _searchQuery = '';
 
-  /// 跨项目打开任务期间保留当前首页（用户⑥）：不因 phase 变化先闪
+  /// 跨项目打开任务期间保留当前首页（用户）：不因 phase 变化先闪
   /// “连接中/恢复中”再进会话；失败后才恢复错误呈现。
   bool _taskNavigationPending = false;
 
@@ -84,7 +84,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
   _paneSelection;
   bool _wideLayout = false;
 
-  /// 宽屏双栏左栏收起态（折叠屏用户反馈
+  /// dual-pane-collapse-1：宽屏双栏左栏收起态（vivo X Fold 6 真机反馈
   /// 「左栏没有展开收起选项」）。UiPrefs 持久化跨会话记忆；右栏无选中
   /// （空态）时自动展开——收起只为专注看会话，无会话可看时收起无意义。
   bool _paneCollapsed = false;
@@ -352,7 +352,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 收起态从 UiPrefs 预填（首帧同步 seed，
+    // dual-pane-collapse-1：收起态从 UiPrefs 预填（首帧同步 seed，
     // 避免展开→收起闪烁）。
     if (!_paneCollapsedSeeded) {
       _paneCollapsedSeeded = true;
@@ -360,7 +360,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
     }
   }
 
-  /// 切换左栏收起/展开（持久化）。
+  /// dual-pane-collapse-1：切换左栏收起/展开（持久化）。
   void _togglePaneCollapsed() {
     // ③：收起时顺手收搜索/多选——否则状态被藏进收起的左栏，返回键
     // 连按无可见反馈（第一次按在清不可见的搜索态）。
@@ -574,12 +574,12 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
       );
       return;
     }
-    // ：宽屏右栏同传 deepLinkAtMs——平板深链浮层此前恒不弹。
+    // （对抗审查）：宽屏右栏同传 deepLinkAtMs——平板深链浮层此前恒不弹。
     setState(() {
       _paneSelection = (
         sessionId: sessionId,
         title: title,
-        // ⑤A：等待型打开的失效键=目标工作区（切换完成后仍匹配；用当前
+        // 等待型打开的失效键=目标工作区（切换完成后仍匹配；用当前
         // 键会在切换落地瞬间误清右栏）。
         workspaceKey: waitForWorkspace ?? _currentWorkspaceKey(),
         waitForWorkspace: waitForWorkspace,
@@ -662,7 +662,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
   }
 
   /// 跨工作区搜索：点按其他工作区的任务 → 切换工作区（等待桥与
-  /// 任务索引就绪）→ 打开会话。目标不在当前 tabs 时依次回退
+  /// 任务索引就绪）→ 打开会话。：目标不在当前 tabs 时依次回退
   /// 项目归属（project intent）→ 任务 intent（未归类/无项目任务兜底，
   /// 官方手机壳打开侧栏任务同路径）。导航期间保留当前首页，不闪连接中。
   Future<void> _openCrossWorkspaceTask(
@@ -686,7 +686,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
       )?.showSnackBar(const SnackBar(content: Text('找不到该任务所属的工作区，可能已被桌面端移除')));
       return;
     }
-    // 1.0.1 真机验收⑤A（用户拍板拆两段：点卡瞬间进会话页转圈，后台
+    // 1.0.1 真机验收（用户拍板拆两段：点卡瞬间进会话页转圈，后台
     // 开桥，桥就绪自动加载）：先推会话页并携带目标工作区键；切换与
     // 未读清除在后台完成，首页保旧列表（SWR）语义不变。
     final targetKey = ws != null
@@ -717,7 +717,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
         return;
       }
       // 跨工作区打开即已读（best-effort+compare-and-clear）。
-      // 中⑥修：合成行 unreadAt=1（card.unread 布尔折叠）
+      // 对抗审查中修：合成行 unreadAt=1（card.unread 布尔折叠）
       // 不是真实 CAS marker——只有 >1 的时间戳才带 CAS（==1 时传
       // null 走无条件写，未读可清）。
       final unreadAt = intOf(task['unreadAt']);
@@ -1000,7 +1000,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
                       // 尾（_TaskHomeView.onPaneCollapse）；收起态=左缘
                       // 展开把手（不占任何内容空间）。
                       if (!_paneCollapsed) ...[
-                        // 仿桌面端布局（用户 2026-10-29 拍板）：左栏窄
+                        // 仿桌面端布局（设计定稿）：左栏窄
                         // （任务列表不占太多空间），右侧大任务窗口。
                         SizedBox(width: paneWidth, child: homeColumn),
                         VerticalDivider(
@@ -1024,7 +1024,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
   Widget _dualPaneRight(AppState app) {
     final sel = _paneSelection;
     final currentKey = workspaceKeyOf(app.activeWorkspace ?? const {}) ?? '';
-    // 高①：跨工作区打开是「先设选中→await 切工作区」两段式——
+    // 对抗审查高①：跨工作区打开是「先设选中→await 切工作区」两段式——
     // 切换窗口内 sel.workspaceKey 是目标键、activeWorkspace 仍是旧键，
     // 若按「键不等」判失效会在窗口内 post-frame 清空选中（切换完成后
     // 右栏永远空态）。等待型选中（waitForWorkspace != null）在落地前
@@ -1069,7 +1069,7 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
       // r4：撤空态自动展开——收起后清空选中（返回键/失效）保持收起
       // （全宽空态引导+左缘把手展开）。原自动展开与"空态禁用收起钮"
       // 互为打架源（真机闪变实证），简化为恒可用恒稳定。
-      // 收起态空态不能是死画面——文案不得指向宽屏不存在的
+      // 对抗审查 ③：收起态空态不能是死画面——文案不得指向宽屏不存在的
       // 「新建」按钮；给显式「展开任务列表」+「新建任务」双出口。
       return _DualPaneEmpty(
         collapsed: _paneCollapsed,
@@ -1084,6 +1084,8 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
       waitForWorkspace: sel.waitForWorkspace,
       // 右栏同传深链时刻（平板浮层此前恒不弹）。
       deepLinkAtMs: sel.deepLinkAtMs,
+      // 早前批次 S1：内嵌形态无返回箭头，标题间距保持默认。
+      embedded: true,
     );
   }
 }
@@ -1610,7 +1612,7 @@ class _TaskHomeView extends StatefulWidget {
   /// 长按菜单「选择任务」入口（页面级 _enterMultiSelect）。
   final void Function(String taskId)? onEnterMultiSelect;
 
-  // ---- 视图状态（提升到页面级）----
+  // ---- 视图状态（/ 提升到页面级）----
   /// 「最近/项目」页签（页面级持有——本视图在搜索开合/分支切换时销毁
   /// 重建，State 级会被重置回「最近」）。
   final TaskHomeMode mode;
@@ -1648,7 +1650,7 @@ class _TaskHomeView extends StatefulWidget {
     required this.fullyExpandedGroups,
     required this.onProgressChanged,
     this.onLongPress,
-    // /r4（用户反馈：把手占左栏宽度不可取）——
+    // dual-pane-collapse-2 r3/r4（用户反馈：把手占左栏宽度不可取）——
     // 收起钮在「最近/项目」分段行尾（⋮ 右侧），宽屏恒可用。
     this.onPaneCollapse,
   });
@@ -2115,7 +2117,7 @@ class _TaskHomeViewState extends State<_TaskHomeView> {
           builder: (context, nativeBottom, _) => ListView.builder(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             physics: const AlwaysScrollableScrollPhysics(),
-            // 任务栏 inset 自适应：
+            // 任务栏 inset 自适应（vivo X Fold 6 真机反馈；r3 终局）：
             // 底部=滚动尾巴 88 + max(MediaQuery.viewPadding, 原生直推值)。
             // r1 padding/r2 viewPadding 在 vivo 均拿到 0（透传断裂——原生
             // 169px 在场但 Flutter 收不到，探针/截图双证），r3 起原生监听
@@ -2652,7 +2654,7 @@ class _TaskList extends StatelessWidget {
           ],
         );
       }
-      // 性能（2026-10-27 用户⑨）：非在线但有上次内容时保留首页，
+      // 性能（2026-10-27 用户）：非在线但有上次内容时保留首页，
       // 明确标注恢复中，而不是整屏等待；失效/被踢终态不放开。
       if (query.trim().isEmpty &&
           app.phase != LinkPhase.invalid &&
@@ -2748,7 +2750,7 @@ class _TaskList extends StatelessWidget {
       }
       return AppEmptyState(icon: Icons.folder_outlined, text: '选择一个工作区开始');
     }
-    // 病⑤终修（真机两次实录）：快照/任务列表只 notify
+    // 病终修（真机两次实录）：快照/任务列表只 notify
     // si state 与 TaskListModel——此前的转圈分支不监听它们，数据到达后
     // 界面停在转圈，直到下一个 AppState 级通知（切工作区/发消息）才
     // 强制重绘。判定体包进 merge 监听，数据一到立即刷新。
@@ -3738,7 +3740,7 @@ class _CrossTaskCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                    // B 批（2026-11-08 拍板⑤）：闲时月亮（home 窄卡）。
+                    // （2026-11-08 拍板）：闲时月亮（home 窄卡）。
                     if (task['offPeakTaskId'] is String &&
                         (task['offPeakTaskId'] as String).isNotEmpty) ...[
                       Icon(
@@ -3748,7 +3750,7 @@ class _CrossTaskCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                     ],
-                    // B 批（拍板①）：后台工作小点（非运行态才有，运行态
+                    // （拍板①）：后台工作小点（非运行态才有，运行态
                     // 状态行自带 spinner）。
                     if (task['hasBackgroundWork'] == true &&
                         normalizePhase(
@@ -3806,7 +3808,7 @@ class _CrossTaskCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                // A 批（拍板⑧）：工作流运行行（home 窄卡）。
+                // （拍板）：工作流运行行（home 窄卡）。
                 // 候选 15 验收 ：未读可见/已读隐藏（同窄卡门）。
                 if (_cardRuns(task).isNotEmpty &&
                     (task['unreadAt'] != null || task['unread'] == true))
@@ -3982,7 +3984,7 @@ class _CompactTaskRow extends StatelessWidget {
   final bool unread;
   final int updatedAt;
 
-  /// B 批：闲时任务月亮标（官方对位）。
+  /// 闲时任务月亮标（官方对位）。
   final String? offPeakTaskId;
 
   /// 工作流运行行（官方 compact 同款第二行）。
@@ -4139,7 +4141,7 @@ class _CompactTaskRow extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // （·月亮压未读）：月亮归元信息列
+                    // （对抗审查·月亮压未读）：月亮归元信息列
                     //（官方 TaskListItem 月亮在时间前 meta 位）。
                     if ((offPeakTaskId ?? '').isNotEmpty) ...[
                       Icon(
@@ -4274,7 +4276,7 @@ class _TaskCard extends StatelessWidget {
                       const Icon(Icons.flag_outlined, size: 11),
                       const SizedBox(width: 4),
                     ],
-                    // B 批（2026-11-08 拍板⑤）：闲时任务月亮标（官方
+                    // （2026-11-08 拍板）：闲时任务月亮标（官方
                     // TaskListItem offPeakTaskLabel 对位）。
                     if ((entry.offPeakTaskId ?? '').isNotEmpty) ...[
                       Icon(
@@ -4284,7 +4286,7 @@ class _TaskCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                     ],
-                    // B 批（拍板①）：后台工作小点（sessions-index
+                    // （拍板①）：后台工作小点（sessions-index
                     // hasBackgroundWork，官方列表小圆点对位）。
                     if (entry.hasBackgroundWork && entry.phase != 'running')
                       Padding(
@@ -4338,7 +4340,7 @@ class _TaskCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                // A 批（拍板⑧）：工作流运行行（搜索/列表窄卡）。
+                // （拍板）：工作流运行行（搜索/列表窄卡）。
                 // 候选 15 验收 修正：run 行同样未读可见/已读隐藏
                 //（上一轮只门了 preview——真机实锤常驻的是这条 run 线）。
                 if (entry.workflowRuns.isNotEmpty && entry.unread)
@@ -4600,7 +4602,7 @@ Future<void> _createProjectFlow(
     return;
   }
   if (cancelled) return;
-  // （高·并发路）：官方约定=workspace-bridge-open.project
+  // （对抗审查高·并发路）：官方约定=workspace-bridge-open.project
   //（无 project intent 的开桥只在当前窗口 tabs 里找，workspace-create
   // 只建目录不建 tab——全新项目（主用例）必失败）。走 project intent：
   // 构造项目档案交 switchToProject（projectId 随创建返回携带）。
@@ -5149,7 +5151,7 @@ double compactTaskRowHeight(int runCount, TextScaler scaler) {
   return 48 + lines * (scaler.scale(10) * 1.45 + 3);
 }
 
-/// A 批（2026-11-08 拍板⑧）：任务卡工作流运行行（官方
+/// （2026-11-08 拍板）：任务卡工作流运行行（官方
 /// TaskWorkflowRunLines compact 对位——图标+名+状态词，非按钮）。
 class WorkflowRunLines extends StatelessWidget {
   final List<Map<String, dynamic>> runs;
@@ -5235,7 +5237,7 @@ class WorkflowRunLines extends StatelessWidget {
   }
 }
 
-/// A 批+：任务行携带的 workflow 运行摘要。live 首页行键=
+/// +：任务行携带的 workflow 运行摘要。live 首页行键=
 /// workflowActivity.runs（controllerRowToTaskMap 直通）；兜底行
 /// （workspaceTasks 空时的 taskHomeCardRow 序列化）键=workflowRuns。
 List<Map<String, dynamic>> _cardRuns(Map<String, dynamic> task) {

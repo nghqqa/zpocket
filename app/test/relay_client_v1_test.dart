@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zpocket/transport/connection_params.dart';
 import 'package:zpocket/transport/relay_client.dart';
 
-/// 协议传输层修复批（2026-11-08）：V1 relay 三洞——
+/// 协议传输层修复批（2026-11-08）：V1 relay ——
 /// ①data 帧无认证/配对门禁 ②setRelaySilent/setBackgroundHeartbeat 空实现
 /// （90s 断连窗口仍 10s 心跳=电量红线）③auth_ack 非字符串 pair_status
 /// 取消握手 deadline 后无任何定时器（永久挂在 authenticating）。

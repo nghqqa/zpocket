@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../notify/notification_service.dart';
+import '../platform/capabilities.dart';
 import '../transport/channel_client.dart';
 import '../transport/companion_client.dart';
 import '../transport/connection_params.dart';
@@ -188,7 +189,8 @@ class AppState extends ChangeNotifier {
   Future<void> retryActiveProfileWithNewAccount() =>
       _deviceRegistry.retryActiveProfileWithNewAccount();
 
-  /// 删除账号的完整编排（真机反馈②；2026-11-03 /// 调序）：**先删凭据再拆栈**——拆栈链上任一步抛异常都不该留下
+  /// 删除账号的完整编排（真机反馈②；2026-11-03 对抗审查
+  /// 调序）：**先删凭据再拆栈**——拆栈链上任一步抛异常都不该留下
   /// "账号已不在但凭据还在"的中间态；拆栈内部逐栈 try/catch（单栈
   /// 失败不阻断其余），并同步清该账号名下设备的缓存/草稿/排队数据
   /// （防下一账号连同一台电脑先闪上一账号的任务缓存）+ 活跃指针/
@@ -588,6 +590,16 @@ class AppState extends ChangeNotifier {
       if (uiPrefs.muteApprovals) NotifyChannel.approvals,
       if (uiPrefs.muteTasks) NotifyChannel.tasks,
       if (uiPrefs.muteGoals) NotifyChannel.goals,
+      // iOS 假开关（早前批次 审查）：无保活平台的
+      // 「审批提醒」开关即通知总开关（iOS 语义=使用期间实时
+      // 通知）——关=全部静音，此前关了仍照发（Android 有 FGS 语义
+      // 分层不受此门控，零变化）。
+      if (!ZpCapabilities.supportsBackgroundKeepAlive &&
+          !uiPrefs.alertsEnabled) ...[
+        NotifyChannel.approvals,
+        NotifyChannel.tasks,
+        NotifyChannel.goals,
+      ],
     };
     // 原此处调用空实现钩子 _fgRequestRestart（"保留
     // 给未来文本语义变化"）——静音集合走 update 通道即可，钩子删除。
@@ -627,7 +639,7 @@ class AppState extends ChangeNotifier {
     // 是否定位到产生该通知的消息（atMs>0 才提示；无时间戳的老 payload
     // 维持「仅打开会话」）。
     // atMs<=0（老 payload）=清残留——旧值若不清会被下一次通知
-    // 误配对（中·陈旧 atMs 跨会话误弹）；有值时记归属 taskId。
+    // 误配对（对抗审查中·陈旧 atMs 跨会话误弹）；有值时记归属 taskId。
     // 状态层批：目标电脑不可达（档案已删/失效）时同样清位——不能把
     // 深链提示留给之后打开的任意会话（失败收口）。
     if (atMs > 0 && reachable) {
@@ -671,7 +683,13 @@ class AppState extends ChangeNotifier {
 
   Future<void> _processApprovalActionIntent() async {
     if (_approvalActionBusy || _conv == null || notifyService == null) return;
-    final storage = const FlutterSecureStorage();
+    // 上游守卫（secure_storage_ios_options）：iOS 必须显式定档——
+    // 意图落盘是短生命周期数据，随 first_unlock 可读即可，不随备份迁移。
+    final storage = const FlutterSecureStorage(
+      iOptions: IOSOptions(
+        accessibility: KeychainAccessibility.first_unlock_this_device,
+      ),
+    );
     final raw = await storage.read(key: _approvalActionIntentKey);
     if (raw == null || raw.isEmpty) return;
     Map<String, dynamic> intent;
@@ -745,7 +763,7 @@ class AppState extends ChangeNotifier {
 
   /// 两步式深链的目标时刻（通知产生时间）：会话页消费后清空——页面
   /// 据此弹「定位到相关消息？」浮层并滚动。
-  /// （中·陈旧残留）：配对目标 taskId——捕获方与消费方都
+  /// （对抗审查中·陈旧残留）：配对目标 taskId——捕获方与消费方都
   /// 校验归属，防旧通知残留值被下一次 atMs==0 通知误配对给错会话。
   int? pendingDeepLinkAt;
 
@@ -851,7 +869,7 @@ class AppState extends ChangeNotifier {
   /// ——用户看得见界面，通知是噪音（台账记 viewing 留证据）。
   String? viewingSessionId;
 
-  /// 应用锁控制器：独立生命周期观察者（不走本类的
+  /// 应用锁控制器（app-lock-1）：独立生命周期观察者（不走本类的
   /// onAppPaused/onAppResumed——两者各有提前 return 分支）。attach 由
   /// app 层 initState 负责；loadFromPrefs 由 AppLockGate 首帧/设置页调用。
   final appLock = AppLockController();
@@ -861,7 +879,7 @@ class AppState extends ChangeNotifier {
   bool _appInBackground = false;
 
   bool isTaskBeingViewed(String taskId) =>
-      // 锁定态不算"在看"——否则锁屏上点通知会替用户清
+      // 对抗审查 ①：锁定态不算"在看"——否则锁屏上点通知会替用户清
       // 未读+上报查看态+吞掉后续通知。
       !_appInBackground && !appLock.locked && viewingSessionId == taskId;
 
@@ -921,10 +939,23 @@ class AppState extends ChangeNotifier {
     // 启动失败与手动开关同款回弹——此前开关显示开但
     // FGS 不在，整夜通知丢失且无任何重试/提示。
     if (uiPrefs.alertsEnabled) {
-      final started = await _fgStart();
-      if (!started) {
+      // 冷启动权限复查（早前批次 审查）：用户可能事后去
+      // 系统设置关掉通知权限——不复查则开关显示开、通知被系统静默丢弃
+      // 无感知（iOS initialize 恒 true 探不到，Android 13+ 同类）。
+      // 非提示式查询（不弹窗）；null=查询不可用按现状放行。镜像开关
+      // 路径的回弹先例（setAlertsEnabled 权限拒绝/FGS 失败）。
+      final svc = notifyService;
+      if (svc != null && await svc.backend.checkPermission() == false) {
         await uiPrefs.setAlertsEnabled(false);
-        _log('[notify] startup FGS failed - alerts reverted to off');
+        alertsError = '系统通知权限已被关闭，审批提醒已停用；请在系统设置中允许通知后重新开启';
+        _log('[notify] startup permission revoked - alerts reverted to off');
+        notifyListeners();
+      } else {
+        final started = await _fgStart();
+        if (!started) {
+          await uiPrefs.setAlertsEnabled(false);
+          _log('[notify] startup FGS failed - alerts reverted to off');
+        }
       }
     }
     try {
@@ -1176,7 +1207,7 @@ class AppState extends ChangeNotifier {
   Map<String, dynamic>? projectForKey(String key) =>
       _active?.projectForKey(key);
 
-  /// 会话子代理列表（批④拍板⑥；离线/无栈返回 null 由 UI 出错误态）。
+  /// 会话子代理列表（批④拍板；离线/无栈返回 null 由 UI 出错误态）。
   Future<Map<String, dynamic>?> sessionSubagents(
     String sessionId, {
     String? endedCursor,
@@ -1283,6 +1314,38 @@ class AppState extends ChangeNotifier {
     return res;
   }
 
+  /// ③ 会话永久删除两阶段（早前批次）：preview 出范围+revision 指纹；
+  /// execute 回传 revision+operationId。UI 侧 PIN 防呆通过后才可调
+  /// execute（用户拍板：不可恢复操作须输密码确认）。
+  Future<dynamic> previewArchivedTaskDeletion(String taskId) async {
+    final stack = _active;
+    if (stack == null) throw StateError('no active computer');
+    return stack.previewArchivedTaskDeletion(taskId);
+  }
+
+  Future<dynamic> permanentlyDeleteArchivedTask(
+    String taskId, {
+    required String revision,
+    required String operationId,
+  }) async {
+    final stack = _active;
+    if (stack == null) throw StateError('no active computer');
+    final res = await stack.permanentlyDeleteArchivedTask(
+      taskId,
+      revision: revision,
+      operationId: operationId,
+    );
+    // deleted 才联动清本地（草稿/排队——归档时已清过，此处兜底重删幂等）。
+    if (res is Map && res['status'] == 'deleted') {
+      final sid = stack.profile.deviceSid;
+      await Future.wait<void>([
+        if (draftStore != null) draftStore!.removeSession(sid, taskId),
+        if (sendQueue != null) sendQueue!.removeSession(sid, taskId),
+      ]);
+    }
+    return res;
+  }
+
   Future<dynamic> archiveTask(String taskId) async {
     final stack = _active;
     if (stack == null) throw StateError('no active computer');
@@ -1378,11 +1441,30 @@ class AppState extends ChangeNotifier {
     return conv.sendCompact(sessionId);
   }
 
-  /// B 批（2026-11-08）：取消后台工作（官方 cancelBackgroundWork 命令）。
+  /// （2026-11-08）：取消后台工作（官方 cancelBackgroundWork 命令）。
   Future<dynamic> cancelBackgroundWork(String sessionId, String workId) async {
     final conv = _conv;
     if (conv == null) throw StateError('no active computer');
     return conv.cancelBackgroundWork(sessionId, workId);
+  }
+
+  /// ② 逐条停止子代理（早前批次，官方 stopSubagent 命令；参数来自快照
+  /// running 行的 stopControl——UI 只对带 stopControl 的行出钮）。
+  Future<dynamic> stopSubagent(
+    String sessionId,
+    String taskId,
+    String executionId,
+  ) async {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    return conv.stopSubagent(sessionId, taskId, executionId);
+  }
+
+  /// ① 上下文组成下钻（早前批次，v4/conversation/contextComposition）。
+  Future<dynamic> contextComposition(String sessionId) async {
+    final conv = _conv;
+    if (conv == null) throw StateError('no active computer');
+    return conv.contextComposition(sessionId);
   }
 
   /// 机会项#1（2026-11-08）：在电脑 ZCodeProject 下新建项目（同名复用）
@@ -1395,7 +1477,7 @@ class AppState extends ChangeNotifier {
     return res;
   }
 
-  /// E 批+：Hook 审核决策（respond 查 ACK status 由调用方负责）/
+  /// +：Hook 审核决策（respond 查 ACK status 由调用方负责）/
   /// 写盘开关（非选择态——transport 层注释详见；当前无调用方）。
   Future<dynamic> respondWorkspaceHookReview(
     String sessionId,
@@ -1516,7 +1598,7 @@ class AppState extends ChangeNotifier {
     String interactionId,
   ) async {
     final conv = _conv;
-    // （·并发#3）：静默 return null 会被调用方当成功——
+    // （对抗审查·并发#3）：静默 return null 会被调用方当成功——
     // _snoozed 永久锁死而服务端从未收到（交互照旧自动结束）。
     if (conv == null) throw StateError('no active computer');
     return conv.snoozeInteractionAutoResolution(sessionId, interactionId);
@@ -1593,7 +1675,7 @@ class AppState extends ChangeNotifier {
     return conv.workflowRunArtifacts(sessionId, runId);
   }
 
-  /// A 批（2026-11-08）：看板产物取数（transport 层注释详见）。
+  /// （2026-11-08）：看板产物取数（transport 层注释详见）。
   Future<dynamic> workflowRunArtifactData(
     String sessionId,
     String runId,
@@ -1861,6 +1943,17 @@ class AppState extends ChangeNotifier {
   bool _suspendedAll = false;
   bool get suspendedAll => _suspendedAll;
 
+  /// （早前批次 对抗审查发现）：无保活平台（iOS）退后台时记墙钟
+  /// ——挂起后 Dart 定时器冻结，90s 断连 Timer 在后台从不真正触发，回
+  /// 前台 onAppResumed 又先把它取消：onSuspended 的对账水位从未记录，
+  /// 隔夜完成/审批事件回前台全丢（用户杀进程冷启动反而恢复——冷启动
+  /// 走全新快照）。回前台据此戳判定「Timer 本应已触发」并补水位。
+  DateTime? _bgDisconnectPendingSince;
+
+  /// 测试缝：墙钟注入（真实设备不可注入）。
+  @visibleForTesting
+  DateTime Function() debugLifecycleClock = DateTime.now;
+
   /// 生命周期代际号：回前台/再次退后台都自增——断连定时器回调执行中
   /// 用户回前台时，靠它中止后续栈的 suspend（发现8：否则 app 在
   /// 前台却被断成全离线且无自愈）。
@@ -1937,7 +2030,12 @@ class AppState extends ChangeNotifier {
     //   门狗（优化批 #17：服务器 120s 静默容忍已实证
     //   tools/relay-v2-probe.mjs --heartbeat，窗口结束连接本就拆除；
     //   此前 30s 慢档是 battery-heartbeat-2 的过渡档）。
-    final keepAlive = uiPrefs.alertsEnabled && _fgRunning;
+    // （早前批次）：iOS 无前台服务等价物——退后台即走 90s
+    // 断连窗口（supportsBackgroundKeepAlive=false 平台门，通知语义=
+    // 前台实时+回前台对账， 拍板）。
+    final keepAlive = ZpCapabilities.supportsBackgroundKeepAlive &&
+        uiPrefs.alertsEnabled &&
+        _fgRunning;
     for (final stack in _stacks.values) {
       if (keepAlive) {
         stack.setRelayBackgroundHeartbeat(true);
@@ -1957,7 +2055,7 @@ class AppState extends ChangeNotifier {
               .suspendConversationSubscriptions()
               .then((_) {}, onError: (Object _) {}),
         );
-        // 1.0.1 真机验收⑩：tasks-index 一并退订（5s notify 帧是驻留后
+        // 1.0.1 真机验收：tasks-index 一并退订（5s notify 帧是驻留后
         // 剩余推帧大头；数据保留，回前台重订阅+对账通知兜底）。
         unawaited(
           stack
@@ -1968,9 +2066,11 @@ class AppState extends ChangeNotifier {
       return;
     }
     _bgDisconnectTimer?.cancel();
+    _bgDisconnectPendingSince = debugLifecycleClock();
     final gen = _lifecycleGen;
     _bgDisconnectTimer = Timer(backgroundDisconnectDelay, () {
       if (_disposed || _lifecycleGen != gen) return;
+      _bgDisconnectPendingSince = null; // 已按期触发（未冻结）
       _suspendedAll = true;
       _log(
         '[lifecycle] background disconnect after '
@@ -1997,11 +2097,28 @@ class AppState extends ChangeNotifier {
   void onAppResumed() {
     _appInBackground = false;
     _lifecycleGen++;
-    // r6：回前台重拉底部安全区——任务栏开关后
+    // r6（dual-pane-collapse-4）：回前台重拉底部安全区——任务栏开关后
     // 回 app 的值跟随（listener 推送+首帧重试之外的第三重保险）。
     unawaited(refreshSystemInset());
     _bgDisconnectTimer?.cancel();
     _bgDisconnectTimer = null;
+    // 冻结补偿：挂起平台（无保活）的断连 Timer 若从未触发而墙钟已过
+    // 断连窗（定时器冻结的实证形态），等价于「Timer 在冻结中已触发、
+    // 效应延迟到解冻落地」——就地补记对账水位并推进悬挂态，走下方
+    // 前台重连路径（pokeOrResume 重建死链路）。短于窗口的正常往返
+    // （<90s，Timer 照常取消）不受影响。onSuspended 前段（水位 Map 写入）
+    // 同步执行，flush 异步不阻塞恢复。
+    final frozenPendingSince = _bgDisconnectPendingSince;
+    _bgDisconnectPendingSince = null;
+    if (frozenPendingSince != null &&
+        debugLifecycleClock()
+                .difference(frozenPendingSince)
+                .compareTo(backgroundDisconnectDelay) >=
+            0) {
+      _suspendedAll = true;
+      unawaited(notifyCoordinator?.onSuspended() ?? Future<void>.value());
+      _log('[lifecycle] frozen bg-disconnect timer thawed: reconcile watermark');
+    }
     // 掉线对账收尾（状态层批）：摘后台监听；仍不在线的候选补记对账水位
     // （恢复后的首个 si 快照据此走对账模式）。
     _drainKeepAliveReconcileWatchers();
@@ -2021,7 +2138,7 @@ class AppState extends ChangeNotifier {
         stack.reportViewState(taskId: viewing);
       }
     }
-    // 1.0.1 真机验收⑩：tasks-index 重订阅（增量补齐后台期间变化）。
+    // 1.0.1 真机验收：tasks-index 重订阅（增量补齐后台期间变化）。
     if (_conversationsParked) {
       final active = _active;
       if (active != null) {

@@ -8,6 +8,7 @@ import '../core/theme.dart';
 import '../state/app_state_scope.dart';
 import '../transport/conversation.dart';
 import 'brand_logo.dart';
+import 'turn_model.dart' show submitConfigValueZh;
 
 /// 输入增强面板（2.6）：斜杠命令（prepareWorkspace 目录）与 @文件
 /// （file.searchWorkspaceFiles）候选。贴输入栏上方，点选替换当前 token。
@@ -582,7 +583,7 @@ String modelIdOf(ConfigOptionValue v) {
 String providerGroupKey(ConfigOptionValue v) {
   final pid = v.modelProviderId ?? '';
   if (pid.isNotEmpty) return pid;
-  // 空 providerId 条目全
+  // 对抗审查中：空串不回退（?? 只拦 null）——空 providerId 条目全
   // 并入同一组且不可选。改显式 isNotEmpty 判断。
   return v.value.contains('/')
       ? v.value.substring(0, v.value.indexOf('/'))
@@ -776,20 +777,16 @@ class _ModelSheetState extends State<_ModelSheet> {
 
   /// 视觉代理复验（2026-10-17 夜）：目录分区标题与选项 chips 均为服务端
   /// 英文——中文界面基准下做已知词映射，未知原样透传。
+  /// 单源=turn_model.submitConfigValueZh（④ 提交配置溯源把这张表提出
+  /// 去共用）；本地再挂官方英文 label 形态的键（目录分区服务端英文值
+  /// 兜底，提交配置徽标不经过这几个键）。
   static const _valueZh = <String, String>{
+    ...submitConfigValueZh,
     // 思考档位（官方 chat.toolbar.thoughtLevel.value.* 全集八档——
     // 2026-10-26 对齐轮实证：minimal=极低（原误「极少」），补
-    // on/xhigh/ultra 三档防兜底透传英文）。
-    'low': '低', 'medium': '中', 'high': '高', 'max': '最高',
-    'off': '关闭', 'none': '无', 'minimal': '极低',
-    'on': '开启', 'xhigh': '极高', 'ultra': '极致',
-    // 协作模式（原始枚举 + 官方 label 两种形态；mode.label.glm.* 全集
-    // ——2026-10-26 对齐轮实证：build=变更前确认（原误「构建」）；ask/
-    // 'Ask before changes' 是 build 的英文 label 非独立枚举，译同值；
-    // 补 default/edit/guarded 三态）。
-    'build': '变更前确认', 'plan': '计划模式', 'autonomous': '自主模式',
-    'guarded': '自主模式', 'default': '默认', 'edit': '自动编辑',
-    'yolo': '完全访问', 'ask': '变更前确认', 'full': '完全访问',
+    // on/xhigh/ultra 三档防兜底透传英文）→ 已并入 submitConfigValueZh。
+    // 协作模式的官方英文 label 形态（ask/'Ask before changes' 是 build
+    // 的英文 label 非独立枚举，译同值）。
     'Ask before changes': '变更前确认',
     'Autonomous mode': '自主模式',
     'Plan mode': '计划模式',
@@ -1188,7 +1185,7 @@ class _ModelListState extends State<_ModelList> {
     // 1.0.1 验收修复：选中组匹配——精确（provider+modelId）优先，
     // 失败降级到 modelId 模糊（真机 provider 形态可能与会话目录不同，
     // 精确匹配恒 miss → 全收起+选中不可见）。
-    // 高④：原模糊回退被 selectedIndex>=0 挡死（精确必中时
+    // 对抗审查高④：原模糊回退被 selectedIndex>=0 挡死（精确必中时
     // 不需要、selectedIndex==-1 时被门挡），真机 provider 不匹配的
     // 场景仍全收起。修：selectedIndex<0 且有 current 时走模糊匹配。
     final selectedGroup = ordered

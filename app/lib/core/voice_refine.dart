@@ -76,13 +76,24 @@ String? debugRefineEndpointOverride;
 @visibleForTesting
 Duration? debugBodyReadTimeout;
 
-/// body 读取超时（四路同报）：
+/// 整理请求总期限（早前批次）：此前整条链最长 8s（postUrl）+
+/// 12s（响应头）+20s（body join）≈40s，期间语音面板 refining 态锁死，
+/// API 卡住时用户 40 秒动不了。总期限到点即放弃并退回原文（决策 5 的
+/// 失败兜底，语义无损）；20s 的 body 单独档由此降为内部上限。
+const kRefineTotalTimeout = Duration(seconds: 10);
+
+/// 测试缝：覆盖总期限（null=生产 [kRefineTotalTimeout]）——总期限行为
+/// 用例免等 10s。
+@visibleForTesting
+Duration? debugRefineTotalTimeoutOverride;
+
+/// body 读取内部上限：与总期限同档 10s（实际由 [kRefineTotalTimeout]
+/// 的剩余预算更早收紧；保留独立档位供 [debugBodyReadTimeout] 压低）。
+/// 历史背景（四路同报）：
 /// connectionTimeout/postUrl/close 三级超时只覆盖连接与响应头，body
-/// `.join()` 无界——弱网/劣化代理下服务端发完头后 body 停滞时，语音面板
-/// refining 态 PopScope canPop=false（voice_input_sheet.dart）会把用户锁死
-/// 在面板内只能杀 app。取 20s：需容纳 max_tokens=512 补全的正常传输，
-/// 与响应头 12s 分档。
-const _bodyReadTimeout = Duration(seconds: 20);
+/// `.join()` 曾无界——弱网/劣化代理下服务端发完头后 body 停滞时，语音面板
+/// refining 态会把用户锁死在面板内。
+const _bodyReadTimeout = kRefineTotalTimeout;
 
 Future<String> refineDictation({
   required String? apiKey,
@@ -98,10 +109,20 @@ Future<String> refineDictation({
   final provider = voiceRefineProviderOf(providerId);
   final client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 5);
+  // 总期限预算（早前批次）：每个 await 取「分档上限」与「总期限
+  // 剩余」的较小值——分档仍保留各自的语义上限，但整条链不会超过 10s。
+  final totalTimeout = debugRefineTotalTimeoutOverride ?? kRefineTotalTimeout;
+  final elapsed = Stopwatch()..start();
+  Duration remaining(Duration cap) {
+    final left = totalTimeout - elapsed.elapsed;
+    if (left <= Duration.zero) return const Duration(milliseconds: 1);
+    return left < cap ? left : cap;
+  }
+
   try {
     final req = await client
         .postUrl(Uri.parse(debugRefineEndpointOverride ?? provider.endpoint))
-        .timeout(const Duration(seconds: 8));
+        .timeout(remaining(const Duration(seconds: 8)));
     req.headers.set('Authorization', 'Bearer $key');
     req.headers.contentType = ContentType.json;
     req.write(
@@ -128,8 +149,9 @@ Future<String> refineDictation({
         ],
       }),
     );
-    final res = await req.close().timeout(const Duration(seconds: 12));
-    final bodyTimeout = debugBodyReadTimeout ?? _bodyReadTimeout;
+    final res =
+        await req.close().timeout(remaining(const Duration(seconds: 12)));
+    final bodyTimeout = remaining(debugBodyReadTimeout ?? _bodyReadTimeout);
     if (res.statusCode != 200) {
       final body = await res
           .transform(utf8.decoder)

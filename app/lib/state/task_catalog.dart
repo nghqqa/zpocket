@@ -137,6 +137,22 @@ class TaskCatalog {
     bridge.recovered.addListener(_onBridgeRecoveredReloadTasks);
   }
 
+  /// 拆除订阅与模型（早前批次：demo/测试收尾——tasks-index 订阅
+  /// 的周期清理定时器必须取消，widget 测试 pending-timer 不变量；生产
+  /// 目录随栈生命周期由进程退出回收，不经此路）。订阅 dispose 的定时器
+  /// 取消在同步段完成，调用方无需 await。
+  void dispose() {
+    final ti = _tasksIndex;
+    _tasksIndex = null;
+    unawaited(ti?.dispose() ?? Future<void>.value());
+    final model = _taskList;
+    _taskList = null;
+    model?.removeListener(_onTaskListChanged);
+    model?.dispose();
+    _attachedBridge?.recovered.removeListener(_onBridgeRecoveredReloadTasks);
+    _attachedBridge = null;
+  }
+
   void _onBridgeRecoveredReloadTasks() {
     if (_taskList != null) unawaited(loadTaskIndex());
     // 恢复边沿两类数据收敛对称：桥短暂断链期间
@@ -325,7 +341,7 @@ class TaskCatalog {
   /// 之前同步置位——在飞 subscribe 落地时据此自收，不再挂活订阅。
   bool _pausedForBackground = false;
 
-  /// 1.0.1 真机验收⑩（后台 583mAh/h，第五轮）：保活分支退后台再退订
+  /// 1.0.1 真机验收（后台 583mAh/h，第五轮）：保活分支退后台再退订
   /// tasks-index——5s 级 notify 帧（内容多数无差异）是驻留后剩余推帧
   /// 大头；数据保留（回前台重订阅增量补齐+对账通知兜底），审批通知
   /// 数据源（si）不动。
@@ -640,6 +656,49 @@ class TaskCatalog {
         ...workspaceScopeOf(_activeWorkspaceProvider() ?? const {}),
         'taskIds': taskIds,
       });
+
+  /// ③ 会话永久删除两阶段（早前批次）：官方 zcode-task 频道包装
+  ///（含归档校验 not-archived+任务索引预约清理——官方 web remote 同路径
+  /// windowHostControllerService:851-874 → zcodeTaskServiceAdapter:2979）。
+  /// preview 返回范围指纹 revision（树/文件/引用/忙态任一变化即变）；
+  /// execute 回传 revision+operationId，服务端重算比对不一致=
+  /// blocked+changed 零破坏。超时放宽：preview 需扫全树文件。
+  Future<dynamic> previewArchivedTaskDeletion(String taskId) async {
+    final bridge = _bridgeProvider();
+    if (bridge == null) throw StateError('no active workspace');
+    return bridge.channels.call(
+      Channels.zcodeTask,
+      'previewArchivedTaskDeletion',
+      [_taskScope(taskId)],
+      timeout: const Duration(seconds: 30),
+    );
+  }
+
+  Future<dynamic> permanentlyDeleteArchivedTask(
+    String taskId, {
+    required String revision,
+    required String operationId,
+  }) async {
+    // 早前批次：bridge 缺失必须抛错（对齐 _taskCall/preview）——原
+    // `?.call` 短路返回 null 会让 UI 把「一个字节都没删」谎报成
+    // incomplete「部分数据已清理」。
+    final bridge = _bridgeProvider();
+    if (bridge == null) throw StateError('no active workspace');
+    final res = await bridge.channels.call(
+      Channels.zcodeTask,
+      'permanentlyDeleteArchivedTask',
+      [
+        {
+          ..._taskScope(taskId),
+          'revision': revision,
+          'operationId': operationId,
+        },
+      ],
+      timeout: const Duration(seconds: 60),
+    );
+    unawaited(loadTaskIndex());
+    return res;
+  }
 
   Future<dynamic> unarchiveTask(String taskId) async {
     final res = await _taskCall('unarchiveTask', _taskScope(taskId));

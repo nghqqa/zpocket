@@ -1047,7 +1047,7 @@ class _AgentEditorSheetState extends State<_AgentEditorSheet> {
   Future<void> _loadCatalog() async {
     try {
       final app = AppStateScope.of(context);
-      // 宿主级 model-selection 目录（2026-10-27 真机验收⑧）：不要求活跃
+      // 宿主级 model-selection 目录（2026-10-27 真机验收）：不要求活跃
       // 会话——设置页直接新建/编辑子代理时也能设置默认模型与思考档；
       // 旧 getTaskConfigOptions 在无会话时目录为空，只剩"继承默认"。
       final options = await app.modelSelectionOptions();

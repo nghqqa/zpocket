@@ -290,7 +290,7 @@ void main() {
     expect(
       find.byType(ChoiceChip),
       findsNothing,
-      reason: '模型区不再是摊开 chips（用户 2026-10-25 拍板）',
+      reason: '模型区不再是摊开 chips（设计定稿）',
     );
 
     // 未选中行点选 → 挂起回调（provider+裸 modelId）。长目录先滚到行
@@ -383,7 +383,7 @@ void main() {
     expect(
       box.size.height,
       greaterThanOrEqualTo(40),
-      reason: '模型行触控命中盒 ≥40（紧凑二档，用户 2026-10-26 拍板）',
+      reason: '模型行触控命中盒 ≥40（紧凑二档，设计定稿）',
     );
   });
 

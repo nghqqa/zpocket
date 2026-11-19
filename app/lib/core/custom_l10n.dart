@@ -189,10 +189,10 @@ const _customEn = <String, String>{
   '重试': 'Retry',
   '已完成': 'Completed',
   '定时任务': 'Scheduled tasks',
-  // 宽屏顶栏左栏收起/展开钮 tooltip。
+  // dual-pane-collapse-1：宽屏顶栏左栏收起/展开钮 tooltip。
 
 
-  // 应用内更新。
+  // 应用内更新（in-app-update-1）。
   '软件更新': 'Software update',
   '检查新版本并应用内下载安装（需安装权限）': 'Check for updates and download in-app (install permission required)',
   '应用内更新': 'In-app updates',
@@ -215,16 +215,22 @@ const _customEn = <String, String>{
   '正在下载更新': 'Downloading update',
   '准备中…': 'Preparing…',
   '下载失败': 'Download failed',
-  // '重试': 'Retry',
-  // '取消': 'Cancel',
-  // '关闭': 'Close',
+  // dup-skipped '重试': 'Retry',
+  // dup-skipped '取消': 'Cancel',
+  // dup-skipped '关闭': 'Close',
   '应用内更新已关闭，请到 GitHub Releases 手动下载': 'In-app updates are off. Please download manually from GitHub Releases',
+  // 产物分享（早前批次）：产物行/预览页入口+进度弹窗。
+  '分享': 'Share',
+  '正在获取产物…': 'Fetching artifact…',
+  '产物过大（超过 150MB），无法分享': 'Artifact too large (over 150 MB) to share',
+  '下载产物失败：': 'Failed to fetch artifact: ',
+  '分享失败': 'Share failed',
   'PIN 码': 'PIN',
   '应用锁数据缺失，已停用；请到设置中重新开启': 'App lock data missing; lock disabled. Re-enable it in Settings',
   '设备未设置系统屏幕锁，无法验证；请先在系统设置中配置锁屏': 'No system screen lock is set, verification unavailable. Configure a screen lock in system settings first',
   '打开系统安全设置': 'Open system security settings',
   '任务列表已收起': 'Task list collapsed',
-  // 应用锁：设置页+锁屏。
+  // 应用锁（app-lock-1）：设置页+锁屏。
   '应用锁': 'App lock',
   '冷启动与后台锁定需验证（系统锁屏 / PIN 码）': 'Verify on cold start and after backgrounding (system lock / PIN)',
   '应用已锁定': 'App locked',
@@ -334,11 +340,16 @@ const _customEn = <String, String>{
   '收起': 'Collapse',
   '刚刚': 'Just now',
   '昨天': 'Yesterday',
-  '在电脑上打开 ZCode → 设置 → 远程控制，点击「手机连接」显示二维码；用本机扫码，或复制链接粘贴到下方。链接即凭据，请勿转发他人。': 'On your computer, open ZCode → Settings → Remote Control and tap “Phone connection” to show the QR code. Scan it with this device, or copy the link below. The link is a credential—do not share it.',
-  '对准桌面端 ZCode → 远程控制 显示的二维码': 'Point the camera at the QR code shown in ZCode → Remote Control on your desktop',
+  // 早前批次：桌面真实入口=左侧边栏底部「移动端远程控制」（官方
+  // UI i18n webRemoteControl.trigger 实证；旧「设置→远程控制→手机连接」
+  // 路径不存在，用户照做找不到二维码）。
+  '在电脑上打开 ZCode，点击左侧边栏底部的「移动端远程控制」显示二维码；用本机扫码，或复制链接粘贴到下方。链接即凭据，请勿转发他人。': 'On your computer, open ZCode and click “Mobile remote control” at the bottom of the left sidebar to show the QR code. Scan it with this device, or paste the link below. The link is a credential—do not share it.',
+  '照片': 'Photos',
+  '相册不可用': 'Photo library unavailable',
+  '对准桌面端「移动端远程控制」弹窗显示的二维码': 'Point the camera at the QR code in the “Mobile remote control” panel on your desktop',
   // 扫码无预览模式新文案（qr_scan_page）。
-  '对准桌面端 ZCode → 远程控制 显示的二维码（无取景预览：对准框内即可识别）':
-      'Point the QR code shown in ZCode Remote Control at the frame (no live preview: codes inside the frame are detected)',
+  '对准桌面端「移动端远程控制」弹窗显示的二维码（无取景预览：对准框内即可识别）':
+      'Point the camera at the QR code in the "Mobile remote control" panel on your desktop (no live preview: align within the frame)',
   '相机不可用，请返回改用「粘贴链接」添加':
       'Camera unavailable. Please go back and use Paste link instead',
   '思考强度 ': 'Thinking level ',
@@ -387,6 +398,8 @@ const _customEn = <String, String>{
   '队列：排队等当前回合结束后依次发送':
       'Queue: send messages in order after the current turn ends',
   '开启后后台保持连接，任务完成/失败/等审批实时通知（首次开启建议先过一遍下方「后台保障设置」）；关闭时退到后台约一分半钟自动断开省电，回前台数秒恢复': 'When on, stay connected in the background for completion, failure, and approval notifications. Review “Background reliability settings” before first use. When off, disconnect after about 90 seconds in the background to save power and reconnect within seconds of returning.',
+  // iOS 档（早前批次）：无保活，前台实时+回前台对账。
+  '开启后使用期间实时通知任务完成/失败/等待审批；iOS 后台不保持连接，回到 App 时自动补齐错过的事件并通知': 'When on, get real-time notifications for completions, failures, and approvals while using the app. iOS does not stay connected in the background; missed events are caught up and notified when you return.',
   '等审批通知': 'Approval notifications',
   '会话等待你审批或输入时提醒': 'Notify when a session needs approval or input',
   '任务完成通知': 'Task completion notifications',
@@ -544,6 +557,23 @@ const _customEn = <String, String>{
   '插件': 'Plugin',
   // workflow-runs-1（2026-10-30）：工作流 run 页 + 闲时任务卡
   '工作流运行': 'Workflow runs',
+  // 早前批次（2026-11-13）：收集产物弹层与顶栏入口。
+  '收集产物': 'Collect artifacts',
+  // 对抗审查修复批（2026-11-14）：分享/下载/枢纽反馈。
+  '产物内容不完整，已丢弃': 'Artifact content incomplete; discarded',
+  '未能发送（会话正忙或发送失败），请稍后再试':
+      'Could not send (conversation busy or send failed); try again shortly',
+  '内容过大，仅加载了部分': 'Content too large; only part was loaded',
+  // 早前批次（2026-11-14）：产物下载页。
+  '产物下载': 'Downloads',
+  '如何下载会话中的文件': 'How to download files from this chat',
+  '会话生成的文件（含图片 / PDF / 表格）需先发布为工作流产物才能下载：点「收集产物」让智能体整理本回合文件；已发布的产物在下方运行里点开，行尾即可分享保存。':
+      "Files generated in this chat (images / PDFs / spreadsheets included) must be published as workflow artifacts before downloading: tap 'Collect artifacts' to have the agent gather this turn's files; published artifacts appear in the runs below — open one and tap Share to save.",
+  '已发送收集指令，产物就绪后会出现在下方':
+      'Collect request sent — artifacts will appear below when ready',
+  // 早前批次（2026-11-14）：二进制产物不支持预览页。
+  '该格式暂不支持预览，可点右上角分享保存到手机':
+      'This format cannot be previewed. Tap Share at the top right to save it',
   '本会话没有工作流运行': 'No workflow runs in this conversation',
   '该运行没有事件与产物记录': 'No events or artifacts for this run',
   '（已截断）': ' (truncated)',
@@ -556,6 +586,77 @@ const _customEn = <String, String>{
   // goalVerify/语音/子代理分页/任务状态）。
   '排队中': 'Queued',
   '已停止': 'Stopped',
+  // 修订链（supersededBy，官方 zh-CN.ts:6885/6890-6891/6523 对位）。
+  '已被替代': 'Superseded',
+  '工作流已被替代': 'Workflow superseded',
+  // ② 逐条停止子代理（官方 stopSubagent；failed ACK 词表人话映射）。
+  '该子代理已不在运行（可能刚好结束）':
+      'This subagent is no longer running (it may have just finished)',
+  '没有找到这个子代理任务': 'Subagent task not found',
+  '停止失败：': 'Stop failed: ',
+  // ① 上下文组成下钻（v4/conversation/contextComposition）。
+  '上下文组成': 'Context composition',
+  '组成明细': 'Details',
+  '当前会话暂无可用的上下文组成（桌面端可能刚重启）':
+      'No context composition available for this session (the desktop may have just restarted)',
+  '草稿预演': 'Draft preview',
+  '最近请求': 'Last request',
+  '剩余': 'free ',
+  '服务商口径': 'Provider count',
+  // ③ 会话永久删除（PIN 防呆三段流）。
+  '永久删除': 'Delete permanently',
+  '正在核对删除范围…': 'Checking what will be deleted…',
+  '无法预览删除范围': 'Cannot preview deletion scope',
+  '正在永久删除…': 'Deleting permanently…',
+  '删除失败': 'Deletion failed',
+  '删除失败：': 'Deletion failed: ',
+  '已永久删除「': 'Permanently deleted "',
+  '未删除：': 'Not deleted: ',
+  '删除未完成（部分数据已清理），可稍后重试继续':
+      'Deletion incomplete (some data was cleaned); retry later to finish',
+  '永久删除「': 'Permanently delete "',
+  '」？': '"?',
+  '」': '"',
+  '该任务的会话数据已被彻底删除。': 'The session data of this task has already been permanently deleted.',
+  '将永久删除：任务本体（含子智能体 / 工作流子会话共 ':
+      'Will permanently delete: the task (including subagent/workflow child sessions, ',
+  ' 个会话）与 ': ' sessions total) and ',
+  ' 个文件。删除后不可恢复。': ' files. This cannot be undone.',
+  '上次删除未完成，本次将继续清理剩余数据。':
+      'A previous deletion did not finish; this run will continue cleaning up.',
+  '以下内容将保留：': 'The following will be kept:',
+  '产物': 'Artifact',
+  '（被其他会话引用）': ' (referenced by another session)',
+  '工作区文件、Git 记录、分享不受影响':
+      'Workspace files, Git history and shares are unaffected',
+  '继续（需验证 PIN）': 'Continue (PIN required)',
+  '需要先设置 PIN': 'Set up a PIN first',
+  '永久删除不可恢复。为防误删，请先在「设置 → 安全」开启应用锁（PIN 或系统锁屏均可），再回来执行永久删除。':
+      'Permanent deletion cannot be undone. To guard against accidents, enable the app lock (PIN or system screen lock) under "Settings → Security" first, then come back.',
+  '输入 PIN 确认永久删除': 'Enter PIN to confirm permanent deletion',
+  '该操作不可恢复，请输入应用锁 PIN 确认。':
+      'This action cannot be undone. Enter your app-lock PIN to confirm.',
+  'PIN 不正确，请重试': 'Incorrect PIN, try again',
+  'PIN 不正确。尝试过多，请': 'Incorrect PIN. Too many attempts, wait ',
+  '尝试过多，请': 'Too many attempts, wait ',
+  '秒后再试': ' s before retrying',
+  '确认删除': 'Confirm deletion',
+  '继续（需系统验证）': 'Continue (device unlock required)',
+  '删除结果未知，请刷新任务列表核对':
+      'Deletion result unknown — refresh the task list to verify',
+  '应用锁数据已损坏（PIN 材料缺失或无效），验证已被跳过。请重新设置 PIN 码，或切换到其他解锁方式。':
+      'App lock data is damaged (PIN material missing or invalid); verification was skipped. Set a new PIN or switch to another unlock method.',
+  '没有找到该任务的会话数据（可能已被删除）':
+      'Session data for this task was not found (it may already be deleted)',
+  '该任务仍有工作在运行（或有待处理输入），先停止后再删':
+      'Work is still running on this task (or input is pending). Stop it first',
+  '会话正被其他程序占用（例如桌面端另一窗口打开着它）':
+      'The session is held by another process (e.g. another desktop window)',
+  '任务已不在归档状态，请先归档后再永久删除':
+      'The task is no longer archived; archive it before deleting permanently',
+  '删除范围已发生变化（预览后有新内容），请重新预览':
+      'The deletion scope changed (new content after preview); preview again',
+  '暂时无法完成删除，稍后重试': 'Cannot complete the deletion right now; retry later',
   '看板类产物暂不支持在手机查看': 'Dashboard artifacts cannot be viewed on the phone yet',
   '内容过长已截断': 'Content too long — truncated',
   '压缩被拒绝：': 'Compaction rejected: ',
@@ -1042,7 +1143,7 @@ const _customEn = <String, String>{
   '」，将改为「': '” and will change to “',
   '」。改绑后旧账号在此电脑上的连接会失效，需要用旧账号时可再改绑回来。':
       '”. The old account’s connection on this computer will stop working. You can switch back later.',
-  // fullsweep-1108（14 路后全修批）：各修复面新增文案。
+  // fullsweep-1108（14 路对抗审查后全修批）：各修复面新增文案。
   '该电脑已在另一台设备上打开': 'This computer is already open on another device',
   '打开工作区超时，请稍后重试':
       'Opening the workspace timed out. Please try again later.',
@@ -1061,6 +1162,14 @@ const _customEn = <String, String>{
   '系统通知权限未开启，审批提醒无法生效；请在系统设置中允许通知后重试':
       'Notification permission is off; approval alerts cannot work. '
       'Allow notifications in system settings and try again.',
+  // 早前批次：冷启动权限复查回弹+语音 iOS 错误码人话（词表补录）。
+  '系统通知权限已被关闭，审批提醒已停用；请在系统设置中允许通知后重新开启':
+      'Notification permission was turned off, so approval alerts are '
+      'disabled. Allow notifications in system settings and turn alerts '
+      'back on.',
+  '语音识别权限未开启，请在系统设置中允许本应用访问语音识别':
+      'Speech recognition permission is off. Allow this app to use speech '
+      'recognition in system settings.',
   '连接该账号的电脑': "Connect this account's computers",
   '连接非官方服务器？': 'Connect to a non-official server?',
   '继续连接': 'Continue connecting',
@@ -1099,6 +1208,33 @@ const _customEn = <String, String>{
 };
 
 final _customPatterns = <_L10nPattern>[
+  // 修订链血缘行（中文前缀+动态 runId 拼接串；详情页 Text 走 tr→此
+  // 模式命中）。官方 en-US.ts:7289-7290 对位。
+  _L10nPattern(
+    RegExp(r'^已被替代，后继 run ([\s\S]+)$'),
+    'Superseded by run {id}',
+    {'id': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^调整自 run ([\s\S]+)$'),
+    'Amends run {id}',
+    {'id': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^本次无法删除：([\s\S]+)$'),
+    'Cannot delete now: {reason}',
+    {'reason': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^· 分支会话「([\s\S]+)」$'),
+    '· Forked session “{t}”',
+    {'t': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^· 产物 ([\s\S]+)（被其他会话引用）$'),
+    '· Artifact {n} (referenced by another session)',
+    {'n': 1},
+  ),
   // multi-account-ux-1 批4：其他电脑聚合区。
   _L10nPattern(RegExp(r'^其他电脑（(\d+)）$'), 'Other computers ({count})', {'count': 1}),
   _L10nPattern(RegExp(r'^缓存于 ([\s\S]+)$'), 'Cached {time}', {'time': 1}),

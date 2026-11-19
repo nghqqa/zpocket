@@ -1,4 +1,4 @@
-// 1.0.1 真机验收⑤A（用户拍板拆两段）：跨工作区点任务卡→**立即**推入
+// 1.0.1 真机验收（用户拍板拆两段）：跨工作区点任务卡→**立即**推入
 // 会话页（转圈「正在打开工作区…」），后台完成工作区切换，桥就绪后
 // 自动加载。红=旧实现（先 await 切换再 push，慢切换期间无会话页）。
 import 'dart:async';
@@ -106,7 +106,7 @@ class _SlowSwitchApp extends AppState {
   final _MemoryQueueStore queue;
   final Completer<void> switchDone = Completer<void>();
   bool switchStarted = false;
-  // 遗留核实修（2026-11-07）测试缝：等待失败时清首页残留预览。
+  // 对抗审查遗留核实修（2026-11-07）测试缝：等待失败时清首页残留预览。
   String? wsError;
   int previewClears = 0;
   Map<String, dynamic>? _active = const {
@@ -189,7 +189,7 @@ void main() {
     expect(
       find.byType(ConversationPage, skipOffstage: false),
       findsOneWidget,
-      reason: '⑤A：切换在途即推入会话页（旧实现等切换完才有）',
+      reason: '切换在途即推入会话页（旧实现等切换完才有）',
     );
     expect(
       find.text('正在打开工作区…', skipOffstage: false),
@@ -207,7 +207,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  // 遗留核实修（2026-11-07）：等待失败（切换报错/超时）时，
+  // 对抗审查遗留核实修（2026-11-07）：等待失败（切换报错/超时）时，
   // 首页 keepHomePreview 保住的旧列表不能再以可用状态示人——页面
   // 错误态就位的同时必须清残留预览（与 task_center 失败路径同语义）。
   testWidgets('等待失败：错误态就位+首页残留预览被清', (tester) async {
@@ -235,7 +235,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  // #2 高：草稿身份旧实现是首帧一次性闩锁——
+  // #2 高（2026-11-08 对抗审查）：草稿身份旧实现是首帧一次性闩锁——
   // push-first 等待期 activeWorkspace 仍是旧工作区，输入/入队全记错桶。
   testWidgets('等待期输入：草稿键=目标工作区（#2 高）', (tester) async {
     tester.view.physicalSize = const Size(375, 806);

@@ -1,4 +1,4 @@
-// A 批（2026-11-08 拍板⑥⑧）红绿：看板 spec 宽松解析+字段取数+四渲染器
+// （2026-11-08 拍板）红绿：看板 spec 宽松解析+字段取数+四渲染器
 // 数据准备（官方 presets/spec.ts 对位）+会话内 run 卡+任务行 run 线。
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

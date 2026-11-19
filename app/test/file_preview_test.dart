@@ -148,11 +148,28 @@ Map<String, dynamic> _dartItem() => {
   ],
 };
 
+Map<String, dynamic> _newTextItem() => {
+  'path': 'report/data.md',
+  'additions': 2,
+  'deletions': 0,
+  'writeCount': 1,
+  'toolNames': ['Write'],
+  'patches': [
+    {
+      'oldStart': 0,
+      'oldLines': 0,
+      'newStart': 1,
+      'newLines': 2,
+      'lines': ['+# 数据报告', '+共 3 条记录'],
+    },
+  ],
+};
+
 Map<String, dynamic> _changesResult() => {
-  'files': 3,
-  'additions': 6,
+  'files': 4,
+  'additions': 8,
   'deletions': 2,
-  'items': [_newHtmlItem(), _editedHtmlItem(), _dartItem()],
+  'items': [_newHtmlItem(), _editedHtmlItem(), _dartItem(), _newTextItem()],
 };
 
 List<Map<String, dynamic>> _cardRows() => [
@@ -170,6 +187,32 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('纯函数', () {
+    test('isPreviewableTextPath：白名单矩阵（html 家族/二进制/无扩展名拒）',
+        () {
+      expect(isPreviewableTextPath('report/data.md'), isTrue);
+      expect(isPreviewableTextPath('a/b/c.JSON'), isTrue, reason: '大小写不敏感');
+      expect(isPreviewableTextPath('x/y.dart'), isTrue);
+      expect(isPreviewableTextPath('x/index.html'), isFalse,
+          reason: 'html 家族走渲染页分支');
+      expect(isPreviewableTextPath('x/a.png'), isFalse);
+      expect(isPreviewableTextPath('x/a.pdf'), isFalse);
+      expect(isPreviewableTextPath('Dockerfile'), isFalse,
+          reason: '无扩展名不进（宁缺勿滥）');
+    });
+
+    test('clampConversationTextPreview：预算内直通/超限按 rune 边界截断',
+        () {
+      final ok = clampConversationTextPreview(
+          '你好abc', kConversationTextPreviewMaxBytes);
+      expect(ok.truncated, isFalse);
+      expect(ok.text, '你好abc');
+      // 预算 4 字节：一个汉字(3B)+一个 ASCII，第二个汉字放不下即停
+      //（rune 边界，不劈代理对）。
+      final c = clampConversationTextPreview('你a好b', 4);
+      expect(c.truncated, isTrue);
+      expect(c.text, '你a');
+    });
+
     test('assembleNewFileText：新建文件拼全文，编辑/空返回 null', () {
       expect(
         assembleNewFileText([
@@ -486,5 +529,50 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.byType(DiffViewerPage), findsOneWidget);
+    await tester.pageBack();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  });
+
+  testWidgets('旅程：新建文本文件进全文预览页（早前批次）',
+      (tester) async {
+    await tester.pumpWidget(
+      _host(_PreviewApp(_cardRows(), _changesResult())),
+    );
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(const ValueKey('file-summary-card-2')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // 新建 md → 全文预览页（等宽只读+分享在场）。
+    await tester.tap(find.byKey(const ValueKey('file-row-report/data.md')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(TextFilePreviewPage), findsOneWidget);
+    expect(find.text('data.md'), findsWidgets);
+    expect(find.textContaining('共 3 条记录'), findsOneWidget);
+    expect(find.byKey(const ValueKey('conversation-text-share')), findsOneWidget);
+  });
+
+  testWidgets('超上限：截断标记+不给分享（会话文件无回源通道）', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: TextFilePreviewPage(
+          title: 'big.log',
+          fileName: 'big.log',
+          content: 'a' * (kConversationTextPreviewMaxBytes + 100),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('内容过长已截断'), findsOneWidget);
+    expect(find.byKey(const ValueKey('conversation-text-share')), findsNothing,
+        reason: '半份内容不冒充完整文件（与工作流产物截断同规则）');
   });
 }

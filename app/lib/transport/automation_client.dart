@@ -273,7 +273,7 @@ class AutomationClient {
     );
   }
 
-  /// Updates an automation（2026-11-05 反馈⑤；官方
+  /// Updates an automation（2026-11-05 反馈；官方
   /// zcodeAgentPluginParams.ts:216-228 ZCodeAgentUpdateAutomationParams——
   /// 可变字段按需携带、至少一个；返回更新后的任务，任务不存在/无可变
   /// 字段服务端返回 null）。scheduleEditedByUser：用户显式改调度时置

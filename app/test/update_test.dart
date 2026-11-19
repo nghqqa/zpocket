@@ -1,4 +1,4 @@
-// 应用内更新：版本比较/ABI 选择/digest 解析/
+// 应用内更新（in-app-update-1）：版本比较/ABI 选择/digest 解析/
 // markdown 剥离纯函数 + HttpServer mock 的下载（Range 续传/镜像兜底/
 // SHA256 校验拒篡改）。
 import 'dart:async';
@@ -262,7 +262,7 @@ void main() {
       expect(await f.length(), payload.length);
     });
 
-    test('：416=本地已完整——isRangeSatisfied 可判（重试不再死循环）', () async {
+    test('②M3：416=本地已完整——isRangeSatisfied 可判（重试不再死循环）', () async {
       server.listen((req) async {
         req.response.statusCode = 416;
         await req.response.close();
@@ -280,7 +280,7 @@ void main() {
       expect(await f.exists(), isTrue, reason: '416 不删本地文件（待校验）');
     });
 
-    test('：超大小上限即停并删文件', () async {
+    test('②M5：超大小上限即停并删文件', () async {
       final chunk = List<int>.filled(64 * 1024, 5);
       server.listen((req) async {
         // 无 Content-Length 也持续输出（模拟异常大流）。

@@ -70,7 +70,7 @@ class _RunningPulseDotState extends State<RunningPulseDot>
 /// 用于运行中工具的名称行与「正在思考」标题（官方同款语义：转圈
 /// loader 长期占用渲染资源，运行态保留文案扫光）。
 ///
-/// 质感修订（2026-10-22 真机反馈⑦"不明显"）：渐变域从 1 倍文本宽改为
+/// 质感修订（2026-10-22 真机反馈"不明显"）：渐变域从 1 倍文本宽改为
 /// 官方 3 倍——暗带宽度≈整窗，视觉是整段文字的软暗波次第掠过（原窄带
 /// 只是局部闪烁，几乎不可见）。
 class ShimmerText extends StatefulWidget {
@@ -179,7 +179,7 @@ class _ShimmerTextState extends State<ShimmerText>
     final size =
         widget.style.fontSize ?? DefaultTextStyle.of(context).style.fontSize ?? 14;
     final lineHeight = widget.style.height ?? 1.45;
-    // 公式修正：Flutter 实际行高 = scale(字号)×行高
+    // 公式修正（对抗审查）：Flutter 实际行高 = scale(字号)×行高
     // （先缩放字号再乘行高）；Android 14+ 非线性 FontScaler 下
     // scale(字号×行高) 会算矮 → 第二行底部被裁。
     final scaled = MediaQuery.textScalerOf(context).scale(size) * lineHeight;
@@ -193,7 +193,7 @@ class _ShimmerTextState extends State<ShimmerText>
   }
 }
 
-/// 定高文本占位（：思考条流式→完成边沿从
+/// 定高文本占位（对抗审查 2026-10-24：思考条流式→完成边沿从
 /// minLines 两行塌到单行=完成瞬间一次跳变；完成态沿用同款定高公式
 /// 保持高度恒定）。与 ShimmerText._fixedLines 同公式：字号×行高
 /// （默认 1.45）×行数，文字缩放感知，内容顶对齐。

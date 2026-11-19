@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 早前批次：Keychain Sharing——flutter_secure_storage_darwin
+	     0.3.2 README 要求（DebugProfile+Release 两套同配）。$(AppIdentifierPrefix)
+	     由签名时 Team 前缀展开；模拟器 no-codesign 构建忽略 entitlements 不受阻。 -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)dev.zcodeapp.zcodePocket</string>
+	</array>
+	<!-- 早前批次：Time Sensitive Notifications——审批提醒是
+	     180s 倒计时的时效交互，专注模式下普通通知会被系统压掉；本能力与
+	     DarwinNotificationDetails.interruptionLevel=timeSensitive 配套生效
+	     （缺 entitlement 时系统把该档降回 active）。真机分发属常规能力；
+	     模拟器 no-codesign 构建忽略 entitlements 不受阻。 -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
+</dict>
+</plist>

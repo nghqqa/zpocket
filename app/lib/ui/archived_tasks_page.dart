@@ -5,6 +5,7 @@ import '../core/localized_text.dart';
 import '../core/theme.dart';
 import '../state/app_state_scope.dart';
 import 'app_widgets.dart';
+import 'session_deletion_flow.dart';
 import 'task_home.dart';
 
 /// 归档任务浏览页（阶段 3 第三段，对照官方归档区交互）：
@@ -236,6 +237,24 @@ class _ArchivedTasksPageState extends State<ArchivedTasksPage> {
                                 Icons.delete_outline,
                                 size: 18,
                                 color: context.colors.foregroundSubtle,
+                              ),
+                            ),
+                            // ③ 会话永久删除（早前批次）：delete_forever 图标
+                            // 与普通删除（列表移除）明确区分；点击走 PIN 防呆
+                            // 三段流（范围预览→PIN→执行）。
+                            IconButton(
+                              key: ValueKey('archive-perm-delete-${t['taskId']}'),
+                              onPressed: _busy
+                                  ? null
+                                  : () => showPermanentDeletionFlow(
+                                        context,
+                                        task: t,
+                                      ),
+                              tooltip: tr('永久删除'),
+                              icon: Icon(
+                                Icons.delete_forever_outlined,
+                                size: 18,
+                                color: context.colors.destructive,
                               ),
                             ),
                           ],

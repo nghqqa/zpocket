@@ -56,7 +56,7 @@ class _ShortcutAppState extends AppState {
   Future<void> switchToTask(Map<String, dynamic> task,
       {String? label, bool keepHomePreview = false}) async {
     openedTasks.add(task);
-    // ⑤A 等待循环需要：切到位（任务的工作区键）+桥在场。
+    // 等待循环需要：切到位（任务的工作区键）+桥在场。
     final key = '${task['workspacePath'] ?? ''}'.trim();
     _activeWs = {
       'workspacePath': key,

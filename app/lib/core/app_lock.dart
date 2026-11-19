@@ -1,4 +1,4 @@
-// 应用锁状态层。
+// 应用锁状态层（app-lock-1）。
 //
 // 设计拍板（用户 2026-11-12）：全部用户可选——方式三态（关/系统锁屏
 // 凭证/自建 PIN）、自动锁定时机（冷启动必锁恒成立，后台超过可配时长
@@ -58,6 +58,20 @@ String hashPin(String pin, String saltHex) {
   return sha256.convert([...salt, ...pin.codeUnits]).toString();
 }
 
+/// PIN 材料健康判定（早前批次，对抗审查缺失/垃圾形态）：非空 + 盐/哈希
+/// 均为合法 hex 且长度正确（盐 32 hex=16 字节、哈希 64 hex=SHA-256——
+/// hashPin 对非法盐会抛异常，截断哈希则验算必败；两者在闸门处即判
+/// 不健康，不进验证）。「新旧混搭」形态（两键各自合法但验算必败）无法
+/// 静态检出，由 单键存储根治。设置页恢复分支/删除闸门/
+/// loadFromPrefs 降级判定三处共用。
+bool pinMaterialHealthy(String? saltHex, String? hashHex) {
+  if (saltHex == null || hashHex == null) return false;
+  if (saltHex.isEmpty || hashHex.isEmpty) return false;
+  if (saltHex.length != 32 || hashHex.length != 64) return false;
+  final hexOk = RegExp(r'^[0-9a-fA-F]+$');
+  return hexOk.hasMatch(saltHex) && hexOk.hasMatch(hashHex);
+}
+
 /// PIN 解锁失败冷却：连续错 5 次锁 30s（防旁人爆破；墙钟注入可测）。
 class PinAttemptLimiter {
   static const maxAttempts = 5;
@@ -102,7 +116,7 @@ class AppLockController extends ChangeNotifier with WidgetsBindingObserver {
   bool _secureFlagPref = true;
   bool _locked = false;
   DateTime? _backgroundedAt;
-  // 系统凭证验证 Activity 返回时 resumed 不得把刚完成的
+  // 对抗审查 ①：系统凭证验证 Activity 返回时 resumed 不得把刚完成的
   // 解锁再锁回去（验证页停留超阈值/立即档必现死循环）——一次性抑制。
   bool _suppressNextResumeLock = false;
   final PinAttemptLimiter _pinLimiter = PinAttemptLimiter();
@@ -120,7 +134,7 @@ class AppLockController extends ChangeNotifier with WidgetsBindingObserver {
   final ValueNotifier<bool> pinMaterialMissing = ValueNotifier(false);
 
   /// 系统凭证验证不可用（设备锁被移除等）——锁屏给"去系统设置配锁"
-  /// 出口。
+  /// 出口（①，防无提示死锁）。
   final ValueNotifier<bool> systemUnlockUnavailable = ValueNotifier(false);
 
   void loadFromPrefs({
@@ -131,11 +145,12 @@ class AppLockController extends ChangeNotifier with WidgetsBindingObserver {
     String? pinSalt,
     String? pinHash,
   }) {
-    //  软锁死：mode=pin 而盐/哈希缺失（部分写失败/迁移丢键
-    // 可达）→ 永远"PIN 不正确"且无恢复入口。降级为关（没有 secret 可
-    // 保护，不构成安全降级），由 gate/设置页提示重设。
-    if (mode == AppLockMode.pin &&
-        (pinSalt == null || pinHash == null || pinSalt.isEmpty || pinHash.isEmpty)) {
+    // 对抗审查 ① 软锁死：mode=pin 而材料缺失/垃圾（部分写失败/迁移
+    // 丢键/截断可达）→ 永远"PIN 不正确"且锁屏后无恢复入口。降级为关
+    // （没有可验 secret，不构成安全降级——fail-open 好过冷启动整 app
+    // 锁死），由 gate/设置页提示重设。发布预审：判据从「非空」升级为
+    // pinMaterialHealthy（垃圾盐/截断哈希此前会漏过判定直锁死）。
+    if (mode == AppLockMode.pin && !pinMaterialHealthy(pinSalt, pinHash)) {
       mode = AppLockMode.none;
       pinMaterialMissing.value = true;
     } else {
@@ -172,7 +187,7 @@ class AppLockController extends ChangeNotifier with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        // 回前台序列也含合成 hidden（paused→hidden→…
+        // 对抗审查 ①：回前台序列也含合成 hidden（paused→hidden→…
         // →hidden→inactive→resumed）——仅在"尚无后台时刻"时写入，
         // 不得把回前台的 hidden 当作刚退后台重置计时（否则定时档全失效）。
         _backgroundedAt ??= now();
@@ -204,15 +219,21 @@ class AppLockController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final ok = await _channel.invokeMethod<bool>('requestSystemUnlock');
       if (ok != true) {
-        // 设备锁被移除后 intent 为 null——不给提示会像
-        // 按钮坏了一样，且设置页不可达=死锁。返回可区分错误给 UI。
-        systemUnlockUnavailable.value = true;
+        // false 三义区分（早前批次 对抗审查）：无系统锁/
+        // 用户取消/验证失败在两侧平台都回 false——一概判「设备无锁」
+        // 会让用户点了系统面板的取消就看到误导性的「去配锁」红字。
+        // 先查 isDeviceSecure：有锁=只是取消/失败（停留锁屏可重点，
+        // 对齐 Android RESULT_CANCELED 语义）；无锁才提示配锁
+        // （对抗审查 ① 死锁出口保留）。
+        final secure =
+            await _channel.invokeMethod<bool>('isDeviceSecure') ?? false;
+        systemUnlockUnavailable.value = !secure;
         return false;
       }
       systemUnlockUnavailable.value = false;
       if (ok == true) {
         _setLocked(false);
-        // /④：系统验证页是 opaque Activity——本应用必然
+        // 对抗审查 ①/④：系统验证页是 opaque Activity——本应用必然
         // 走过 paused；onActivityResult 先于 onResume 送达，若不清后台
         // 时刻/不抑制，紧随的 resumed 会按已过阈值立刻再锁（死循环）。
         _backgroundedAt = null;

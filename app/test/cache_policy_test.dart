@@ -66,7 +66,7 @@ void main() {
       ]);
       expect(rows, hasLength(1));
       expect(rows.single['offPeakTaskId'], 'op-1',
-          reason: 'B 批月亮标字段白名单已含（此前零覆盖）');
+          reason: '月亮标字段白名单已含（此前零覆盖）');
       expect(rows.single['hasBackgroundWork'], true,
           reason: '后台工作点白名单已含（此前零覆盖）');
       // 有意裁剪契约：正文片段与 run 线对象较重，不入设备缓存（live 到达

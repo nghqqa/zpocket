@@ -1,4 +1,4 @@
-// 应用锁设置页：PIN 开启全流程 + 关闭需验证旅程。
+// 应用锁设置页（app-lock-1）：PIN 开启全流程 + 关闭需验证旅程。
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -34,6 +34,19 @@ class _MemStorage extends FlutterSecureStorage {
     WindowsOptions? wOptions,
   }) async {
     data[key] = value ?? '';
+  }
+
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    data.remove(key);
   }
 }
 
@@ -129,5 +142,38 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(prefs.appLockModeRaw, 'none', reason: '无系统锁回弹为关');
     expect(app.appLock.mode.toString(), contains('none'));
+  });
+
+  testWidgets('损坏态：横幅在场+修改 PIN 跳过验旧（恢复出口）',
+      (tester) async {
+    final storage = _MemStorage();
+    final prefs = UiPrefs(storage: storage);
+    await prefs.load();
+    // mode=pin + 垃圾盐（奇数长度——hashPin 必抛）。
+    await prefs.setAppLockMode('pin');
+    await prefs.setAppLockPin('abc', 'deadbeef');
+    final app = _SecApp(prefs);
+    await _pump(tester, app);
+
+    // 损坏横幅在场。
+    expect(find.textContaining('应用锁数据已损坏'), findsOneWidget);
+    // 修改 PIN：直接进「设置新 PIN 码」——不出「输入当前 PIN 码以继续」
+    //（旧路径拿垃圾材料验证=必然死路，软锁死）。
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('settings-change-pin')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    // 刚可见时贴在视口底缘——再上拖让它完整进屏（tap 命中）。
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, -120),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('settings-change-pin')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('设置新 PIN 码'), findsOneWidget);
+    expect(find.textContaining('输入当前 PIN'), findsNothing,
+        reason: '红=旧实现损坏态仍要求验旧 PIN（软锁死，只能清数据）');
   });
 }

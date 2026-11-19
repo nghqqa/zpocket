@@ -71,7 +71,7 @@ class _DualPaneApp extends AppState {
       workspaceTasksOverride ?? const [];
 
   /// 跨工作区切换延迟一帧以上：模拟「先设右栏选中→await 切工作区」的
-  /// 真实窗口（高①的失效窗口）。
+  /// 真实窗口（对抗审查高①的失效窗口）。
   @override
   Future<void> switchWorkspace(
     Map<String, dynamic> workspace, {
@@ -199,7 +199,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.byType(ConversationPage), findsOneWidget,
-        reason: '切换落地前右栏选中不得被误清（高①）');
+        reason: '切换落地前右栏选中不得被误清（对抗审查高①）');
     expect(find.text('从左侧选择任务，或点「新建」开始'), findsNothing);
 
     // 切换落地后仍在右栏（等待目标转正不丢选中）。
@@ -424,8 +424,8 @@ void main() {
     expect(convDx, lessThan(10), reason: '整页推入（左上角贴边）');
   });
 
-  // ---- 整栏收起/展开 + 任务栏 inset 自适应 ----
-  // （折叠屏反馈：左栏无展开收起选项；系统任务栏遮列表末项）
+  // ---- dual-pane-collapse-1：整栏收起/展开 + 任务栏 inset 自适应 ----
+  // （vivo X Fold 6 真机反馈：左栏无展开收起选项；系统任务栏遮列表末项）
 
   testWidgets('整栏收起/展开：收起钮在「最近/项目」行尾，收起后左缘展开把手', (tester) async {
     await tester.binding.setSurfaceSize(const Size(840, 800));
@@ -546,7 +546,7 @@ void main() {
     expect(listNoBar.padding?.resolve(TextDirection.ltr).bottom, 88,
         reason: '任务栏关闭：inset 缩回，内容铺到边缘');
   });
-  testWidgets(' 钉死：原生直推支路不可删（vivo viewPadding=0 场景）', (tester) async {
+  testWidgets('③H2 钉死：原生直推支路不可删（vivo viewPadding=0 场景）', (tester) async {
     await tester.binding.setSurfaceSize(const Size(840, 800));
     addTearDown(() {
       tester.view.viewPadding = FakeViewPadding.zero;
@@ -580,7 +580,7 @@ void main() {
         reason: '88+max(80,50)=168（MediaQuery 支路仍有效时取大）');
   });
 
-  testWidgets(' 钉死：收起态空态有展开/新建出口（死画面修复）', (tester) async {
+  testWidgets('③H1 钉死：收起态空态有展开/新建出口（死画面修复）', (tester) async {
     await tester.binding.setSurfaceSize(const Size(840, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final app = _DualPaneApp();

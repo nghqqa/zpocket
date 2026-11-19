@@ -19,11 +19,11 @@ class TaskCardData {
   final bool pinned;
   final bool hasBackgroundWork;
 
-  /// 闲时任务（B 批 2026-11-08）：meta.offPeakTaskId 随 tasks-index
+  /// 闲时任务（2026-11-08）：meta.offPeakTaskId 随 tasks-index
   /// 行携带（官方 TaskListItem 月亮标对位）；null=普通任务。
   final String? offPeakTaskId;
 
-  /// 工作流运行摘要（A 批 2026-11-08 拍板⑧）：activity.workflowActivity
+  /// 工作流运行摘要（2026-11-08 拍板）：activity.workflowActivity
   /// .runs（≤4 条，官方 TaskWorkflowRunLines 对位）；空=无 run。
   final List<Map<String, dynamic>> workflowRuns;
   final String? goalStatus;
@@ -482,7 +482,7 @@ Map<String, dynamic> controllerRowToTaskMap(Map<String, dynamic> row) {
               : 'idle'),
     'searchSnippets': row['searchSnippets'],
     'hasBackgroundWork': activity['hasBackgroundWork'],
-    // B 批：官方 meta.offPeakTaskId（taskIndexRepo 映射）——白名单补收。
+    // 官方 meta.offPeakTaskId（taskIndexRepo 映射）——白名单补收。
     'offPeakTaskId': meta['offPeakTaskId'],
     'workflowActivity': activity['workflowActivity'],
     'sourceAvailability': row['sourceAvailability'],

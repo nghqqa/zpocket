@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart' hide Text;
 
 import '../core/localized_text.dart';
@@ -11,13 +12,27 @@ import '../core/theme.dart';
 /// 扫码添加电脑：对准桌面端远程控制二维码，扫到后 pop 返回 URL 文本。
 /// 相机不可用（未授权/模拟器）时提示改用粘贴链接。
 ///
-/// 扫码黑屏终局方案：**不再挂载 MobileScanner 预览
+/// 扫码黑屏终局方案（Android）：**不再挂载 MobileScanner 预览
 /// 纹理**——agent 自动复现实证，相机纹理（Flutter texture registry）的
 /// 生命周期在部分华为机型会把渲染管线楔死（窗口黑、进程健康；Skia 回退/
 /// 停流先行/帧看门狗三层防御均不治，帧仍在产但合成器输出黑=检测面之
-/// 外）。改为 controller 纯分析模式（相机仅出分析流，不建预览纹理），
-/// UI 用静态取景框引导瞄准——从根上移除纹理，代价是无实时取景画面
-/// （个人应用可接受，后续 Flutter 引擎修复后可复测恢复预览）。
+/// 外）。Android 改为 controller 纯分析模式（相机仅出分析流，不建预览
+/// 纹理），UI 用静态取景框引导瞄准。
+///
+/// iOS（早前批次 对抗审查「盲扫」项）：华为楔死为 Android 机型
+/// 特有，iOS 相机纹理稳定——恢复全尺寸实时预览（取景框叠加其上作引导），
+/// 不让 iOS 用户陪跑「盲扫」。平台门控见 [qrPreviewEnabled]。
+/// 扫码页是否呈现相机实时预览：iOS=是（华为楔死仅 Android 实证）；
+/// Android=否（纯分析模式+取景框引导）。测试缝：
+/// [debugQrPreviewOverride]。
+@visibleForTesting
+bool? debugQrPreviewOverride;
+bool qrPreviewEnabled() {
+  final debug = debugQrPreviewOverride;
+  if (debug != null) return debug;
+  return defaultTargetPlatform == TargetPlatform.iOS;
+}
+
 class QrScanPage extends StatefulWidget {
   const QrScanPage({super.key});
 
@@ -97,6 +112,13 @@ class _QrScanPageState extends State<QrScanPage> {
     Navigator.of(context).pop(result?.trim());
   }
 
+  /// 两形态共用的相机错误出口（预览形态的错误盒可见面积大，仍以
+  /// 统一文案层呈现）。
+  Widget _previewErrorBuilder(BuildContext context, MobileScannerException error) {
+    _onCameraError(error);
+    return const SizedBox.shrink();
+  }
+
   void _accept(String? raw) {
     if (raw == null || raw.trim().isEmpty) return;
     _stopCameraThenPop(raw);
@@ -115,25 +137,33 @@ class _QrScanPageState extends State<QrScanPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 无预览模式的暗色底（原为相机画面）。
-            Container(color: Colors.black87),
-            // 零尺寸挂载 MobileScanner（诊断实证：mobile_scanner 7.5.0
-            // 的 controller 必须挂上 widget 才能 start——controllerNotAttached
-            // 异常=相机从未启动=用户"相机不可用"）。零尺寸=纹理注册、参与
-            // 扫描分析流，但不绘制任何像素（渲染管线零负担）。
-            SizedBox(
-              width: 0,
-              height: 0,
-              child: MobileScanner(
-                controller: _controller,
-                // 相机失败（未授权/无相机/控制器错误）的唯一可见出口——
-                // 默认 errorBuilder 会渲染在 0×0 盒内=不可见。
-                errorBuilder: (context, error) {
-                  _onCameraError(error);
-                  return const SizedBox.shrink();
-                },
+            if (qrPreviewEnabled())
+              // iOS：全尺寸实时预览（同 controller 同分析流；楔死问题
+              // 仅华为 Android 实证，iOS 不陪跑盲扫）。
+              Positioned.fill(
+                child: MobileScanner(
+                  controller: _controller,
+                  errorBuilder: _previewErrorBuilder,
+                ),
+              )
+            else ...[
+              // 无预览模式的暗色底（原为相机画面）。
+              Container(color: Colors.black87),
+              // 零尺寸挂载 MobileScanner（诊断实证：mobile_scanner
+              // 7.5.0 的 controller 必须挂上 widget 才能 start——
+              // controllerNotAttached 异常=相机从未启动=用户"相机不可用"）。
+              // 零尺寸=纹理注册、参与扫描分析流，但不绘制任何像素。
+              SizedBox(
+                width: 0,
+                height: 0,
+                child: MobileScanner(
+                  controller: _controller,
+                  // 相机失败（未授权/无相机/控制器错误）的唯一可见出口——
+                  // 默认 errorBuilder 会渲染在 0×0 盒内=不可见。
+                  errorBuilder: _previewErrorBuilder,
+                ),
               ),
-            ),
+            ],
             // 取景框提示（视觉引导，不做裁剪）——V1 审美优化：四角 L 形
             // 扫描框线（品牌蓝点睛位），扫码页的强心智预期（评审 2.3#4）。
             // 始终渲染（相机降级时错误文案叠加其上，与旧行为一致）。
@@ -177,7 +207,10 @@ class _QrScanPageState extends State<QrScanPage> {
                 right: 0,
                 bottom: 32,
                 child: Text(
-                  '对准桌面端 ZCode → 远程控制 显示的二维码（无取景预览：对准框内即可识别）',
+                  qrPreviewEnabled()
+                      ? '对准桌面端「移动端远程控制」弹窗显示的二维码'
+                      : '对准桌面端「移动端远程控制」弹窗显示的二维码'
+                        '（无取景预览：对准框内即可识别）',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.white,

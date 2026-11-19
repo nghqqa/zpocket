@@ -6,7 +6,7 @@ import 'package:zpocket/ui/attachments_compose.dart';
 
 /// 回填律：附件区两轮真机反馈——
 /// ①（2026-10-22 反馈③）两行竖排堆高被键盘挡 → 单行 chip+限高滚动；
-/// ②（2026-10-22 验收⑩）竖向叠加观感差 → 图片改 3 列方形缩略图网格
+/// ②（2026-10-22 验收）竖向叠加观感差 → 图片改 3 列方形缩略图网格
 /// （微信/Telegram 范式），非图片文件保留官方 inline 单行 chip。
 PendingAttachment _file(String id, {double progress = 1}) => PendingAttachment(
       id: id,

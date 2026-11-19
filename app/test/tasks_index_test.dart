@@ -298,7 +298,7 @@ void main() {
   });
 
   group('controllerRowToTaskMap', () {
-    test('offPeakTaskId 随 meta 携带（B 批白名单补收）', () {
+    test('offPeakTaskId 随 meta 携带（白名单补收）', () {
       final m = controllerRowToTaskMap({
         ...row('t'),
         'meta': {'taskId': 't', 'offPeakTaskId': 'op-7'},

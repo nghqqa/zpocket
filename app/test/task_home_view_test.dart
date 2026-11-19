@@ -118,7 +118,7 @@ class _HomeApp extends AppState {
     await switchCompleter?.future;
     _workspaceError = errorAfterSwitch;
     if (_workspaceError == null) homePhase = LinkPhase.online;
-    // ⑤A 等待循环：切到位（项目主根）+桥在场。
+    // 等待循环：切到位（项目主根）+桥在场。
     _switchedWs = {'workspacePath': primaryRootOf(project) ?? 'project-navigation'};
     notifyListeners();
   }
@@ -624,7 +624,7 @@ void main() {
     expect(find.text('已标为已读 1 个'), findsOneWidget);
     expect(find.byKey(const ValueKey('multi-select-bar')), findsNothing);
   });
-  // B 批（2026-11-08 拍板①⑤）：闲时月亮标+后台工作小点。
+  // （2026-11-08 拍板①）：闲时月亮标+后台工作小点。
   testWidgets('任务卡闲时月亮+后台点（offPeakTaskId/hasBackgroundWork）',
       (tester) async {
     // 窄屏走 _TaskCard（宽屏是紧凑行，月亮在其图标槽）。
@@ -653,7 +653,7 @@ void main() {
         matching: find.byIcon(Icons.bedtime_outlined),
       ),
       findsOneWidget,
-      reason: 'B 批拍板⑤：offPeakTaskId → 月亮标（官方 TaskListItem 对位）',
+      reason: '拍板：offPeakTaskId → 月亮标（官方 TaskListItem 对位）',
     );
     // 后台工作=运行色小点（running 态自身有 spinner，idle 态才出点）。
     expect(
