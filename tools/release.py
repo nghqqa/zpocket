@@ -10,7 +10,13 @@
 # Usage (from repo root, Flutter on PATH):
 #   python tools/release.py --version 1.0.6 --notes "修复与优化" \
 #       --base-url https://updates.example.com/updates
-# Then upload dist/updates/* to $base-url on your server.
+# Then upload dist/updates/* to $base-url on your server
+# (production: root@159.75.42.106:/home/nghqqa.cn/updates/).
+#
+# 发版收尾三件套（缺一国内用户就收不到更新）：
+#   1. scp dist/updates/* root@159.75.42.106:/home/nghqqa.cn/updates/
+#   2. git push origin main --tags   （GitHub Release 用 gh release create）
+#   3. git push gitee main --tags    （国内源码镜像 gitee.com/nghqqa/zpocket）
 
 import argparse
 import datetime
