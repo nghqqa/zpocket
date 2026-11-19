@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZPocket — 在手机上接管你的 ZCode 编程智能体</title>
+  <meta name="description" content="ZPocket 是 ZCode 桌面编程智能体的安卓伴侣客户端。实时查看任务进度、通知栏一键审批权限、将工作区产物直接保存到手机。">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="navbar">
+    <div class="container nav-inner">
+      <a href="#top" class="brand">
+        <img src="assets/icon.png" alt="ZPocket 图标" class="brand-icon">
+        <span class="brand-name">ZPocket</span>
+        <span class="brand-tag">Android</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#features">核心能力</a>
+        <a href="#showcase">界面预览</a>
+        <a href="#architecture">工作原理</a>
+        <a href="#download">下载安装</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="https://github.com/nghqqa/zpocket" target="_blank" rel="noopener" class="btn btn-ghost">GitHub</a>
+        <a href="#download" class="btn btn-primary btn-sm">下载 v1.5.0</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="version-pill">
+            <span class="dot"></span>
+            <span id="hero-version-text">v1.5.0 · 已适配 ZCode 3.18</span>
+          </div>
+          <h1>在手机上，接管你的<br><span class="accent">ZCode 编程智能体</span></h1>
+          <p class="hero-desc">
+            桌面端的 Agent 正在执行任务，但人不在电脑前？ZPocket 将任务状态、权限审批与工作区产物搬进手机——支持通知栏快捷审批、分段流式下载与折叠屏双栏体验。
+          </p>
+          <div class="hero-cta">
+            <a id="hero-download-btn" href="https://nghqqa.cn/updates/zpocket-1.5.0-arm64-v8a.apk" class="btn btn-primary btn-lg">
+              <span>下载 Android APK</span>
+              <span class="btn-sub">arm64-v8a · 31.5 MB</span>
+            </a>
+            <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.5.0" target="_blank" rel="noopener" class="btn btn-outline btn-lg">
+              查看 Release 说明
+            </a>
+          </div>
+          <div class="hero-meta">
+            <span>Android 7.0+</span>
+            <span>·</span>
+            <span>Apache-2.0 开源</span>
+            <span>·</span>
+            <span>SHA-256 + 签名校验</span>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="phone-frame">
+            <div class="phone-notch"></div>
+            <img id="hero-preview-img" src="assets/screenshots/conversation-dark.png" alt="ZPocket 会话与审批界面">
+          </div>
+          <div class="hero-float-card">
+            <span class="float-badge">v1.5.0</span>
+            <div>
+              <strong>通知栏快捷审批</strong>
+              <p>不解锁不跳转，直接批准或拒绝</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">CORE CAPABILITIES</span>
+          <h2>把桌面端最关键的三件事装进口袋</h2>
+          <p>基于官方中继协议与 V4 RPC 帧构建，专为移动端弱网、后台保活与大文件产物场景打磨。</p>
+        </div>
+
+        <div class="bento-grid">
+          <article class="card bento-wide">
+            <div class="card-badge">审批流</div>
+            <h3>权限审批不卡顿，通知栏直接应答</h3>
+            <p>Agent 请求文件写入或命令执行时，手机即时推送审批通知。支持命令/Diff 富文本预览，更可在通知栏直接点击「批准」或「拒绝」，无需解锁进入会话。</p>
+            <div class="card-tags">
+              <span>通知栏快捷按钮</span>
+              <span>命令参数预览</span>
+              <span>后台保活可选</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-badge">产物直取</div>
+            <h3>工作区文件流式落盘</h3>
+            <p>通过 <code>file</code> 通道分段拉取与 SHA-256 校验，大文件直接写入磁盘不爆内存；支持单文件预览、一键批量保存到手机，以及点击对话内路径直接操作。</p>
+          </article>
+
+          <article class="card">
+            <div class="card-badge">ZCode 3.18</div>
+            <h3>上下文下钻与子代理控制</h3>
+            <p>同步适配 ZCode 3.18 协议：用量卡支持 11 类上下文明细下钻，子代理列表支持逐条停止，归档任务支持 PIN 三段防呆永久删除。</p>
+          </article>
+
+          <article class="card bento-wide">
+            <div class="card-badge">体验与更新</div>
+            <h3>折叠屏双栏自适应 &amp; 双通道应用内更新</h3>
+            <p>逻辑宽度 ≥600dp 自动切换任务列表 + 会话详情双栏视图（支持整栏收起）。内置自建更新源与 GitHub 双通道测速择优，安装包经 SHA-256 与签名指纹双重校验。</p>
+            <div class="card-tags">
+              <span>双栏可收起</span>
+              <span>应用锁 / 防截屏</span>
+              <span>中英双语</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="showcase" class="section section-alt">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">INTERFACE PREVIEW</span>
+          <h2>深色终端美学，信息密度与触控清晰度兼顾</h2>
+        </div>
+
+        <div class="showcase-tabs" role="tablist" aria-label="界面截图切换">
+          <button class="tab-btn active" data-img="assets/screenshots/conversation-dark.png" data-caption="会话实时流：流式 Markdown 输出、代码高亮与折叠工具卡片" role="tab" aria-selected="true">会话实时流</button>
+          <button class="tab-btn" data-img="assets/screenshots/approval-dark.png" data-caption="权限审批：完整展示待执行命令与工作区上下文，支持一键批准/拒绝" role="tab" aria-selected="false">权限审批</button>
+          <button class="tab-btn" data-img="assets/screenshots/file-card-dark.jpg" data-caption="产物文件卡：支持单文件预览、进度取消与本轮产物批量保存到手机" role="tab" aria-selected="false">产物保存</button>
+          <button class="tab-btn" data-img="assets/screenshots/path-actions-dark.jpg" data-caption="路径点按：点击对话中的文件路径直接预览内容或下载到手机" role="tab" aria-selected="false">路径点按</button>
+          <button class="tab-btn" data-img="assets/screenshots/usage-dark.png" data-caption="用量与上下文：支持 11 类上下文构成下钻分析与额度追踪" role="tab" aria-selected="false">用量下钻</button>
+          <button class="tab-btn" data-img="assets/screenshots/dual-pane.png" data-caption="折叠屏/平板双栏：左栏任务分组、右栏会话实时交互" role="tab" aria-selected="false">折叠屏双栏</button>
+        </div>
+
+        <div class="showcase-stage">
+          <img id="showcase-img" src="assets/screenshots/conversation-dark.png" alt="ZPocket 界面截图预览">
+          <p id="showcase-caption" class="showcase-caption">会话实时流：流式 Markdown 输出、代码高亮与折叠工具卡片</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="section">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">ARCHITECTURE &amp; TRUST</span>
+          <h2>工作原理与安全边界</h2>
+        </div>
+
+        <div class="arch-flow">
+          <div class="arch-node">
+            <span class="node-label">移动端</span>
+            <strong>ZPocket (Android)</strong>
+            <p>账号 JWT / 扫码配对，多桌面隔离管理</p>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">⇄<span>WSS · V4 RPC</span></div>
+          <div class="arch-node">
+            <span class="node-label">中继通道</span>
+            <strong>wss://zcode.z.ai</strong>
+            <p>官方云端中继，亦支持局域网直连回退</p>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">⇄<span>file · bridge</span></div>
+          <div class="arch-node">
+            <span class="node-label">桌面端</span>
+            <strong>ZCode Desktop</strong>
+            <p>1MiB 分段读写、SHA-256 校验语义一致</p>
+          </div>
+        </div>
+
+        <div class="trust-grid">
+          <div class="trust-item">
+            <h4>非官方伴侣客户端声明</h4>
+            <p>ZPocket 基于开源项目 <a href="https://github.com/JZYLukis/zcode-pocket" target="_blank" rel="noopener">zcode-pocket</a>（Apache-2.0）独立演进，适配官方 <a href="https://github.com/zai-org/ZCode" target="_blank" rel="noopener">zai-org/ZCode</a> 桌面端协议，源码完全公开可审计。</p>
+          </div>
+          <div class="trust-item">
+            <h4>本地隐私与防误操作</h4>
+            <p>支持系统锁屏凭证或独立 PIN 应用锁（含防截屏开关）；缓存明文快照不参与系统备份，设置页可一键清除本地缓存。</p>
+          </div>
+          <div class="trust-item">
+            <h4>安装包完整性保障</h4>
+            <p>每次发版均提供各架构 APK 的 <code>SHA-256</code> 校验值，应用内更新同时核验发布签名指纹，防止中间人篡改。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="download" class="section section-alt">
+      <div class="container">
+        <div class="download-box">
+          <div class="download-head">
+            <div>
+              <span class="eyebrow">RELEASE DOWNLOAD</span>
+              <h2>下载 ZPocket <span id="dl-version">v1.5.0</span></h2>
+              <p id="dl-notes" class="dl-notes">合入上游 v1.0.6+v1.0.7（适配 ZCode 3.18）：上下文组成下钻、子代理逐条停止、会话永久删除（PIN 防呆）、工作流产物收集与分享、应用锁可靠性与照片附件加固</p>
+            </div>
+            <div class="abi-tabs" role="tablist" aria-label="选择 CPU 架构">
+              <button class="abi-btn active" data-abi="arm64-v8a" role="tab" aria-selected="true">arm64-v8a（推荐）</button>
+              <button class="abi-btn" data-abi="armeabi-v7a" role="tab" aria-selected="false">armeabi-v7a</button>
+              <button class="abi-btn" data-abi="x86_64" role="tab" aria-selected="false">x86_64</button>
+            </div>
+          </div>
+
+          <div class="download-panel">
+            <div class="dl-info">
+              <div class="dl-row">
+                <span class="dl-label">安装包文件</span>
+                <code id="dl-filename">zpocket-1.5.0-arm64-v8a.apk</code>
+              </div>
+              <div class="dl-row">
+                <span class="dl-label">系统要求</span>
+                <span>Android 7.0+ · 桌面端已登录 ZCode</span>
+              </div>
+              <div class="dl-row">
+                <span class="dl-label">SHA-256</span>
+                <div class="sha-wrap">
+                  <code id="dl-sha">f2bb25fac86ef1fb5507d56969ef88263fd2d6da91af6fc66fd4fbdc6497745b</code>
+                  <button id="copy-sha-btn" class="copy-btn" type="button">复制</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="dl-actions">
+              <a id="dl-primary-url" href="https://nghqqa.cn/updates/zpocket-1.5.0-arm64-v8a.apk" class="btn btn-primary btn-lg">
+                高速通道下载（自有服务器）
+              </a>
+              <a id="dl-github-url" href="https://github.com/nghqqa/zpocket/releases/download/v1.5.0/zpocket-1.5.0-arm64-v8a.apk" target="_blank" rel="noopener" class="btn btn-outline">
+                GitHub Releases 备用下载
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img src="assets/icon.png" alt="ZPocket" class="footer-icon">
+        <span>ZPocket · Apache-2.0 License</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/nghqqa/zpocket" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/nghqqa/zpocket/releases" target="_blank" rel="noopener">历史版本</a>
+        <a href="https://github.com/nghqqa/zpocket/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新日志</a>
+        <a href="https://github.com/nghqqa/zpocket/blob/main/SECURITY.md" target="_blank" rel="noopener">安全说明</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
