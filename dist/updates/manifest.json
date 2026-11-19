@@ -1,21 +1,21 @@
 {
-  "version": "1.4.0",
-  "notes": "新功能：通知栏快捷审批——审批通知带 [批准] [拒绝] 按钮，通知栏直接应答（不解锁不导航）；更新源三档可选；大文件下载流式落盘",
+  "version": "1.5.0",
+  "notes": "合入上游 v1.0.6+v1.0.7（适配 ZCode 3.18）：上下文组成下钻、子代理逐条停止、会话永久删除（PIN 防呆）、工作流产物收集与分享、应用锁可靠性与照片附件加固",
   "assets": [
     {
-      "name": "zpocket-1.4.0-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.4.0-arm64-v8a.apk",
-      "sha256": "90e91bcb5b59686344ec043cb85703df8476f8b4481d15fe1250d9a108667af6"
+      "name": "zpocket-1.5.0-arm64-v8a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.5.0-arm64-v8a.apk",
+      "sha256": "f2bb25fac86ef1fb5507d56969ef88263fd2d6da91af6fc66fd4fbdc6497745b"
     },
     {
-      "name": "zpocket-1.4.0-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.4.0-armeabi-v7a.apk",
-      "sha256": "f75169cc81867ef494ee1ef839c96f0159488173a42bdf7be24fc9746ee93ccd"
+      "name": "zpocket-1.5.0-armeabi-v7a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.5.0-armeabi-v7a.apk",
+      "sha256": "bacf76959c779052db32345ae52799744eb9261c0d7cb376142e35e5944e8d1a"
     },
     {
-      "name": "zpocket-1.4.0-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.4.0-x86_64.apk",
-      "sha256": "66f6a8b302c54d355fb8ca0cf68776c08c4cb139b695ce39a166682721e66433"
+      "name": "zpocket-1.5.0-x86_64.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.5.0-x86_64.apk",
+      "sha256": "67e7d1767cdd807e306394931c9fc29ae9fb7cd3bc7b6a089482a9b4463069e3"
     }
   ]
 }
