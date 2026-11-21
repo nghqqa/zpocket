@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
+
 import '../core/artifact_share.dart' show kArtifactShareBlockBytes;
 import '../core/localized_text.dart';
 import '../core/payload_guard.dart';
 import '../core/theme.dart';
+import '../transport/conversation.dart' show ConfigOption, ConfigOptionValue;
 import 'turn_model.dart' show toolInputArgs;
 import 'workflow_dashboards.dart';
 import '../state/app_state.dart';
@@ -95,23 +98,30 @@ Future<ArtifactBlocks> readArtifactBlocks({
         bytes.length >= artifactImagePreviewMaxBytes &&
         next > offset) {
       return ArtifactBlocks(
-        bytes: bytes, truncated: false, oversized: true, isImage: isImage);
+        bytes: bytes,
+        truncated: false,
+        oversized: true,
+        isImage: isImage,
+      );
     }
     offset = next;
     if (i == blockLimit - 1) truncated = !isImage;
   }
   return ArtifactBlocks(
-    bytes: bytes, truncated: truncated, oversized: false, isImage: isImage);
+    bytes: bytes,
+    truncated: truncated,
+    oversized: false,
+    isImage: isImage,
+  );
 }
+
 const _imageArtifactExts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'};
 
 /// 按标题/id 的扩展名判定（大小写不敏感；无扩展名=非图片，等嗅探兜底）。
 bool artifactLooksImageByExtension(String titleOrId) {
   final dot = titleOrId.lastIndexOf('.');
   if (dot < 0 || dot + 1 >= titleOrId.length) return false;
-  return _imageArtifactExts.contains(
-    titleOrId.substring(dot).toLowerCase(),
-  );
+  return _imageArtifactExts.contains(titleOrId.substring(dot).toLowerCase());
 }
 
 /// 首块字节嗅探（PNG/JPEG/GIF/WEBP/BMP 魔数；扩展名缺失或被骗时兜底）。
@@ -157,6 +167,46 @@ bool workflowRunSuperseded(Map<String, dynamic>? run) =>
     '${run['status'] ?? ''}' == 'stopped' &&
     '${run['stopReason'] ?? ''}' == 'superseded';
 
+/// 工作流命令拒绝人话（批C workflow-control-1）：resume/amend 的 ACK
+/// status=failed 时按 reasonCode 映射（词表=官方 workflow-command-
+/// rejections.ts + workflow-run-settings-command.ts + capabilityUnsupported）；
+/// compile_failed 附 message 有界诊断。纯函数供单测。
+String workflowCommandFaultText(String reasonCode, String message) {
+  final msg = message.trim();
+  final suffix = msg.isEmpty ? '' : '：$msg';
+  if (reasonCode.contains('capabilityUnsupported')) {
+    return '当前会话运行时不支持此操作（旧版 CLI 或动态工作流未开启）';
+  }
+  if (reasonCode.contains('workflowRunResumeRejected')) {
+    final reason = reasonCode.split('.').last;
+    return switch (reason) {
+      'not_found' => '找不到该运行（可能已被清理）',
+      'not_resumable' => '该运行不可恢复（仅已取消或被中断的失败可恢复）',
+      'superseded' => '该运行已被新运行替代',
+      'already_running' => '该运行已在运行中',
+      'script_missing' => '工作流脚本缺失（文件已被移动或删除）',
+      'script_mismatch' => '脚本内容与原运行不匹配，拒绝恢复',
+      'compile_failed' => '脚本编译失败$suffix',
+      _ => '恢复失败：$reasonCode$suffix',
+    };
+  }
+  if (reasonCode.contains('workflowRunSettingsRejected')) {
+    final reason = reasonCode.split('.').last;
+    return switch (reason) {
+      'not_found' => '找不到该运行（可能已被清理）',
+      'not_configurable' => '该运行不支持调整配置',
+      'unchanged' => '设置没有变化',
+      'script_missing' => '工作流脚本缺失（文件已被移动或删除）',
+      'model_unavailable' => '所选模型不可用',
+      'compile_failed' => '脚本编译失败$suffix',
+      'missing_boundaries' => '动态工作流端口缺席（旧版 CLI 或灰度未开）',
+      'start_failed' => '新运行启动失败$suffix',
+      _ => '调整失败：$reasonCode$suffix',
+    };
+  }
+  return msg.isEmpty ? '操作失败：$reasonCode' : msg;
+}
+
 String _shortRunId(String runId) =>
     runId.length <= 10 ? runId : runId.substring(0, 10);
 
@@ -180,9 +230,7 @@ Map<String, dynamic>? joinWorkflowRunProjection(
   String? toolCallId,
 }) {
   for (final r in runs) {
-    if (runId != null &&
-        runId.isNotEmpty &&
-        '${r['runId'] ?? ''}' == runId) {
+    if (runId != null && runId.isNotEmpty && '${r['runId'] ?? ''}' == runId) {
       return r;
     }
     if (toolCallId != null &&
@@ -221,6 +269,7 @@ class WorkflowRunsPage extends StatefulWidget {
 class _WorkflowRunsPageState extends State<WorkflowRunsPage> {
   List<Map<String, dynamic>> _runs = const [];
   bool _loading = true;
+
   /// 收集指令发出后的延时重拉（B-/C-M3）——dispose 取消防泄漏。
   final _collectReloadTimers = <Timer>[];
 
@@ -231,6 +280,7 @@ class _WorkflowRunsPageState extends State<WorkflowRunsPage> {
     }
     super.dispose();
   }
+
   String? _error;
 
   @override
@@ -319,223 +369,250 @@ class _WorkflowRunsPageState extends State<WorkflowRunsPage> {
           if (hub) _hubHeader(context),
           Expanded(
             child: _loading
-          ? const Center(child: AppLoading('正在加载…'))
-          : _error != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    tr('加载失败：') + _error!,
-                    style: TextStyle(
-                      fontSize: AppType.uiCaption,
-                      color: context.colors.destructive,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(onPressed: _load, child: const Text('重试')),
-                ],
-              ),
-            )
-          : _runs.isEmpty
-          // 对抗审查 B-/C-M3：空态也要能下拉刷新（收集产物的首次
-          // 使用主路径就是空列表）。
-          ? RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                children: [
-                  const SizedBox(height: 120),
-                  Center(
-                    child: Text(
-                      '本会话没有工作流运行',
-                      style: TextStyle(
-                        fontSize: AppType.uiCaption,
-                        color: context.colors.foregroundSubtle,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.separated(
-                key: const ValueKey('workflow-runs-list'),
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-                itemCount: _runs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 6),
-                itemBuilder: (context, i) {
-                  final run = _runs[i];
-                  final status = workflowRunStatusOf(
-                    context,
-                    '${run['status'] ?? ''}',
-                  );
-                  // 产物计数（演示模式批，2026-11-14 用户拍板：
-                  // 清单应显示是否有产物及数量）：官方 workflowRuns 投影
-                  // 自带 artifacts 元数据（热态准；CLI 冷恢复后为空——
-                  // artifact-projection.ts:28 官方注释），故 N>0 才显示、
-                  // 0/缺席不显示（缺席=无产物或重启后未知，宁缺勿谎，
-                  // 详情页 workflowRunArtifacts 为权威）。
-                  // payload_guard：build 期禁裸强转（形态漂移不崩）。
-                  final artsList = run['artifacts'];
-                  final artifactCount = artsList is List ? artsList.length : 0;
-                  final label =
-                      '${run['label'] ?? ''}'.trim().isNotEmpty
-                      ? '${run['label']}'
-                      : _shortRunId('${run['runId'] ?? ''}');
-                  return Material(
-                    color: context.colors.card,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: InkWell(
-                      key: ValueKey('workflow-run-${run['runId']}'),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => WorkflowRunDetailPage(
-                            sessionId: widget.sessionId,
-                            runId: '${run['runId']}',
-                            title: label,
-                            // 官方 afterSequence 缺省=从头取（最旧一页）
-                            // ——目录行已按投影联接补上 lastEventSequence，
-                            // 详情页据此反推最新页。
-                            lastEventSequence:
-                                (run['lastEventSequence'] as num?)?.toInt(),
+                ? const Center(child: AppLoading('正在加载…'))
+                : _error != null
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tr('加载失败：$_error'),
+                          style: TextStyle(
+                            fontSize: AppType.uiCaption,
+                            color: context.colors.destructive,
                           ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: _load,
+                          child: const Text('重试'),
                         ),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) => Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      label,
-                                    translate: false,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: AppType.uiBase,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                      ],
+                    ),
+                  )
+                : _runs.isEmpty
+                // 对抗审查 B-/C-M3：空态也要能下拉刷新（收集产物的首次
+                // 使用主路径就是空列表）。
+                ? RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      children: [
+                        const SizedBox(height: 120),
+                        Center(
+                          child: Text(
+                            '本会话没有工作流运行',
+                            style: TextStyle(
+                              fontSize: AppType.uiCaption,
+                              color: context.colors.foregroundSubtle,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView.separated(
+                      key: const ValueKey('workflow-runs-list'),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                      itemCount: _runs.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 6),
+                      itemBuilder: (context, i) {
+                        final run = _runs[i];
+                        final status = workflowRunStatusOf(
+                          context,
+                          '${run['status'] ?? ''}',
+                        );
+                        // 产物计数（演示模式批，2026-11-14 用户拍板：
+                        // 清单应显示是否有产物及数量）：官方 workflowRuns 投影
+                        // 自带 artifacts 元数据（热态准；CLI 冷恢复后为空——
+                        // artifact-projection.ts:28 官方注释），故 N>0 才显示、
+                        // 0/缺席不显示（缺席=无产物或重启后未知，宁缺勿谎，
+                        // 详情页 workflowRunArtifacts 为权威）。
+                        // payload_guard：build 期禁裸强转（形态漂移不崩）。
+                        final artsList = run['artifacts'];
+                        final artifactCount = artsList is List
+                            ? artsList.length
+                            : 0;
+                        final label = '${run['label'] ?? ''}'.trim().isNotEmpty
+                            ? '${run['label']}'
+                            : _shortRunId('${run['runId'] ?? ''}');
+                        return Material(
+                          color: context.colors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          child: InkWell(
+                            key: ValueKey('workflow-run-${run['runId']}'),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            // 批C：详情页内恢复/配置会改变 run 集——返回目录
+                            // 时重拉一次（否则目录停留在旧快照）。
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => WorkflowRunDetailPage(
+                                    sessionId: widget.sessionId,
+                                    runId: '${run['runId']}',
+                                    title: label,
+                                    // 官方 afterSequence 缺省=从头取（最旧一页）
+                                    // ——目录行已按投影联接补上 lastEventSequence，
+                                    // 详情页据此反推最新页。
+                                    lastEventSequence:
+                                        (run['lastEventSequence'] as num?)
+                                            ?.toInt(),
                                   ),
-                                  if ('${run['failureMessage'] ?? ''}'
-                                      .isNotEmpty)
-                                    Text(
-                                      '${run['failureMessage']}',
-                                      translate: false,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: AppType.uiXs,
-                                        color: context.colors.destructive,
-                                      ),
-                                    )
-                                  else
-                                    Text.rich(
-                                      TextSpan(
+                                ),
+                              );
+                              if (mounted) unawaited(_load());
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) => Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          if (artifactCount > 0) ...[
-                                            WidgetSpan(
-                                              alignment: PlaceholderAlignment
-                                                  .middle,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(
-                                                    Icons.folder_zip_outlined,
-                                                    size: 10,
-                                                    color: context
-                                                        .colors.foregroundSubtle,
-                                                  ),
-                                                  const SizedBox(width: 2),
-                                                  Text(
-                                                    // 复用既有 ^产物（N）$
-                                                    // 模式（EN 界面正确翻译）。
-                                                    tr('产物（$artifactCount）'),
-                                                    style: TextStyle(
-                                                      fontSize: AppType.uiXs,
-                                                      color: context.colors
-                                                          .foregroundSubtle,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                          TextSpan(
-                                            text: _shortRunId(
-                                              '${run['runId'] ?? ''}',
+                                          Text(
+                                            label,
+                                            translate: false,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: AppType.uiBase,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
+                                          if ('${run['failureMessage'] ?? ''}'
+                                              .isNotEmpty)
+                                            Text(
+                                              '${run['failureMessage']}',
+                                              translate: false,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: AppType.uiXs,
+                                                color:
+                                                    context.colors.destructive,
+                                              ),
+                                            )
+                                          else
+                                            Text.rich(
+                                              TextSpan(
+                                                children: [
+                                                  if (artifactCount > 0) ...[
+                                                    WidgetSpan(
+                                                      alignment:
+                                                          PlaceholderAlignment
+                                                              .middle,
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .folder_zip_outlined,
+                                                            size: 10,
+                                                            color: context
+                                                                .colors
+                                                                .foregroundSubtle,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 2,
+                                                          ),
+                                                          Text(
+                                                            // 复用既有 ^产物（N）$
+                                                            // 模式（EN 界面正确翻译）。
+                                                            tr(
+                                                              '产物（$artifactCount）',
+                                                            ),
+                                                            style: TextStyle(
+                                                              fontSize:
+                                                                  AppType.uiXs,
+                                                              color: context
+                                                                  .colors
+                                                                  .foregroundSubtle,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 6,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                  TextSpan(
+                                                    text: _shortRunId(
+                                                      '${run['runId'] ?? ''}',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: AppType.uiXs,
+                                                fontFamily: 'monospace',
+                                                color: context
+                                                    .colors
+                                                    .foregroundSubtlest,
+                                              ),
+                                            ),
                                         ],
                                       ),
-                                      style: TextStyle(
-                                        fontSize: AppType.uiXs,
-                                        fontFamily: 'monospace',
-                                        color:
-                                            context.colors.foregroundSubtlest,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // 视觉补跑必修（Visual B
+                                    // 像素实测）：原先 Flexible(状态) 与 Expanded(标题)
+                                    // 双分把行宽对半分——状态只画约 55dp、剩余约
+                                    // 87dp 全落行尾=右缘死区（时间不靠右、不同状态
+                                    // 起始 x 参差、长标题提前约 10 字省略）。改=标题
+                                    // 独占弹性，状态/时间为非弹性尾簇（窄屏长状态
+                                    // 72dp 封顶省略，行尾贴卡片右缘）。
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 72,
+                                      ),
+                                      child: Text(
+                                        // 修订链（官方目录=「已停止 · 已被替代」，
+                                        // 72dp 放不下全串）：被替代是比「已停止」
+                                        // 更关键的事实，直接以停止原因词替换状态词。
+                                        workflowRunSuperseded(run)
+                                            ? tr('已被替代')
+                                            : status.label,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: AppType.uiCaption,
+                                          color: status.color,
+                                        ),
                                       ),
                                     ),
-                                ],
+                                    // 320+1.3 英文档实测右侧
+                                    // 溢出 100px——窄屏隐藏相对时间（次要信息，
+                                    // 官方桌面窄侧栏也只留状态）。
+                                    if (constraints.maxWidth >= 300) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _relTime(
+                                          (run['updatedAt'] as num?)?.toInt(),
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: AppType.uiXs,
+                                          color:
+                                              context.colors.foregroundSubtlest,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
                             ),
-                              const SizedBox(width: 8),
-                              // 视觉补跑必修（Visual B
-                              // 像素实测）：原先 Flexible(状态) 与 Expanded(标题)
-                              // 双分把行宽对半分——状态只画约 55dp、剩余约
-                              // 87dp 全落行尾=右缘死区（时间不靠右、不同状态
-                              // 起始 x 参差、长标题提前约 10 字省略）。改=标题
-                              // 独占弹性，状态/时间为非弹性尾簇（窄屏长状态
-                              // 72dp 封顶省略，行尾贴卡片右缘）。
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxWidth: 72),
-                                child: Text(
-                                  // 修订链（官方目录=「已停止 · 已被替代」，
-                                  // 72dp 放不下全串）：被替代是比「已停止」
-                                  // 更关键的事实，直接以停止原因词替换状态词。
-                                  workflowRunSuperseded(run)
-                                      ? tr('已被替代')
-                                      : status.label,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: AppType.uiCaption,
-                                    color: status.color,
-                                  ),
-                                ),
-                              ),
-                              // 320+1.3 英文档实测右侧
-                              // 溢出 100px——窄屏隐藏相对时间（次要信息，
-                              // 官方桌面窄侧栏也只留状态）。
-                              if (constraints.maxWidth >= 300) ...[
-                                const SizedBox(width: 6),
-                                Text(
-                                  _relTime(
-                                    (run['updatedAt'] as num?)?.toInt(),
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: AppType.uiXs,
-                                    color: context.colors.foregroundSubtlest,
-                                  ),
-                                ),
-                              ],
-                            ],
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            ),
+                  ),
           ),
         ],
       ),
@@ -580,7 +657,9 @@ class _WorkflowRunsPageState extends State<WorkflowRunsPage> {
             ),
             const SizedBox(height: 6),
             Text(
-              tr('会话生成的文件（含图片 / PDF / 表格）需先发布为工作流产物才能下载：点「收集产物」让智能体整理本回合文件；已发布的产物在下方运行里点开，行尾即可分享保存。'),
+              tr(
+                '会话生成的文件（含图片 / PDF / 表格）需先发布为工作流产物才能下载：点「收集产物」让智能体整理本回合文件；已发布的产物在下方运行里点开，行尾即可分享保存。',
+              ),
               style: TextStyle(
                 fontSize: AppType.uiCaption,
                 height: 1.5,
@@ -610,19 +689,13 @@ class _WorkflowRunsPageState extends State<WorkflowRunsPage> {
                           // 此前静默丢——给出明确反馈。
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                tr('未能发送（会话正忙或发送失败），请稍后再试'),
-                              ),
+                              content: Text(tr('未能发送（会话正忙或发送失败），请稍后再试')),
                             ),
                           );
                           return;
                         }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              tr('已发送收集指令，产物就绪后会出现在下方'),
-                            ),
-                          ),
+                          SnackBar(content: Text(tr('已发送收集指令，产物就绪后会出现在下方'))),
                         );
                         // 对抗审查 B-/C-M3：发送后页面从不刷新——延时
                         // 两次自动重拉覆盖 agent 编排-提交窗口。可取消
@@ -682,11 +755,18 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
 
   List<Map<String, dynamic>> _events = const [];
   List<Map<String, dynamic>> _artifacts = const [];
+
+  /// 审查轮2 ：加载代际——恢复/配置成功触发的 _load 与在途
+  /// 「加载更多」并发时，旧代结果不得覆盖/混入新窗口（事件重复渲染）。
+  int _loadEpoch = 0;
   bool _loading = true;
   bool _eventsBusy = false;
   bool _eventsHasMore = false;
   String? _eventsMoreError;
   String? _error;
+
+  /// 批C：恢复/配置动作在途（防双发）。
+  bool _actionBusy = false;
 
   /// 投影的最后事件序号（快照 workflowRuns 投影；目录/run 卡入口会传，
   /// 没传时首载再从投影按 runId 回捞——官方目录 schema 无此字段）。
@@ -701,18 +781,23 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
     });
   }
 
-  /// 反推「最新一页」的依据（显式传入优先，其次投影联接）。
+  /// 反推「最新一页」的依据（投影联接优先——审查轮2 ：resume 后同
+  /// runId journal 延续，构造时传入的旧序号恒短路会让追平目标陈旧；
+  /// 投影不可解析（纯冷查询）才回退显式传入值）。
   int? _resolveLastEventSequence(AppState app) {
-    if (widget.lastEventSequence != null) return widget.lastEventSequence;
     final runs =
         app.conversationStates[widget.sessionId]?.workflowRunsList ??
         const <Map<String, dynamic>>[];
     final joined = joinWorkflowRunProjection(runs, runId: widget.runId);
-    return (joined?['lastEventSequence'] as num?)?.toInt();
+    final projected = (joined?['lastEventSequence'] as num?)?.toInt();
+    if (projected != null) return projected;
+    return widget.lastEventSequence;
   }
 
-  Future<({List<Map<String, dynamic>> events, bool hasMore})>
-  _fetchEventsPage(AppState app, int? afterSequence) async {
+  Future<({List<Map<String, dynamic>> events, bool hasMore})> _fetchEventsPage(
+    AppState app,
+    int? afterSequence,
+  ) async {
     final res = await app.workflowRunEvents(
       widget.sessionId,
       widget.runId,
@@ -728,9 +813,16 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
     );
   }
 
-  /// 事件升序归一（官方 journal 升序；展示层 reversed=最新在前）。
+  /// 事件升序归一（官方 journal 升序；展示层 reversed=最新在前）；
+  /// 同 sequence 去重（双保险：旧代 loadMore 迟到结果可能携带与新
+  /// 窗口重叠的区间）。
   List<Map<String, dynamic>> _sorted(List<Map<String, dynamic>> events) {
-    final out = [...events];
+    final bySeq = <int, Map<String, dynamic>>{};
+    for (final e in events) {
+      final seq = (e['sequence'] as num?)?.toInt() ?? 0;
+      bySeq[seq] = e;
+    }
+    final out = bySeq.values.toList();
     out.sort(
       (a, b) => ((a['sequence'] as num?)?.toInt() ?? 0).compareTo(
         (b['sequence'] as num?)?.toInt() ?? 0,
@@ -773,6 +865,7 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
 
   Future<void> _load() async {
     final app = AppStateScope.of(context);
+    final epoch = ++_loadEpoch;
     setState(() {
       _loading = true;
       _error = null;
@@ -786,17 +879,14 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
         _fetchEventsCatchingUp(app, lastSequence),
         app.workflowRunArtifacts(widget.sessionId, widget.runId),
       ]);
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) return;
       final page =
-          results[0]
-              as ({List<Map<String, dynamic>> events, bool hasMore});
+          results[0] as ({List<Map<String, dynamic>> events, bool hasMore});
       setState(() {
         _events = page.events;
         _eventsHasMore = page.hasMore;
         _artifacts =
-            ((results[1] is Map
-                        ? results[1]['artifacts'] as List?
-                        : null) ??
+            ((results[1] is Map ? results[1]['artifacts'] as List? : null) ??
                     const [])
                 .whereType<Map>()
                 .map((e) => e.cast<String, dynamic>())
@@ -818,6 +908,7 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
   Future<void> _loadMoreEvents() async {
     if (_eventsBusy) return;
     final app = AppStateScope.of(context);
+    final epoch = _loadEpoch;
     final after = _events.isEmpty
         ? 0
         : ((_events.last['sequence'] as num?)?.toInt() ?? 0);
@@ -827,7 +918,11 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
     });
     try {
       final fetched = await _fetchEventsPage(app, after);
-      if (!mounted) return;
+      if (!mounted || epoch != _loadEpoch) {
+        // 旧代 loadMore：不覆盖新窗口（_eventsHasMore 尤其）。
+        if (mounted) setState(() => _eventsBusy = false);
+        return;
+      }
       setState(() {
         _events = _sorted([..._events, ...fetched.events]);
         _eventsHasMore = fetched.hasMore;
@@ -853,7 +948,8 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
   /// 详情页（官方 E2E 同款可达性）。
   List<Widget> _lineageHeader(BuildContext context) {
     final runs =
-        AppStateScope.of(context).conversationStates[widget.sessionId]
+        AppStateScope.of(context)
+            .conversationStates[widget.sessionId]
             ?.workflowRunsList ??
         const <Map<String, dynamic>>[];
     final run = joinWorkflowRunProjection(runs, runId: widget.runId);
@@ -1003,10 +1099,7 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
     try {
       final r = await readArtifactBlocks(
         name: '${artifact['title'] ?? artifact['id']}',
-        read: ({
-          required int offset,
-          required int blockLimit,
-        }) =>
+        read: ({required int offset, required int blockLimit}) =>
             app.workflowRunArtifactRead(
               widget.sessionId,
               widget.runId,
@@ -1030,9 +1123,7 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
       final name = '${artifact['title'] ?? artifact['id']}';
       if (isImage) {
         if (bytes.isEmpty) {
-          messenger.showSnackBar(
-            const SnackBar(content: Text('该产物没有可读的内容')),
-          );
+          messenger.showSnackBar(const SnackBar(content: Text('该产物没有可读的内容')));
           return;
         }
         Navigator.of(context).push(
@@ -1062,22 +1153,20 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
       }
       final text = utf8.decode(bytes, allowMalformed: true);
       if (text.isEmpty) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('该产物没有可读的文本内容')),
-        );
+        messenger.showSnackBar(const SnackBar(content: Text('该产物没有可读的文本内容')));
         return;
       }
-      final displayName = truncated
-          ? '$name（${tr('内容过长已截断')}）'
-          : name;
+      final displayName = truncated ? '$name（${tr('内容过长已截断')}）' : name;
       // 截断标记透传 html 预览页（A-M3/B-：半份 html 不给分享）；
       // 落盘文件名与显示标题解耦（截断标记不进文件名）。
       // 早前批次：截断的预览不是完整文件——文本页分享入口仅在
       // 未截断时给出（完整内容走产物行分享入口回源拉全量）。
       // html 嗅探正则锚定文首（此前 `|` 优先
       // 级让正文任意位置的 <html 字样也会误进 WebView）。
-      if (RegExp(r'^\s*(<!doctype html|<html)', caseSensitive: false)
-          .hasMatch(text)) {
+      if (RegExp(
+        r'^\s*(<!doctype html|<html)',
+        caseSensitive: false,
+      ).hasMatch(text)) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => HtmlPreviewPage(
@@ -1135,14 +1224,128 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
     }
   }
 
+  /// 投影可解析的当前 run（批C动作区数据源；纯冷查询/CLI 重启后投影为
+  /// 空时不硬凑——血缘行同口径）。
+  Map<String, dynamic>? _projectionRun(AppState app) =>
+      joinWorkflowRunProjection(
+        app.conversationStates[widget.sessionId]?.workflowRunsList ??
+            const <Map<String, dynamic>>[],
+        runId: widget.runId,
+      );
+
+  /// 批C：run 动作区——resumable（run 摘要官方位）出「恢复」；运行中出
+  /// 「配置」（amend 修订=新 run 停旧 run）。投影缺席=零占位。
+  Widget? _runActionHeader(BuildContext context) {
+    final run = _projectionRun(AppStateScope.of(context));
+    if (run == null) return null;
+    final resumable = run['resumable'] == true;
+    final running = '${run['status'] ?? ''}' == 'running';
+    if (!resumable && !running) return null;
+    return Padding(
+      key: const ValueKey('workflow-run-actions'),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          if (resumable) ...[
+            OutlinedButton.icon(
+              key: const ValueKey('workflow-run-resume'),
+              onPressed: _actionBusy ? null : () => unawaited(_resumeRun(run)),
+              icon: const Icon(Icons.play_arrow_outlined, size: 16),
+              label: Text(tr('恢复')),
+            ),
+            if (running) const SizedBox(width: 8),
+          ],
+          if (running)
+            OutlinedButton.icon(
+              key: const ValueKey('workflow-run-config'),
+              onPressed: _actionBusy
+                  ? null
+                  : () => unawaited(_openAmendSheet()),
+              icon: const Icon(Icons.tune_outlined, size: 16),
+              label: Text(tr('配置')),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 恢复（批C）：name 传 run label 喂恢复后完成通知主题（官方语义——
+  /// 桌面重启后原 CreateWorkflow input 不可得）；accepted/duplicate 即
+  /// 成功；failed 按词表人话（capabilityUnsupported/7 词表）。
+  Future<void> _resumeRun(Map<String, dynamic> run) async {
+    setState(() => _actionBusy = true);
+    try {
+      final app = AppStateScope.of(context);
+      // name 喂恢复后完成通知主题：目录行传入的 title 即 run label（空
+      // label 时为短 id 兜底——传 id 作通知主题无害）。
+      final name = widget.title.trim().isEmpty ? null : widget.title.trim();
+      final res = await app.resumeWorkflowRun(
+        widget.sessionId,
+        widget.runId,
+        name: name,
+      );
+      if (!mounted) return;
+      final status = res is Map ? '${res['status'] ?? ''}' : '';
+      if (status == 'accepted' || status == 'duplicate') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 3),
+            content: Text(tr('已发起恢复，新事件稍后出现在时间线')),
+          ),
+        );
+        unawaited(_load());
+      } else {
+        final reason = res is Map ? '${res['reasonCode'] ?? ''}' : '';
+        final message = res is Map ? '${res['message'] ?? ''}' : '';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 4),
+            content: Text(workflowCommandFaultText(reason, message)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 4),
+            content: Text('恢复失败：$e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
+  /// 配置弹层（批C）：保存成功后重拉时间线拿新代事件（amend=新 run）。
+  Future<void> _openAmendSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => _AmendRunSettingsSheet(
+        sessionId: widget.sessionId,
+        workId: widget.runId,
+      ),
+    );
+    if (mounted) unawaited(_load());
+  }
+
   @override
   Widget build(BuildContext context) {
+    final actionHeader = _runActionHeader(context);
     return Scaffold(
       backgroundColor: context.colors.background,
       appBar: AppBar(
         backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
-        title: Text(widget.title, translate: false, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          widget.title,
+          translate: false,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       body: _loading
           ? const Center(child: AppLoading('正在加载…'))
@@ -1152,7 +1355,7 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    tr('加载失败：') + _error!,
+                    tr('加载失败：$_error'),
                     style: TextStyle(
                       fontSize: AppType.uiCaption,
                       color: context.colors.destructive,
@@ -1166,6 +1369,8 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
               children: [
+                // 批C：恢复/配置动作区（投影缺席零占位）。
+                if (actionHeader != null) actionHeader,
                 // 修订链血缘（supersededBy/resumedFrom；无血缘时零占位）。
                 ..._lineageHeader(context),
                 if (_events.isNotEmpty) ...[
@@ -1256,20 +1461,21 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
                   for (var ai = 0; ai < _artifacts.length; ai++)
                     Padding(
                       padding: EdgeInsets.only(top: ai == 0 ? 0 : 6),
-                      child: Builder(builder: (_) {
-                        final a = _artifacts[ai];
-                        return Material(
-                          color: context.colors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                          child: InkWell(
-                            key: ValueKey('workflow-artifact-${a['id']}'),
+                      child: Builder(
+                        builder: (_) {
+                          final a = _artifacts[ai];
+                          return Material(
+                            color: context.colors.card,
                             borderRadius: BorderRadius.circular(AppRadius.sm),
-                            // （2026-11-08 拍板）：内容产物=分块字节读取；
-                            // 看板四类（chart/table/metrics/board）=数据页渲染
-                            //（workflowRunArtifactData + spec 宽松解析）。
-                            onTap: _artifactReadable(a)
-                                ? () => _openArtifact(a)
-                                : () => Navigator.of(context).push(
+                            child: InkWell(
+                              key: ValueKey('workflow-artifact-${a['id']}'),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              // （2026-11-08 拍板）：内容产物=分块字节读取；
+                              // 看板四类（chart/table/metrics/board）=数据页渲染
+                              //（workflowRunArtifactData + spec 宽松解析）。
+                              onTap: _artifactReadable(a)
+                                  ? () => _openArtifact(a)
+                                  : () => Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (_) => WorkflowDashboardPage(
                                           sessionId: widget.sessionId,
@@ -1278,72 +1484,77 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
                                         ),
                                       ),
                                     ),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minHeight: 44),
-                              child: Padding(
-                                // 行垂直 padding 归零（视觉走查 artifact-
-                                // share-1：分享按钮 44dp 盒若叠加 10dp
-                                // padding 会把卡撑到 60dp、同列表行高不一；
-                                // 文本行由 minHeight 44 兜底居中，观感不变）。
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  minHeight: 44,
                                 ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.description_outlined,
-                                      size: 16,
-                                      color: context.colors.foregroundSubtle,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        '${a['title'] ?? a['id']}',
-                                        translate: false,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: AppType.uiCaption,
-                                          fontWeight: FontWeight.w500,
+                                child: Padding(
+                                  // 行垂直 padding 归零（视觉走查 artifact-
+                                  // share-1：分享按钮 44dp 盒若叠加 10dp
+                                  // padding 会把卡撑到 60dp、同列表行高不一；
+                                  // 文本行由 minHeight 44 兜底居中，观感不变）。
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.description_outlined,
+                                        size: 16,
+                                        color: context.colors.foregroundSubtle,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          '${a['title'] ?? a['id']}',
+                                          translate: false,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: AppType.uiCaption,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    // 分享入口（早前批次）：仅内容
-                                    // 产物——看板四类无内容字节可下。M3 默认
-                                    // 盒 40×40 须显式收缩到 44dp 且 shrinkWrap
-                                    // （constraints 参数在 M3 下不生效——
-                                    // 视觉走查像素实证）。
-                                    if (_artifactReadable(a))
-                                      IconButton(
-                                        key: ValueKey(
-                                          'workflow-artifact-share-${a['id']}',
+                                      // 分享入口（早前批次）：仅内容
+                                      // 产物——看板四类无内容字节可下。M3 默认
+                                      // 盒 40×40 须显式收缩到 44dp 且 shrinkWrap
+                                      // （constraints 参数在 M3 下不生效——
+                                      // 视觉走查像素实证）。
+                                      if (_artifactReadable(a))
+                                        IconButton(
+                                          key: ValueKey(
+                                            'workflow-artifact-share-${a['id']}',
+                                          ),
+                                          icon: const Icon(
+                                            Icons.ios_share,
+                                            size: 18,
+                                          ),
+                                          tooltip: tr('分享'),
+                                          style: IconButton.styleFrom(
+                                            minimumSize: const Size(44, 44),
+                                            padding: EdgeInsets.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                          ),
+                                          onPressed: () => _shareArtifact(a),
                                         ),
-                                        icon: const Icon(Icons.ios_share,
-                                            size: 18),
-                                        tooltip: tr('分享'),
-                                        style: IconButton.styleFrom(
-                                          minimumSize: const Size(44, 44),
-                                          padding: EdgeInsets.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
+                                      Text(
+                                        '${a['kind']} · v${a['version'] ?? 1}',
+                                        style: TextStyle(
+                                          fontSize: AppType.uiXs,
+                                          color:
+                                              context.colors.foregroundSubtlest,
                                         ),
-                                        onPressed: () => _shareArtifact(a),
                                       ),
-                                    Text(
-                                      '${a['kind']} · v${a['version'] ?? 1}',
-                                      style: TextStyle(
-                                        fontSize: AppType.uiXs,
-                                        color:
-                                            context.colors.foregroundSubtlest,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }),
+                          );
+                        },
+                      ),
                     ),
                 ],
                 if (_events.isEmpty && _artifacts.isEmpty)
@@ -1384,7 +1595,12 @@ class _ArtifactTextPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
-        title: Text(title, translate: false, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          title,
+          translate: false,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           if (!truncated)
             IconButton(
@@ -1420,7 +1636,11 @@ class ArtifactImagePage extends StatelessWidget {
   final String title;
   final Uint8List bytes;
 
-  const ArtifactImagePage({super.key, required this.title, required this.bytes});
+  const ArtifactImagePage({
+    super.key,
+    required this.title,
+    required this.bytes,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1492,7 +1712,6 @@ class ArtifactImagePage extends StatelessWidget {
     );
   }
 }
-
 
 // ------------------------------------------------------------ 闲时任务卡
 
@@ -1643,7 +1862,8 @@ class WorkflowRunCard extends StatelessWidget {
     // 名称取值链与官方 toolCallRowAdapter 同序：结构化 input 优先（进入
     // running 即携带），inputText JSON 兜底——run 早期 inputText 未定稿
     // 时不再让名字退化成「工作流」。
-    final input = toolInputArgs(row) ?? _tryJson('${row['inputText'] ?? ''}') ?? const {};
+    final input =
+        toolInputArgs(row) ?? _tryJson('${row['inputText'] ?? ''}') ?? const {};
     var name = '${input['name'] ?? ''}'.trim();
     if (name.isEmpty) name = '${input['description'] ?? ''}'.trim();
     final run = _joinedRun();
@@ -1670,7 +1890,9 @@ class WorkflowRunCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Container(
-        key: ValueKey('workflow-run-card-${row['rowId'] ?? row['toolCallId'] ?? ''}'),
+        key: ValueKey(
+          'workflow-run-card-${row['rowId'] ?? row['toolCallId'] ?? ''}',
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: context.colors.card,
@@ -1681,18 +1903,18 @@ class WorkflowRunCard extends StatelessWidget {
           onTap: runId.isEmpty || sessionId == null
               ? null
               : () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => WorkflowRunDetailPage(
-                        sessionId: sessionId!,
-                        runId: runId,
-                        title: name.isEmpty ? tr('工作流') : name,
-                        // 入口必须传投影序号：官方 run 目录 schema 没有该
-                        // 字段，详情页靠它反推「最新一页」。
-                        lastEventSequence:
-                            (run?['lastEventSequence'] as num?)?.toInt(),
-                      ),
+                  MaterialPageRoute(
+                    builder: (_) => WorkflowRunDetailPage(
+                      sessionId: sessionId!,
+                      runId: runId,
+                      title: name.isEmpty ? tr('工作流') : name,
+                      // 入口必须传投影序号：官方 run 目录 schema 没有该
+                      // 字段，详情页靠它反推「最新一页」。
+                      lastEventSequence: (run?['lastEventSequence'] as num?)
+                          ?.toInt(),
                     ),
                   ),
+                ),
           child: Row(
             children: [
               Icon(
@@ -1763,8 +1985,9 @@ class _CollectArtifactsDialog extends StatefulWidget {
 }
 
 class _CollectArtifactsDialogState extends State<_CollectArtifactsDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: kCollectArtifactsPrompt);
+  late final TextEditingController _controller = TextEditingController(
+    text: kCollectArtifactsPrompt,
+  );
 
   @override
   void dispose() {
@@ -1889,9 +2112,7 @@ class BinaryArtifactPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
                 // 对抗审查 B-M3：截断态没有分享钮，提示不得指向它。
-                truncated
-                    ? tr('内容过大，仅加载了部分')
-                    : tr('该格式暂不支持预览，可点右上角分享保存到手机'),
+                truncated ? tr('内容过大，仅加载了部分') : tr('该格式暂不支持预览，可点右上角分享保存到手机'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: AppType.uiCaption,
@@ -1900,6 +2121,442 @@ class BinaryArtifactPage extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 配置弹层（批C workflow-control-1）：官方三态纪律的 GUI 侧——未触碰=
+/// 键省略（沿用）；「回默认」=显式 null；选值=设定；只发用户改过的项
+///（官方 workflow-run-settings-command.ts:11-13）。修订=生成新 run 停旧
+/// run；所有拒绝发生在停下/新建任何东西之前（词表人话见
+/// workflowCommandFaultText）。
+class _AmendRunSettingsSheet extends StatefulWidget {
+  final String sessionId;
+  final String workId;
+  const _AmendRunSettingsSheet({required this.sessionId, required this.workId});
+
+  @override
+  State<_AmendRunSettingsSheet> createState() => _AmendRunSettingsSheetState();
+}
+
+class _AmendRunSettingsSheetState extends State<_AmendRunSettingsSheet> {
+  final _concurrency = TextEditingController();
+
+  /// null=加载中；空表=目录不可用（仍可调并发/回默认）。
+  List<ConfigOptionValue>? _models;
+
+  // 三态：dirty=false=沿用；dirty 且 value=null=回默认；value 非空=设定。
+  bool _modelDirty = false;
+  String? _modelValue;
+  bool _concurrencyDirty = false;
+  int? _concurrencyValue;
+
+  /// 审查轮2 ：0 或非法输入=禁存（官方 maxConcurrency zod min(1)，
+  /// 发 0 只会换回非人话 proto.invalidPayload）。
+  bool _concurrencyInvalid = false;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadModels());
+  }
+
+  @override
+  void dispose() {
+    _concurrency.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadModels() async {
+    try {
+      final opts = await AppStateScope.of(context).modelSelectionOptions();
+      if (!mounted) return;
+      setState(() {
+        _models = [
+          for (final c in opts.whereType<ConfigOption>())
+            ...c.options.where((v) => v.value.contains('/')),
+        ];
+      });
+    } catch (_) {
+      if (mounted) setState(() => _models = const []);
+    }
+  }
+
+  String get _modelDisplay {
+    if (!_modelDirty) return tr('未调整（沿用当前设置）');
+    if (_modelValue == null) return tr('会话模型（回默认）');
+    final m = _models?.where((v) => v.value == _modelValue).firstOrNull;
+    if (m == null) return _modelValue ?? '';
+    final provider = '${m.modelProviderName ?? ''}'.trim();
+    return provider.isEmpty ? m.name : '$provider ${m.name}';
+  }
+
+  Future<void> _pickModel() async {
+    final models = _models ?? const <ConfigOptionValue>[];
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      tr('子代理模型'),
+                      style: TextStyle(
+                        fontSize: AppType.uiSm,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.foregroundSubtle,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  key: const ValueKey('amend-model-default'),
+                  dense: true,
+                  title: Text(tr('会话模型（回默认）')),
+                  subtitle: Text(
+                    tr('不再单独指定，跟随会话当前模型'),
+                    style: TextStyle(
+                      fontSize: AppType.uiXs,
+                      color: context.colors.foregroundSubtlest,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    setState(() {
+                      _modelDirty = true;
+                      _modelValue = null;
+                    });
+                  },
+                ),
+                for (final m in models)
+                  ListTile(
+                    key: ValueKey('amend-model-${m.value}'),
+                    dense: true,
+                    title: Text(
+                      m.name,
+                      translate: false,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      setState(() {
+                        _modelDirty = true;
+                        _modelValue = m.value;
+                      });
+                    },
+                  ),
+                if (models.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      tr('模型目录暂不可用，仍可直接回默认'),
+                      style: TextStyle(
+                        fontSize: AppType.uiCaption,
+                        color: context.colors.foregroundSubtle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final res = await AppStateScope.of(context).amendWorkflowRunSettings(
+        widget.sessionId,
+        widget.workId,
+        subagentModelValue: _modelDirty && _modelValue != null
+            ? _modelValue
+            : null,
+        subagentModelReset: _modelDirty && _modelValue == null,
+        maxConcurrencyValue: _concurrencyDirty && _concurrencyValue != null
+            ? _concurrencyValue
+            : null,
+        maxConcurrencyReset: _concurrencyDirty && _concurrencyValue == null,
+      );
+      if (!mounted) return;
+      final status = res is Map ? '${res['status'] ?? ''}' : '';
+      if (status == 'accepted' || status == 'duplicate') {
+        // 双保险：用户已手动关闭弹层（退出动画窗口）时不再二次 pop
+        //（否则吃掉详情页）。
+        if (ModalRoute.of(context)?.isCurrent ?? false) {
+          Navigator.of(context).pop();
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 3),
+            content: Text(tr('已提交调整')),
+          ),
+        );
+      } else {
+        final reason = res is Map ? '${res['reasonCode'] ?? ''}' : '';
+        final message = res is Map ? '${res['message'] ?? ''}' : '';
+        setState(() => _error = workflowCommandFaultText(reason, message));
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = '调整失败：$e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canSave =
+        (_modelDirty || _concurrencyDirty) && !_concurrencyInvalid && !_saving;
+    // 审查轮2 ：保存在途禁止拖拽/返回键关闭——否则退出动画窗口内
+    // accepted 分支的二次 pop 会吃掉 run 详情页（探针实证）。
+    return PopScope(
+      canPop: !_saving,
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      tr('配置运行'),
+                      style: TextStyle(
+                        fontSize: AppType.uiBase,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      tr('调整可能生成新运行并停止旧运行，历史保留可回看'),
+                      style: TextStyle(
+                        fontSize: AppType.uiXs,
+                        color: context.colors.foregroundSubtlest,
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: context.colors.card,
+                    // 视觉复核 r2 必修④：深色 bottomSheet 底=card，无描边
+                    // 卡面与弹层同色层级消失——1px border 双主题统一。
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: context.colors.border),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: InkWell(
+                      key: const ValueKey('amend-model-row'),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      onTap: () => unawaited(_pickModel()),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tr('子代理模型'),
+                                    style: TextStyle(
+                                      fontSize: AppType.uiCaption,
+                                      color: context.colors.foregroundSubtle,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _modelDisplay,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: AppType.uiBase,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: context.colors.foregroundSubtlest,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Material(
+                    color: context.colors.card,
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: context.colors.border),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('并发上限'),
+                            style: TextStyle(
+                              fontSize: AppType.uiCaption,
+                              color: context.colors.foregroundSubtle,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  key: const ValueKey('amend-concurrency'),
+                                  controller: _concurrency,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                  ],
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    // 视觉复核 r2 必修③：isDense+无边框
+                                    // 命中仅约 28dp——内距 12 提到 44+，
+                                    // 下划线给「可输入」可见线索。
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    border: const UnderlineInputBorder(),
+                                    enabledBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: context.colors.border,
+                                      ),
+                                    ),
+                                    focusedBorder: UnderlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: context.colors.accent,
+                                      ),
+                                    ),
+                                    hintText: _concurrencyInvalid
+                                        ? tr('至少为 1')
+                                        : (_concurrencyDirty
+                                              ? tr('已清空=恢复默认并发')
+                                              : tr('不填=保持当前设置')),
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: AppType.uiBase,
+                                  ),
+                                  // 删空=显式回默认（dirty+null），
+                                  // 动态 hint 明示两态语义差异。
+                                  onChanged: (text) {
+                                    setState(() {
+                                      _concurrencyDirty = true;
+                                      final v = int.tryParse(text.trim());
+                                      _concurrencyInvalid = v != null && v < 1;
+                                      _concurrencyValue = v;
+                                    });
+                                  },
+                                ),
+                              ),
+                              if (_concurrencyDirty)
+                                IconButton(
+                                  key: const ValueKey(
+                                    'amend-concurrency-reset',
+                                  ),
+                                  iconSize: 16,
+                                  tooltip: tr('清除改动'),
+                                  onPressed: () {
+                                    _concurrency.clear();
+                                    setState(() {
+                                      _concurrencyDirty = false;
+                                      _concurrencyValue = null;
+                                      _concurrencyInvalid = false;
+                                    });
+                                  },
+                                  icon: Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: context.colors.foregroundSubtle,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error ?? '',
+                      style: TextStyle(
+                        fontSize: AppType.uiCaption,
+                        color: context.colors.destructive,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: Text(tr('取消')),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        key: const ValueKey('amend-save'),
+                        onPressed: canSave ? () => unawaited(_save()) : null,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(tr('保存')),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

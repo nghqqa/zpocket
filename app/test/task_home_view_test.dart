@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zpocket/state/app_state.dart';
+import 'package:zpocket/state/marketing_controller.dart';
+import 'package:zpocket/transport/marketing_client.dart'
+    show MarketingDelivery;
 import 'package:zpocket/transport/companion_client.dart';
 import 'package:zpocket/state/app_state_scope.dart';
 import 'package:zpocket/transport/conversation.dart';
@@ -25,11 +28,20 @@ class _HomeBridge implements BridgeSession {
   @override
   final ValueNotifier<int> recovered = ValueNotifier(0);
   @override
-  Future<void> waitHealthy({Duration timeout = const Duration(seconds: 45)}) async {}
+  Future<void> waitHealthy({
+    Duration timeout = const Duration(seconds: 45),
+  }) async {}
   @override
   Map<String, dynamic> get bridge => const {};
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// 归档提示旅程专用：记录 archiveTask 调用。
+class _ArchiveSnackBarApp extends _HomeApp {
+  int archiveCalls = 0;
+  @override
+  Future<dynamic> archiveTask(String taskId) async => archiveCalls++;
 }
 
 class _HomeApp extends AppState {
@@ -59,10 +71,10 @@ class _HomeApp extends AppState {
       tasks.where((t) => t['projectId'] == null).toList();
   @override
   List<Map<String, dynamic>> get sidebarProjects => const [
-        {'id': 'p1', 'name': '示例项目A'},
-        {'id': 'p2', 'name': '示例项目B'},
-        {'id': '__conversations__', 'name': '任务'},
-      ];
+    {'id': 'p1', 'name': '示例项目A'},
+    {'id': 'p2', 'name': '示例项目B'},
+    {'id': '__conversations__', 'name': '任务'},
+  ];
 
   Completer<void>? switchCompleter;
   String? errorAfterSwitch;
@@ -111,33 +123,35 @@ class _HomeApp extends AppState {
   @override
   BridgeSession? get bridge => _fakeBridge;
   @override
-  Future<void> switchToProject(Map<String, dynamic> project,
-      {bool keepHomePreview = false}) async {
+  Future<void> switchToProject(
+    Map<String, dynamic> project, {
+    bool keepHomePreview = false,
+  }) async {
     projectSwitches++;
     homePhase = LinkPhase.connecting;
     await switchCompleter?.future;
     _workspaceError = errorAfterSwitch;
     if (_workspaceError == null) homePhase = LinkPhase.online;
     // 等待循环：切到位（项目主根）+桥在场。
-    _switchedWs = {'workspacePath': primaryRootOf(project) ?? 'project-navigation'};
+    _switchedWs = {
+      'workspacePath': primaryRootOf(project) ?? 'project-navigation',
+    };
     notifyListeners();
   }
 }
 
-Finder _sheetText(String text) => find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.text(text),
-    );
+Finder _sheetText(String text) =>
+    find.descendant(of: find.byType(BottomSheet), matching: find.text(text));
 
 Finder _sheetTile(String text) => find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.widgetWithText(ListTile, text),
-    );
+  of: find.byType(BottomSheet),
+  matching: find.widgetWithText(ListTile, text),
+);
 
 Widget _host(AppState app) => AppStateScope(
-      app: app,
-      child: const MaterialApp(home: TaskCenterPage()),
-    );
+  app: app,
+  child: const MaterialApp(home: TaskCenterPage()),
+);
 
 Map<String, dynamic> _task(
   String id,
@@ -156,8 +170,8 @@ Map<String, dynamic> _task(
   'workspacePath': projectId == null
       ? r'D:\示例工作区\default'
       : projectId == 'p1'
-          ? r'D:\示例项目A'
-          : r'D:\示例项目B',
+      ? r'D:\示例项目A'
+      : r'D:\示例项目B',
 };
 
 /// fold-dual-pane-2（2026-10-29）：测试默认画布 800×600≥600dp 会走双栏
@@ -165,6 +179,28 @@ Map<String, dynamic> _task(
 Future<void> _narrow(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(420, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
+}
+
+/// marketing-claim-1：主页领取卡插槽假控制器（真状态机见
+/// marketing_controller_test；此处只验插槽渲染与零卡零占位）。
+class _SlotMarketing extends MarketingController {
+  _SlotMarketing(MarketingDelivery? seed)
+    : super(
+        accountIdProvider: () async => 'acc-slot',
+        jwtProvider: (id) async => 'jwt',
+        deviceMidProvider: () async => 'mid',
+        localeProvider: () => 'zh-CN',
+        appVersionProvider: () async => '0',
+        platformProvider: () => 'android',
+        originProvider: () => Uri.parse('https://zcode.z.ai'),
+      ) {
+    if (seed != null) {
+      card = MarketingCard(accountId: 'acc-slot', delivery: seed);
+    }
+  }
+
+  @override
+  Future<void> ensurePulled() async {}
 }
 
 void main() {
@@ -182,13 +218,13 @@ void main() {
   testWidgets('run 线：未读任务可见 run 行，已读任务隐藏', (tester) async {
     await _narrow(tester);
     Map<String, dynamic> withRuns(Map<String, dynamic> t) => {
-          ...t,
-          'workflowActivity': {
-            'runs': [
-              {'name': '看板验收数据', 'status': 'completed'},
-            ],
-          },
-        };
+      ...t,
+      'workflowActivity': {
+        'runs': [
+          {'name': '看板验收数据', 'status': 'completed'},
+        ],
+      },
+    };
     final app = _HomeApp()
       ..tasks = [
         withRuns({
@@ -205,8 +241,11 @@ void main() {
     expect(find.text('未读带run任务'), findsOneWidget);
     expect(find.text('已读带run任务'), findsOneWidget);
     // run 线全文只该出现一次（未读卡）；已读卡隐藏（红=仍常驻）。
-    expect(find.textContaining('看板验收数据'), findsOneWidget,
-        reason: '两任务同带 run——只未读卡渲染 run 线');
+    expect(
+      find.textContaining('看板验收数据'),
+      findsOneWidget,
+      reason: '两任务同带 run——只未读卡渲染 run 线',
+    );
   });
 
   testWidgets('B 首页旅程：默认最近→项目分组→折叠，置顶不重复', (tester) async {
@@ -225,14 +264,15 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('home-group:project:p1')), findsOneWidget);
     expect(find.byKey(const ValueKey('home-group:project:p2')), findsOneWidget);
-    expect(find.byKey(const ValueKey('home-group:conversations')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home-group:conversations')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('home-group:project:p1')));
     await tester.pump();
-    expect(find.text('项目A运行任务'), findsNothing,
-        reason: '折叠普通项目组后隐藏组内任务');
-    expect(find.text('项目A置顶任务'), findsOneWidget,
-        reason: '置顶区独立，不随项目组折叠');
+    expect(find.text('项目A运行任务'), findsNothing, reason: '折叠普通项目组后隐藏组内任务');
+    expect(find.text('项目A置顶任务'), findsOneWidget, reason: '置顶区独立，不随项目组折叠');
   });
 
   testWidgets('新建选择器：当前项目去重，搜索项目/空结果', (tester) async {
@@ -245,8 +285,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(_sheetText('当前工作区'), findsOneWidget);
-    expect(_sheetText('示例项目A'), findsOneWidget,
-        reason: '当前项目只作为当前工作区副标题出现，不重复列项目行');
+    expect(
+      _sheetText('示例项目A'),
+      findsOneWidget,
+      reason: '当前项目只作为当前工作区副标题出现，不重复列项目行',
+    );
     expect(_sheetTile('示例项目B'), findsOneWidget);
 
     await tester.enterText(
@@ -276,15 +319,17 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('cross-task-card-t2')));
     await tester.pump();
-    expect(find.byKey(const ValueKey('home-stale-strip')), findsNothing,
-        reason: '导航等待期间不得先闪“恢复中/连接中”状态');
+    expect(
+      find.byKey(const ValueKey('home-stale-strip')),
+      findsNothing,
+      reason: '导航等待期间不得先闪“恢复中/连接中”状态',
+    );
     expect(find.text('正在连接工作区…'), findsNothing);
 
     app.switchCompleter!.complete();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('项目B待处理任务'), findsWidgets,
-        reason: '切换完成后才进入目标会话');
+    expect(find.text('项目B待处理任务'), findsWidgets, reason: '切换完成后才进入目标会话');
   });
 
   testWidgets('非在线有缓存时保留首页，运行态清洗且明确恢复中', (tester) async {
@@ -296,10 +341,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('home-stale-strip')), findsOneWidget);
-    expect(find.text('项目A运行任务'), findsOneWidget,
-        reason: '连接恢复中不得把已有首页整屏替换为转圈');
-    expect(find.text('运行中'), findsNothing,
-        reason: '缓存 running 不得冒充当前仍运行');
+    expect(find.text('项目A运行任务'), findsOneWidget, reason: '连接恢复中不得把已有首页整屏替换为转圈');
+    expect(find.text('运行中'), findsNothing, reason: '缓存 running 不得冒充当前仍运行');
     expect(find.text('空闲'), findsWidgets);
   });
 
@@ -313,6 +356,40 @@ void main() {
 
     expect(find.byKey(const ValueKey('home-stale-strip')), findsNothing);
     expect(find.text('项目A运行任务'), findsNothing);
+  });
+
+  testWidgets('归档提示 4s 自动消失（persist:false 真因钉，用户三轮反馈）', (tester) async {
+    await _narrow(tester);
+    final app = _ArchiveSnackBarApp()..tasks = rows();
+    await tester.pumpWidget(_host(app));
+    await tester.pump();
+
+    await tester.longPress(find.byKey(const ValueKey('cross-task-card-t1')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('归档'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(app.archiveCalls, 1);
+    expect(find.textContaining('已归档「'), findsOneWidget);
+    final bar = tester.widget<SnackBar>(
+      find.ancestor(
+        of: find.textContaining('已归档「'),
+        matching: find.byType(SnackBar),
+      ),
+    );
+    expect(
+      bar.persist,
+      isFalse,
+      reason:
+          '本 SDK 带 action 的 SnackBar 默认 persist=true 永不过期'
+          '（snack_bar.dart:303）——前三轮只调 duration 全是死代码',
+    );
+    expect(bar.duration, const Duration(seconds: 4));
+    // 到期自动消失（旧实现 persist 默认 true=永驻，用户实锤「一直不消失」）。
+    await tester.pump(const Duration(milliseconds: 4300));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.textContaining('已归档「'), findsNothing, reason: '到期自动消失');
   });
 
   testWidgets('长按恢复任务菜单，置顶文案随状态切换', (tester) async {
@@ -332,16 +409,15 @@ void main() {
     await tester.tap(find.text('置顶'));
     await tester.pump();
     expect(app.pinCalls, 1);
-    expect(app.projectSwitches, 0,
-        reason: '当前项目长按不再切工作区，直接对任务操作');
-    expect(
-      app.tasks.firstWhere((t) => t['taskId'] == 't1')['pinned'],
-      isTrue,
-    );
+    expect(app.projectSwitches, 0, reason: '当前项目长按不再切工作区，直接对任务操作');
+    expect(app.tasks.firstWhere((t) => t['taskId'] == 't1')['pinned'], isTrue);
 
     await openMenu();
-    expect(find.text('取消置顶'), findsOneWidget,
-        reason: '已置顶任务必须显示取消置顶，不再固定写「置顶/取消置顶」');
+    expect(
+      find.text('取消置顶'),
+      findsOneWidget,
+      reason: '已置顶任务必须显示取消置顶，不再固定写「置顶/取消置顶」',
+    );
   });
 
   testWidgets('剩余超过 5 条时同时提供再显示与全部展开', (tester) async {
@@ -356,8 +432,14 @@ void main() {
     await tester.tap(find.text('项目'));
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('home-show-more-project:p1')), findsOneWidget);
-    expect(find.byKey(const ValueKey('home-expand-all-project:p1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home-show-more-project:p1')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('home-expand-all-project:p1')),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('home-expand-all-project:p1')));
     await tester.pump();
     await tester.scrollUntilVisible(find.text('长项目任务 9'), 120);
@@ -387,8 +469,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     final rect = tester.getRect(_sheetTile('示例项目B'));
-    expect(rect.bottom, lessThanOrEqualTo(806 - 300),
-        reason: '项目选项必须整体位于输入法上方（此前会被键盘遮住）');
+    expect(
+      rect.bottom,
+      lessThanOrEqualTo(806 - 300),
+      reason: '项目选项必须整体位于输入法上方（此前会被键盘遮住）',
+    );
   });
 
   testWidgets('切换等待可取消：取消后即使开桥完成也不再进入新会话', (tester) async {
@@ -404,7 +489,10 @@ void main() {
     await tester.tap(_sheetTile('示例项目B'));
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('new-task-switch-cancel')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('new-task-switch-cancel')),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('new-task-switch-cancel')));
     await tester.pump();
     app.switchCompleter!.complete();
@@ -412,8 +500,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(app.projectSwitches, 1);
-    expect(find.text('新会话'), findsNothing,
-        reason: '取消只放弃进入草稿；后台切换完成不得再擅自导航');
+    expect(find.text('新会话'), findsNothing, reason: '取消只放弃进入草稿；后台切换完成不得再擅自导航');
   });
 
   testWidgets('切换失败留在主页并提示，不进入新会话', (tester) async {
@@ -449,13 +536,19 @@ void main() {
     expect(find.text('长项目任务 0'), findsOneWidget);
     expect(find.text('长项目任务 2'), findsOneWidget);
     expect(find.text('长项目任务 3'), findsNothing);
-    expect(find.byKey(const ValueKey('home-show-more-project:p1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home-show-more-project:p1')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('home-show-more-project:p1')));
     await tester.pump();
     await tester.scrollUntilVisible(find.text('长项目任务 7'), 120);
     expect(find.text('长项目任务 7'), findsOneWidget);
-    expect(find.byKey(const ValueKey('home-show-more-project:p1')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('home-show-more-project:p1')),
+      findsNothing,
+    );
   });
 
   testWidgets('时间桶可折叠+周月档渐进披露（优化批 #13）', (tester) async {
@@ -497,7 +590,6 @@ void main() {
     expect(find.text('更早任务 0'), findsOneWidget);
   });
 
-
   testWidgets('验收#10（Bug E）：跨项目任务长按弹菜单不切工作区，动作执行时才切', (tester) async {
     await _narrow(tester);
     final app = _HomeApp()..tasks = rows();
@@ -509,15 +601,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('置顶'), findsOneWidget, reason: '菜单已弹出');
-    expect(app.projectSwitches, 0,
-        reason: 'Bug E：弹菜单零副作用（修前先切工作区→首页重建跳回最近）');
+    expect(app.projectSwitches, 0, reason: 'Bug E：弹菜单零副作用（修前先切工作区→首页重建跳回最近）');
 
     // 动作执行时才切（zcodeTask RPC 带所属工作区 scope）。
     await tester.tap(find.text('置顶'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(app.projectSwitches, 1,
-        reason: '动作执行前的归属护栏');
+    expect(app.projectSwitches, 1, reason: '动作执行前的归属护栏');
     expect(app.pinCalls, 1);
   });
 
@@ -531,7 +621,10 @@ void main() {
     await tester.longPress(find.byKey(const ValueKey('cross-task-card-t1')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const ValueKey('task-action-select-tasks')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('task-action-select-tasks')),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('task-action-select-tasks')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -559,23 +652,31 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('cross-task-card-t2')));
     await tester.pump();
     expect(find.text('已选 2 个'), findsOneWidget);
-    expect(find.byType(ConversationPage), findsNothing,
-        reason: '多选模式点行=切换选中，不进会话');
+    expect(
+      find.byType(ConversationPage),
+      findsNothing,
+      reason: '多选模式点行=切换选中，不进会话',
+    );
 
     // 归档： 优化意见 F——先出二次确认，确认后才执行。
     await tester.tap(find.byKey(const ValueKey('multi-archive')));
     await tester.pump();
-    expect(find.text('归档选中的 2 个任务？'), findsOneWidget,
-        reason: '批量归档须二次确认（优化意见 F）');
+    expect(
+      find.text('归档选中的 2 个任务？'),
+      findsOneWidget,
+      reason: '批量归档须二次确认（优化意见 F）',
+    );
     await tester.tap(find.text('归档').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(app.archivedIds, containsAll(['t1', 't2']),
-        reason: '选中两条均逐条归档');
+    expect(app.archivedIds, containsAll(['t1', 't2']), reason: '选中两条均逐条归档');
     expect(app.archivedIds.length, 2);
-    expect(find.byKey(const ValueKey('multi-select-bar')), findsNothing,
-        reason: '批量操作完成退出多选');
+    expect(
+      find.byKey(const ValueKey('multi-select-bar')),
+      findsNothing,
+      reason: '批量操作完成退出多选',
+    );
     expect(find.text('已归档 2 个'), findsOneWidget);
     expect(find.text('项目A运行任务'), findsNothing, reason: '归档后列表剔除');
     expect(find.text('项目B待处理任务'), findsNothing);
@@ -625,8 +726,7 @@ void main() {
     expect(find.byKey(const ValueKey('multi-select-bar')), findsNothing);
   });
   // （2026-11-08 拍板①）：闲时月亮标+后台工作小点。
-  testWidgets('任务卡闲时月亮+后台点（offPeakTaskId/hasBackgroundWork）',
-      (tester) async {
+  testWidgets('任务卡闲时月亮+后台点（offPeakTaskId/hasBackgroundWork）', (tester) async {
     // 窄屏走 _TaskCard（宽屏是紧凑行，月亮在其图标槽）。
     tester.view.physicalSize = const Size(375, 806);
     tester.view.devicePixelRatio = 1.0;
@@ -666,4 +766,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // marketing-claim-1：领取卡插槽在主页 header 下方（_TaskHomeView 内）。
+  testWidgets('领取卡：主页在线态出卡（header 下方）；无卡零占位', (tester) async {
+    await _narrow(tester);
+    final app = _HomeApp();
+    app.tasks = rows();
+    app.marketing = _SlotMarketing(
+      const MarketingDelivery(
+        campaignId: 'cmp-slot',
+        priority: 80,
+        position: 'banner',
+        buttonText: '领取',
+        claimPlanId: 'plan-slot',
+      ),
+    );
+    await tester.pumpWidget(_host(app));
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('官方福利'), findsOneWidget, reason: '文字兜底卡出现');
+    expect(find.text('领取您的专属福利'), findsOneWidget);
+
+    // 无卡：同页零渲染（插槽零高度）。
+    final app2 = _HomeApp();
+    app2.tasks = rows();
+    app2.marketing = _SlotMarketing(null);
+    await tester.pumpWidget(_host(app2));
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('官方福利'), findsNothing);
+  });
 }

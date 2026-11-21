@@ -41,8 +41,10 @@ class _DeepLinkApp extends AppState {
   LinkPhase get phase => LinkPhase.online;
 
   @override
-  Future<ConversationSubscription> ensureConversation(String sessionId,
-      {Object? seedCacheEntry}) async {
+  Future<ConversationSubscription> ensureConversation(
+    String sessionId, {
+    Object? seedCacheEntry,
+  }) async {
     return sub;
   }
 }
@@ -51,14 +53,24 @@ void _seedAndNotify(_Sub sub, int anchorMs) {
   sub.state.applySeed(
     ConversationSeed(
       rows: [
-        {'rowId': 1, 'kind': 'userInput', 'text': '更早的问题', 'createdAt': anchorMs - 60000},
+        {
+          'rowId': 1,
+          'kind': 'userInput',
+          'text': '更早的问题',
+          'createdAt': anchorMs - 60000,
+        },
         {
           'rowId': 2,
           'kind': 'turnHeader',
           'state': 'completedSuccess',
           'createdAt': anchorMs - 1000,
         },
-        {'rowId': 3, 'kind': 'assistantText', 'text': '通知对应的回答', 'createdAt': anchorMs},
+        {
+          'rowId': 3,
+          'kind': 'assistantText',
+          'text': '通知对应的回答',
+          'createdAt': anchorMs,
+        },
       ],
       logEpoch: 'e1',
       seq: 3,
@@ -74,21 +86,19 @@ void _seedAndNotify(_Sub sub, int anchorMs) {
 }
 
 Widget _host(AppState app, {int? deepLinkAtMs}) => AppStateScope(
-      app: app,
-      child: MaterialApp(
-        theme: buildAppTheme(),
-        home: ConversationPage(
-          sessionId: 's1',
-          title: '深链会话',
-          deepLinkAtMs: deepLinkAtMs,
-        ),
-      ),
-    );
+  app: app,
+  child: MaterialApp(
+    theme: buildAppTheme(),
+    home: ConversationPage(
+      sessionId: 's1',
+      title: '深链会话',
+      deepLinkAtMs: deepLinkAtMs,
+    ),
+  ),
+);
 
 void main() {
-  testWidgets('深链浮层：atMs 参数透传 → 「定位到相关消息」出现并可点', (
-    tester,
-  ) async {
+  testWidgets('深链浮层：atMs 参数透传 → 「定位到相关消息」出现并可点', (tester) async {
     tester.view.physicalSize = const Size(375, 806);
     tester.view.devicePixelRatio = 1.0;
     final anchor = DateTime.now().millisecondsSinceEpoch - 5000;
@@ -105,6 +115,14 @@ void main() {
       findsOneWidget,
       reason: 'B5 修复：参数透传后浮层出现（旧时序恒不出现）',
     );
+    // rewards-table-fit-1 同批：本 SDK 带 action 的 SnackBar 默认
+    // persist=true 永不过期（snack_bar.dart:303）——真机「提示不消失」
+    // 家族根因，显式 false。
+    final bar = tester.widget<SnackBar>(
+      find.byKey(const ValueKey('deeplink-prompt')),
+    );
+    expect(bar.persist, isFalse);
+    expect(bar.duration, const Duration(seconds: 5));
 
     // #3 高：点「定位」必须把 center 锚到目标行所属**顶层条目**——
     // 命中行是回合内 assistantText（没有独立 'row-*' 键），旧实现直接
@@ -127,9 +145,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('深链提示排程一次性（#15）：尝试后不再逐帧排 postFrame', (
-    tester,
-  ) async {
+  testWidgets('深链提示排程一次性（#15）：尝试后不再逐帧排 postFrame', (tester) async {
     tester.view.physicalSize = const Size(375, 806);
     tester.view.devicePixelRatio = 1.0;
     final anchor = DateTime.now().millisecondsSinceEpoch - 5000;

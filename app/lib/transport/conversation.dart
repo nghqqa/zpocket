@@ -76,6 +76,15 @@ class ConversationTransport {
   /// From the server hello — required for attachment uploads.
   String? connectionId;
 
+  /// Host hello 的 capabilities（history-first-1）：只读存档。声明纪律是
+  /// **单向**的——clientHello 只有在 Host hello 里见到 `=== true` 的位才能
+  /// 回声明（capabilities 对象 strict，老 Host 见到未知键会整条 clientHello
+  /// 解析失败、握不上手）。桥恢复重握手时随新 hello 覆盖。
+  Map<String, dynamic>? hostCapabilities;
+
+  /// Host 是否明示 historyFirst（缺失/非 true 一律 false）。
+  bool get _hostHistoryFirst => hostCapabilities?['historyFirst'] == true;
+
   ConversationTransport({
     required this.session,
     required this.scope,
@@ -105,6 +114,10 @@ class ConversationTransport {
     _handshakeFuture = null;
     connectionId = null;
     _prep = null;
+    // 对抗审查 ：与 connectionId 同款处置——桥恢复后对端可能换代，
+    // 陈旧 capabilities 位残留会让我们向不再声明该能力的 Host 回声明
+    // （strict 对象=整条握手失败）。重握手时新 hello 覆盖。
+    hostCapabilities = null;
   }
 
   ChannelClient get _channels => session.channels;
@@ -124,6 +137,10 @@ class ConversationTransport {
           _log('[v4] hello: $hello');
           if (hello is Map) {
             connectionId = hello['connectionId'] as String?;
+            final caps = hello['capabilities'];
+            if (caps is Map) {
+              hostCapabilities = caps.cast<String, dynamic>();
+            }
           }
           await _channels.call(channel, 'initializeConversationV4', [
             {
@@ -132,6 +149,12 @@ class ConversationTransport {
               'clientId': clientId,
               'clientKind': 'mobileApp',
               'appVersion': appVersion,
+              // history-first-1：仅 Host 明示 true 才回声明（官方
+              // agentV4ConnectionHandshake.ts:34 条件展开同款；strict
+              // 对象禁未知键，老 Host 收到未知 capabilities 键=整条
+              // 握手解析失败）。
+              if (_hostHistoryFirst)
+                'capabilities': const {'historyFirst': true},
             },
           ]);
           _handshaken = true;
@@ -202,6 +225,15 @@ class ConversationTransport {
       return subscription;
     }
     throw StateError('subscribe: unreachable');
+  }
+
+  /// history-first-1：runtime 初始化失败后的用户重试（官方 SessionPane
+  /// handleRetrySubscribe → store.retry()）——按 sessionId 找活订阅转发
+  /// 其私有实现（仅 failed 态可触发；携带 attemptId 走既有重订阅链）。
+  Future<void> retryInitialization(String sessionId) async {
+    final sub = _subscriptions[sessionId];
+    if (sub == null) return;
+    await sub._retryInitialization();
   }
 
   //transport 级后台驻留态：park 扫描
@@ -354,10 +386,10 @@ class ConversationTransport {
     // 恒 null（协议要求）——旧实现 `cmdKey != null` 对它恒假，新会话
     // 首条消息超时后无「重新核对」可查。先按假键落位，createSession
     // accepted 后迁到 result.sessionId（见 [_pendingCreateSessionKey]）。
-    final cmdKey = sessionId ??
+    final cmdKey =
+        sessionId ??
         (type == 'createSession' ? _pendingCreateSessionKey : null);
-    if (cmdKey != null &&
-        (type == 'sendText' || type == 'createSession')) {
+    if (cmdKey != null && (type == 'sendText' || type == 'createSession')) {
       _lastCommandIdBySession[cmdKey] = '${envelope['commandId']}';
     }
     var res = await _sendCommandWithRetry(
@@ -421,23 +453,18 @@ class ConversationTransport {
     String? sessionId,
   }) async {
     await handshake();
-    final res = await _channels.call(
-      channel,
-      'queryConversationCommandsV4',
-      [
-        {
-          // 官方 host 层 ZCodeAgentCommandsQueryParams
-          // extends ZCodeAgentWorkspaceTarget，经 resolveWorkspaceKey 路由
-          // ——缺 workspacePath 时真机必败（对照官方 zcodeTaskServiceAdapter
-          // 的 {...workspace, commands} 展开形状）。
-          ...scope,
-          'commands': [
-            {'sessionId': sessionId, 'commandId': commandId},
-          ],
-        },
-      ],
-      timeout: const Duration(seconds: 15),
-    );
+    final res = await _channels.call(channel, 'queryConversationCommandsV4', [
+      {
+        // 官方 host 层 ZCodeAgentCommandsQueryParams
+        // extends ZCodeAgentWorkspaceTarget，经 resolveWorkspaceKey 路由
+        // ——缺 workspacePath 时真机必败（对照官方 zcodeTaskServiceAdapter
+        // 的 {...workspace, commands} 展开形状）。
+        ...scope,
+        'commands': [
+          {'sessionId': sessionId, 'commandId': commandId},
+        ],
+      },
+    ], timeout: const Duration(seconds: 15));
     if (res is! Map) return null;
     final results = res['results'];
     if (results is! List || results.isEmpty) return null;
@@ -454,9 +481,8 @@ class ConversationTransport {
   /// 由 createSession 迁到真实会话键——新会话首条消息超时同样有
   /// 「重新核对」可查）。
   static const _pendingCreateSessionKey = '__pendingCreateSession__';
-  String? lastCommandIdOf(String? sessionId) => sessionId == null
-      ? null
-      : _lastCommandIdBySession[sessionId];
+  String? lastCommandIdOf(String? sessionId) =>
+      sessionId == null ? null : _lastCommandIdBySession[sessionId];
 
   /// Sends one command envelope; on timeout (likely a relay drop mid-flight)
   /// waits for bridge recovery and retries once with a fresh commandId.
@@ -499,8 +525,10 @@ class ConversationTransport {
             sessionId: envelope['sessionId'] as String?,
           );
           if (result is Map) {
-            _log('[v4] command converged by query: '
-                '${result['status']} ($commandId)');
+            _log(
+              '[v4] command converged by query: '
+              '${result['status']} ($commandId)',
+            );
             return result;
           }
         } catch (_) {
@@ -614,6 +642,21 @@ class ConversationTransport {
     ]);
   }
 
+  /// 后台 Bash 输出详情（bg-bash-output-1：v4/conversation/backgroundBashOutput
+  /// 只读查询，服务名 backgroundBashOutputV4——zcodeAgent.ts:1055，服务方法名
+  /// ≠CLI wire 名）。existing-only：不冷恢复会话、零模型请求；固定尾读
+  /// 8192 bytes。响应 union（background-bash-output.ts:6-22）：
+  /// kind='output'{workId,status 六态,output≤8KiB,truncated,outputPath} 或
+  /// kind=unavailable/unsupported/read_failed 错误态——页面层统一映射，
+  /// transport 原样透传。子会话后台 bash 的归属由服务端沿 parentID 遍历，
+  /// 调用方传任务所属会话（works 条目 childSessionId ?? 当前会话）。
+  Future<dynamic> backgroundBashOutput(String sessionId, String workId) async {
+    await handshake();
+    return _channels.call(channel, 'backgroundBashOutputV4', [
+      {...scope, 'sessionId': sessionId, 'workId': workId},
+    ]);
+  }
+
   /// run 事件日志（workflowRunEvents：journal 分页，afterSequence 严格
   /// 大于；缺省页大小 CLI 侧钳制 ≤500）。
   Future<dynamic> workflowRunEvents(
@@ -646,20 +689,16 @@ class ConversationTransport {
     int? limit,
   }) async {
     await handshake();
-    return _channels.call(
-      channel,
-      'conversationWorkflowRunArtifactDataV4',
-      [
-        {
-          ...scope,
-          'sessionId': sessionId,
-          'runId': runId,
-          'artifactId': artifactId,
-          if (afterSequence != null) 'afterSequence': afterSequence,
-          if (limit != null) 'limit': limit,
-        },
-      ],
-    );
+    return _channels.call(channel, 'conversationWorkflowRunArtifactDataV4', [
+      {
+        ...scope,
+        'sessionId': sessionId,
+        'runId': runId,
+        'artifactId': artifactId,
+        if (afterSequence != null) 'afterSequence': afterSequence,
+        if (limit != null) 'limit': limit,
+      },
+    ]);
   }
 
   /// run 产物清单（workflowRunArtifacts：全量元数据，含 versions/交付物
@@ -718,9 +757,71 @@ class ConversationTransport {
     String taskId,
     String executionId,
   ) => sendCommand(sessionId, 'stopSubagent', {
-        'taskId': taskId,
-        'executionId': executionId,
-      });
+    'taskId': taskId,
+    'executionId': executionId,
+  });
+
+  /// 恢复被打断的工作流 run（workflow-control-1 批C：官方 command.ts:359-365
+  /// {workId, name?}——workId≡runId（与 cancelBackgroundWork 同一身份等式），
+  /// 可恢复集=cancelled∪failed+Interrupted 由服务端裁决（run 摘要 resumable
+  /// 位是 UI 依据）；name 可选喂恢复后完成通知主题（桌面重启后原
+  /// CreateWorkflow input 不可得）。刻意不带 baseRevision（workflowRuns 面
+  /// 免 revision）。拒绝=fault.command.workflowRunResumeRejected.<reason>
+  /// （7 词表）以 ACK failed 返回；能力缺席（无 dwf 端口/灰度关）=
+  /// fault.command.capabilityUnsupported。
+  Future<dynamic> resumeWorkflowRun(
+    String sessionId,
+    String workId, {
+    String? name,
+  }) => sendCommand(sessionId, 'resumeWorkflowRun', {
+    'workId': workId,
+    if (name != null) 'name': name,
+  });
+
+  /// amend 载荷纯构造（workflow-control-1 批C）：官方三态纪律（command 拆
+  /// 出的 workflow-run-settings-command.ts:11-13）——**省略=沿用 /
+  /// 显式 null=回默认（会话模型/默认并发）/ 值=设定**，GUI 只发用户改过的
+  /// 项。Dart 侧以 *Value（携带该值）/*Reset（显式 null）表达，两者皆缺=
+  /// 键省略。@visibleForTesting 供单测钉三态形状。
+  @visibleForTesting
+  Map<String, dynamic> amendWorkflowRunSettingsPayload(
+    String workId, {
+    String? subagentModelValue,
+    bool subagentModelReset = false,
+    int? maxConcurrencyValue,
+    bool maxConcurrencyReset = false,
+  }) => {
+    'workId': workId,
+    if (subagentModelReset || subagentModelValue != null)
+      // reset 优先（互斥由 UI 保证）：显式 null=回会话模型。
+      'subagentModel': subagentModelReset ? null : subagentModelValue,
+    if (maxConcurrencyReset || maxConcurrencyValue != null)
+      'maxConcurrency': maxConcurrencyReset ? null : maxConcurrencyValue,
+  };
+
+  /// 运行中调整 run 配置（批C：官方 amendWorkflowRunSettings——修订=生成
+  /// 新 run 停旧 run 非原地改；结果 ACK.result={runId,toolCallId,
+  /// supersededRunId?} 指新 run，修订链渲染既有承接）。拒绝 8 词表
+  /// fault.command.workflowRunSettingsRejected.<reason>；所有拒绝发生在
+  /// 停下/新建任何东西之前。
+  Future<dynamic> amendWorkflowRunSettings(
+    String sessionId,
+    String workId, {
+    String? subagentModelValue,
+    bool subagentModelReset = false,
+    int? maxConcurrencyValue,
+    bool maxConcurrencyReset = false,
+  }) => sendCommand(
+    sessionId,
+    'amendWorkflowRunSettings',
+    amendWorkflowRunSettingsPayload(
+      workId,
+      subagentModelValue: subagentModelValue,
+      subagentModelReset: subagentModelReset,
+      maxConcurrencyValue: maxConcurrencyValue,
+      maxConcurrencyReset: maxConcurrencyReset,
+    ),
+  );
 
   /// ① 上下文组成下钻（早前批次；早前批次 修正通道与信封）：调 zcode-agent
   /// 服务方法 getContextComposition（zcodeAgent.ts:1105-1111——服务方法名
@@ -744,14 +845,10 @@ class ConversationTransport {
     String sessionId,
     Map<String, dynamic> target,
     List<String> reviewItemIds,
-  ) =>
-      sendCommand(sessionId, 'respondWorkspaceHookReview', {
-        ...target,
-        'decision': {
-          'action': 'trust_selected',
-          'reviewItemIds': reviewItemIds,
-        },
-      });
+  ) => sendCommand(sessionId, 'respondWorkspaceHookReview', {
+    ...target,
+    'decision': {'action': 'trust_selected', 'reviewItemIds': reviewItemIds},
+  });
 
   /// 写盘开关（官方 toggleWorkspaceHookReviewItem—— 勘误：此命令
   /// 原子修改 .zcode/config.json 的 enabled gate 并以 generation+1 作废
@@ -762,12 +859,11 @@ class ConversationTransport {
     Map<String, dynamic> target,
     String reviewItemId,
     bool enabled,
-  ) =>
-      sendCommand(sessionId, 'toggleWorkspaceHookReviewItem', {
-        ...target,
-        'reviewItemId': reviewItemId,
-        'enabled': enabled,
-      });
+  ) => sendCommand(sessionId, 'toggleWorkspaceHookReviewItem', {
+    ...target,
+    'reviewItemId': reviewItemId,
+    'enabled': enabled,
+  });
 
   Future<dynamic> sendText(
     String sessionId,
@@ -1166,7 +1262,6 @@ class ConversationTransport {
     };
   }
 
-
   /// （2026-10-19 审查）：附件预读客户端总量上限——只信服务端 totalBytes
   /// 时理论上限 1024×384KB（坏数据/协议漂移会把超大附件整段驻留内存）。
   /// 32MB 覆盖正常图片/截图预览，超限抛错由查看器错误路径呈现。
@@ -1243,8 +1338,8 @@ class ConversationTransport {
     String sessionId,
     String interactionId,
   ) => sendCommand(sessionId, 'snoozeInteractionAutoResolution', {
-        'interactionId': interactionId,
-      });
+    'interactionId': interactionId,
+  });
 
   Future<dynamic> rowsRange(
     String sessionId, {
@@ -1308,7 +1403,8 @@ class ConversationTransport {
     Object? lastError;
     for (var attempt = 1; attempt <= 5; attempt++) {
       if (attempt > 1 && DateTime.now().isAfter(budgetEnd)) {
-        throw lastError ?? StateError('subscribeSessionsIndex: retry budget exceeded');
+        throw lastError ??
+            StateError('subscribeSessionsIndex: retry budget exceeded');
       }
       SessionsIndexSubscription? subscription;
       try {
@@ -1351,7 +1447,8 @@ class ConversationTransport {
     Object? lastError;
     for (var attempt = 1; attempt <= 5; attempt++) {
       if (attempt > 1 && DateTime.now().isAfter(budgetEnd)) {
-        throw lastError ?? StateError('subscribeTasksIndex: retry budget exceeded');
+        throw lastError ??
+            StateError('subscribeTasksIndex: retry budget exceeded');
       }
       TasksIndexSubscription? subscription;
       try {
@@ -1568,10 +1665,8 @@ class ConversationTransport {
 /// 的调用形式与 getter 完全一致（`conv.pendingCreateSessionCommandId()` /
 /// `conv?.pendingCreateSessionCommandId()`）。
 extension ConversationDraftRecheck on ConversationTransport {
-  String? pendingCreateSessionCommandId() =>
-      this._lastCommandIdBySession[
-        ConversationTransport._pendingCreateSessionKey
-      ];
+  String? pendingCreateSessionCommandId() => this
+      ._lastCommandIdBySession[ConversationTransport._pendingCreateSessionKey];
 }
 
 // P0 文件下载批（2026-11-13）：file 通道工作区文件字节下载。
@@ -1767,6 +1862,12 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
   /// Extra subscribe request args (merged with scope).
   Map<String, dynamic> get _subscribeArgs;
 
+  /// 取「下一次订阅 RPC」的参数并消费一次性意图（history-first-1 对抗
+  /// 审查修复）：基类默认直接用 [_subscribeArgs]；会话订阅覆写为
+  /// 发出即清 retry 意图——官方 store.retry 只在单次 connect 携带，失败
+  /// 后的 3s 自动重试链/桥恢复重订阅不得重跑失败尝试。
+  Map<String, dynamic> _takeSubscribeArgs() => _subscribeArgs;
+
   /// Extra unsubscribe request args.
   Map<String, dynamic> get _unsubscribeArgs;
 
@@ -1920,7 +2021,7 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
         _channel,
         _subscribeMethod,
         [
-          {..._wireScope, ..._subscribeArgs},
+          {..._wireScope, ..._takeSubscribeArgs()},
         ],
         // The desktop may need to warm the session runtime before answering —
         // give the subscribe call generous room instead of timing out at the
@@ -2021,9 +2122,13 @@ abstract class _SubscriptionBase<T extends ChangeNotifier> {
       // （批2）：旧 id 作废时补退订——非换桥场景（同桥 degraded）
       // 服务端订阅会残留；失败静默（换桥时本就不可达）。
       if (staleId != null) {
-        unawaited(_transport._channels.call(_channel, _unsubscribeMethod, [
-          {..._wireScope, 'subscriptionId': staleId, ..._unsubscribeArgs},
-        ]).catchError((_) {}));
+        unawaited(
+          _transport._channels
+              .call(_channel, _unsubscribeMethod, [
+                {..._wireScope, 'subscriptionId': staleId, ..._unsubscribeArgs},
+              ])
+              .catchError((_) {}),
+        );
       }
       _scheduleResubscribeRetry();
       return;
@@ -2260,11 +2365,17 @@ class ConversationSeed {
 Map<String, dynamic> conversationSubscribeArgs(
   String sessionId,
   String? logEpoch,
-  int seq,
-) => {
+  int seq, {
+  String? retryInitialization,
+}) => {
   'sessionId': sessionId,
   if (logEpoch != null && logEpoch.isNotEmpty)
     'base': {'logEpoch': logEpoch, 'seq': seq},
+  // history-first-1：官方顶层可选字段（subscribeParamsSchema:129）——携带
+  // 观察到的失败 attemptId，仅匹配当前 failed 尝试才会触发服务端重跑完整
+  // resume。Host 只在连接声明 historyFirst 时才转发给 CLI，因此发送侧
+  // 同样以 host 位门控（_subscribeArgs），防 strict schema 误伤旧桌面。
+  if (retryInitialization != null) 'retryInitialization': retryInitialization,
 };
 
 class ConversationSubscription extends _SubscriptionBase<ConversationState> {
@@ -2296,6 +2407,27 @@ class ConversationSubscription extends _SubscriptionBase<ConversationState> {
   /// 帧到达/静默解除清零。
   int _quietTicks = 0;
 
+  /// history-first-1：失败重试意图（官方 conversationProjectionStore.retry
+  /// 同款一次性）——携带当前 failed attemptId 随下一次订阅发出；ACK 后
+  /// 清除，普通重连/看门狗重订阅不重跑失败尝试（官方语义）。
+  String? _retryInitializationIntent;
+
+  /// runtime 初始化失败后的用户重试（官方 SessionPane handleRetrySubscribe
+  /// → store.retry()）：仅 failed 态可触发；带 attemptId 重订阅复用
+  /// _resubscribe 既有互斥/退订/3s 重试链。新快照到达后状态自然流转
+  /// （新 attempt initializing → ready/failed）。
+  /// 私有形态（history-first-1）：公有成员会打破全部 `implements
+  /// ConversationSubscription` 的测试假件——私有成员不进库外接口，调用
+  /// 经 ConversationTransport.retryInitialization 转发。
+  Future<void> _retryInitialization() async {
+    final ri = state.runtimeInitialization;
+    if (ri == null || ri['status'] != 'failed') return;
+    final attempt = ri['attemptId'];
+    if (attempt is! String || attempt.isEmpty) return;
+    _retryInitializationIntent = attempt;
+    await _resubscribe();
+  }
+
   ConversationSubscription._(
     ConversationTransport transport,
     this.sessionId, {
@@ -2316,6 +2448,23 @@ class ConversationSubscription extends _SubscriptionBase<ConversationState> {
   @override
   Map<String, dynamic> get _subscribeArgs =>
       conversationSubscribeArgs(sessionId, state.logEpoch, state.seq);
+
+  @override
+  Map<String, dynamic> _takeSubscribeArgs() {
+    // 一次性意图随本次 RPC 发出即消费（strict 门控见函数注释）；
+    // RPC 失败=意图已随该次尝试消费，自动重试链不再携带。
+    final retry = _transport._hostHistoryFirst
+        ? _retryInitializationIntent
+        : null;
+    _retryInitializationIntent = null;
+    return conversationSubscribeArgs(
+      sessionId,
+      state.logEpoch,
+      state.seq,
+      retryInitialization: retry,
+    );
+  }
+
   @override
   Map<String, dynamic> get _unsubscribeArgs => const {};
   @override
@@ -2335,6 +2484,9 @@ class ConversationSubscription extends _SubscriptionBase<ConversationState> {
       '[v4] subscribe ack mode=${ack['mode']} '
       'epoch=${ack['logEpoch']} (seed=${_seed?.logEpoch ?? 'none'})',
     );
+    // history-first-1 对抗审查修复 ：重试意图已在 _takeSubscribeArgs
+    // 发出时消费（官方 store.retry 只在单次 connect 携带），ACK 侧无清
+    // 除动作。
     // applied-base 判据（官方 connect 同款）：ACK 前 state.logEpoch 是
     // 本地投影水位（缓存种子/上一代订阅继承）——仅当服务端 resume 承认
     // 且 epoch 与之一致，旧投影才是有效基底。snapshot 模式或 epoch 换代
@@ -2411,9 +2563,7 @@ class ConversationSubscription extends _SubscriptionBase<ConversationState> {
     // 等于本地 seq 也不得拼接（新 epoch 的 delta 拼到旧投影=数值对得上但
     // 内容错代）；走既有 resync 请求全量基底。
     final payload = frame['payload'];
-    if (payload is Map &&
-        payload['kind'] == 'deltas' &&
-        !_appliedBase) {
+    if (payload is Map && payload['kind'] == 'deltas' && !_appliedBase) {
       _transport._log('[$_logTag] delta without applied base -> resync');
       unawaited(_resync());
       return;
@@ -3334,6 +3484,12 @@ class ConversationState extends ChangeNotifier {
     seq = seed.seq;
     firstRowId = seed.firstRowId;
     totalCount = seed.totalCount;
+    // history-first-1 对抗审查修复 ：不再剥除 runtimeInitialization——
+    // 种子与 base 水位必须完全一致（见 ConversationSeed 注释的水位不变
+    // 量，pendingInteractions 同款教训）：resume 续传零重放时该值就是
+    // 服务端权威态，剥除会让 failed 态与重试入口在「重开 app」主路径
+    // 永久丢失。陈旧误判由 UI 消费侧解决（运行时门控只认活订阅，缓存
+    // 预渲不驱动发送门/失败条）。
     snapshot = seed.snapshot == null
         ? null
         : Map<String, dynamic>.of(seed.snapshot!);
@@ -3811,7 +3967,10 @@ class ConversationState extends ChangeNotifier {
     if (subs is! Map) return const [];
     final running = subs['running'];
     if (running is! List) return const [];
-    return running.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+    return running
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .toList();
   }
 
   Map<String, dynamic>? get goal =>
@@ -3829,4 +3988,21 @@ class ConversationState extends ChangeNotifier {
     if (list is! List) return const [];
     return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
   }
+
+  /// history-first-1：runtime 初始化三态（官方 runtimeInitializationSchema，
+  /// snapshot 与 state.updated patch 顶层同源；**缺席=旧协议完整就绪语义**，
+  /// 旧桌面/未声明 historyFirst 的连接恒 null）。
+  Map<String, dynamic>? get runtimeInitialization =>
+      (snapshot?['runtimeInitialization'] as Map?)?.cast<String, dynamic>();
+
+  /// 执行门（官方 runtimeBlocked 同口径）：initializing/failed 期间禁发
+  /// ——服务端命令层会以 guard.runtimeInitializing/Failed 拒绝，本地前置
+  /// 免干等。
+  bool get runtimeInitializationBlocked {
+    final status = runtimeInitialization?['status'];
+    return status is String && status != 'ready';
+  }
+
+  bool get runtimeInitializationFailed =>
+      runtimeInitialization?['status'] == 'failed';
 }

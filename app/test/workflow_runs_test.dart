@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -73,7 +74,11 @@ class _WfApp extends AppState {
   final Map<String, dynamic> runsResult;
   final Map<String, dynamic> detailResult;
   final String artifactText;
-  _WfApp({required this.runsResult, required this.detailResult, required this.artifactText});
+  _WfApp({
+    required this.runsResult,
+    required this.detailResult,
+    required this.artifactText,
+  });
 
   /// 快照 workflowRuns 投影（唯一携带 lastEventSequence 的源——官方
   /// run 目录 schema 没有该字段）。
@@ -94,8 +99,8 @@ class _WfApp extends AppState {
 
   @override
   Map<String, ConversationState> get conversationStates => {
-        's1': projectionState,
-      };
+    's1': projectionState,
+  };
 
   @override
   LinkPhase get phase => LinkPhase.online;
@@ -107,14 +112,21 @@ class _WfApp extends AppState {
     'workspacePath': '/example-workspace',
   };
   @override
-  Future<ConversationSubscription> ensureConversation(String sessionId,
-      {Object? seedCacheEntry}) async {
+  Future<ConversationSubscription> ensureConversation(
+    String sessionId, {
+    Object? seedCacheEntry,
+  }) async {
     final sub = _WfSub(sessionId);
     sub.state.applySeed(
       ConversationSeed(
         rows: const [
           {'rowId': 1, 'kind': 'userInput', 'text': '闲时整理文档'},
-          {'rowId': 2, 'kind': 'turnHeader', 'state': 'completedSuccess', 'entityId': 'e1'},
+          {
+            'rowId': 2,
+            'kind': 'turnHeader',
+            'state': 'completedSuccess',
+            'entityId': 'e1',
+          },
         ],
         logEpoch: 'e1',
         seq: 2,
@@ -136,7 +148,12 @@ class _WfApp extends AppState {
         sessionId: id,
         rows: const [
           {'rowId': 1, 'kind': 'userInput', 'text': '闲时整理文档'},
-          {'rowId': 2, 'kind': 'turnHeader', 'state': 'completedSuccess', 'entityId': 'e1'},
+          {
+            'rowId': 2,
+            'kind': 'turnHeader',
+            'state': 'completedSuccess',
+            'entityId': 'e1',
+          },
         ],
         logEpoch: 'e1',
         lastSeq: 2,
@@ -149,6 +166,7 @@ class _WfApp extends AppState {
         savedAt: DateTime.now().millisecondsSinceEpoch,
         byteSize: 1024,
       );
+
   /// ：注入加载失败（empty-error 销账用例）。
   bool throwRuns = false;
   @override
@@ -156,9 +174,14 @@ class _WfApp extends AppState {
     if (throwRuns) throw StateError('rpc down');
     return runsResult;
   }
+
   @override
-  Future<dynamic> workflowRunEvents(String sessionId, String runId,
-      {int? afterSequence, int? limit}) async {
+  Future<dynamic> workflowRunEvents(
+    String sessionId,
+    String runId, {
+    int? afterSequence,
+    int? limit,
+  }) async {
     eventCalls.add(afterSequence);
     final builder = eventPageBuilder;
     if (builder != null) return builder(eventCalls.length, afterSequence);
@@ -208,11 +231,7 @@ void main() {
   test('offPeakCreateSummary：JSON 串/嵌套/平铺/缺 id 回退', () {
     // 官方语义：output 可为 JSON 字符串；{task:{…}} 或平铺。
     final json = jsonEncode({
-      'task': {
-        'offPeakTaskId': 'op-1',
-        'title': '整理收件箱',
-        'queuePosition': 2,
-      },
+      'task': {'offPeakTaskId': 'op-1', 'title': '整理收件箱', 'queuePosition': 2},
     });
     final s1 = offPeakCreateSummary({
       'toolName': 'OffPeakCreate',
@@ -227,7 +246,12 @@ void main() {
     expect(s2?.offPeakTaskId, 'op-2');
     expect(s2?.queuePosition, isNull);
     // 缺 id=无效，回退普通工具行。
-    expect(offPeakCreateSummary({'output': {'title': 'x'}}), isNull);
+    expect(
+      offPeakCreateSummary({
+        'output': {'title': 'x'},
+      }),
+      isNull,
+    );
     expect(offPeakCreateSummary({'output': 'not-json'}), isNull);
     expect(offPeakCreateSummary(const {}), isNull);
   });
@@ -240,8 +264,11 @@ void main() {
     );
     // 直接泵目录页（菜单入口旅程已由入口用例覆盖；此处锁空/错状态本体）。
     await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
-    expect(find.textContaining(tr('本会话没有工作流运行')), findsOneWidget,
-        reason: '空态文案（此前 ui-coverage 声称覆盖但零断言）');
+    expect(
+      find.textContaining(tr('本会话没有工作流运行')),
+      findsOneWidget,
+      reason: '空态文案（此前 ui-coverage 声称覆盖但零断言）',
+    );
   });
 
   testWidgets('review-fix-1 销账：目录加载失败可重试（empty-error 账实一致）', (tester) async {
@@ -253,8 +280,11 @@ void main() {
     app.throwRuns = true;
     // 直接泵目录页（菜单入口旅程已由入口用例覆盖；此处锁空/错状态本体）。
     await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
-    expect(find.textContaining(tr('加载失败')), findsOneWidget,
-        reason: '错误态呈现（此前零断言）');
+    expect(
+      find.textContaining(tr('加载失败')),
+      findsOneWidget,
+      reason: '错误态呈现（此前零断言）',
+    );
     expect(find.text(tr('重试')), findsOneWidget, reason: '失败可重试');
   });
 
@@ -294,10 +324,7 @@ void main() {
     // 会话行里放一个 OffPeakCreate 工具行（输出=JSON 串）。
     await _pump(
       tester,
-      _host(
-        app,
-        const ConversationPage(sessionId: 's1', title: '工作流测试'),
-      ),
+      _host(app, const ConversationPage(sessionId: 's1', title: '工作流测试')),
     );
     // 直接单测卡片渲染（会话 fixture 注入工具行走缓存行链路较重，
     // 卡片本体为纯函数+静态 UI，这里钉 UI 形态）。
@@ -328,25 +355,30 @@ void main() {
     // 直达产物下载页——指引+收集产物+运行列表同页）。
     await _pump(
       tester,
-      _host(
-        app,
-        const ConversationPage(sessionId: 's1', title: '工作流测试'),
-      ),
+      _host(app, const ConversationPage(sessionId: 's1', title: '工作流测试')),
     );
     await tester.tap(find.byKey(const ValueKey('downloads-entry')));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.byType(WorkflowRunsPage), findsOneWidget,
-        reason: '顶栏下载图标直达产物下载页');
+    expect(
+      find.byType(WorkflowRunsPage),
+      findsOneWidget,
+      reason: '顶栏下载图标直达产物下载页',
+    );
     expect(find.text('产物下载'), findsWidgets, reason: 'hub 形态标题');
-    expect(find.byKey(const ValueKey('hub-collect-button')), findsOneWidget,
-        reason: '收集产物入口在场');
-    expect(find.textContaining('如何下载会话中的文件'), findsOneWidget,
-        reason: '下载指引进场');
+    expect(
+      find.byKey(const ValueKey('hub-collect-button')),
+      findsOneWidget,
+      reason: '收集产物入口在场',
+    );
+    expect(find.textContaining('如何下载会话中的文件'), findsOneWidget, reason: '下载指引进场');
     // 演示模式批：行内产物计数（投影自带元数据；0/缺席不显示）。
-    expect(find.textContaining('产物（2）'), findsOneWidget,
-        reason: '有产物的 run 行显示计数');
+    expect(
+      find.textContaining('产物（2）'),
+      findsOneWidget,
+      reason: '有产物的 run 行显示计数',
+    );
     await tester.pageBack();
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -432,14 +464,17 @@ void main() {
 
     expect(find.text('每日简报'), findsOneWidget);
     expect(find.text('已完成'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('workflow-run-run-abc123def456')));
+    await tester.tap(
+      find.byKey(const ValueKey('workflow-run-run-abc123def456')),
+    );
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
     // 目录入口按投影联接反推最新页：afterSequence = 1200-500。
-    expect(app.eventCalls, [700],
-        reason: '官方目录无 lastEventSequence，必须走投影联接（红=旧实现恒 null 从头取）');
+    expect(app.eventCalls, [
+      700,
+    ], reason: '官方目录无 lastEventSequence，必须走投影联接（红=旧实现恒 null 从头取）');
     // 详情：追平后标题诚实（复用可翻译的最新 N 条形态）+ 事件倒序
     // 首条=#2 + 产物清单。
     expect(find.text('事件（最新 2 条）'), findsOneWidget);
@@ -447,8 +482,11 @@ void main() {
     // 官方升序夹具 + reversed 渲染：最新事件在上。
     final newestY = tester.getTopLeft(find.text('#2')).dy;
     final oldestY = tester.getTopLeft(find.text('#1')).dy;
-    expect(newestY, lessThan(oldestY),
-        reason: '事件区必须「最新在前」（降序夹具此前掩盖了 reversed 语义）');
+    expect(
+      newestY,
+      lessThan(oldestY),
+      reason: '事件区必须「最新在前」（降序夹具此前掩盖了 reversed 语义）',
+    );
     expect(find.textContaining('简报正文'), findsOneWidget);
     expect(find.textContaining('简报摘要'), findsOneWidget);
     // （视觉走查）：产物卡此前零间距叠放+行高 39.7——两张卡
@@ -459,10 +497,16 @@ void main() {
     final cardB = tester.getRect(
       find.byKey(const ValueKey('workflow-artifact-art-2')),
     );
-    expect(cardB.top - cardA.bottom, greaterThanOrEqualTo(6),
-        reason: '相邻产物卡垂直间距 ≥6dp（修复前=0）');
-    expect(cardA.height, greaterThanOrEqualTo(44),
-        reason: '产物卡行高 ≥44（修复前 39.7）');
+    expect(
+      cardB.top - cardA.bottom,
+      greaterThanOrEqualTo(6),
+      reason: '相邻产物卡垂直间距 ≥6dp（修复前=0）',
+    );
+    expect(
+      cardA.height,
+      greaterThanOrEqualTo(44),
+      reason: '产物卡行高 ≥44（修复前 39.7）',
+    );
     expect(cardB.height, greaterThanOrEqualTo(44));
 
     // 点产物 → 分块读取 → 文本预览页。
@@ -477,8 +521,7 @@ void main() {
   // run 行状态/时间必须贴卡片右缘——旧实现 Expanded+Flexible 双分，
   // 状态只画半行宽的一小段、剩余空间全落行尾（时间不靠右+长标题提前
   // 省略）。红=修复前 card.right - time.right ≈ 99dp（87 死区+12 内边距）。
-  testWidgets('视觉：run 行状态/时间贴卡片右缘（红=右侧 87dp 死区）',
-      (tester) async {
+  testWidgets('视觉：run 行状态/时间贴卡片右缘（红=右侧 87dp 死区）', (tester) async {
     tester.view.physicalSize = const Size(375, 806);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -503,19 +546,22 @@ void main() {
     ]);
     await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
     expect(find.text('每日简报'), findsOneWidget);
-    final card =
-        tester.getRect(find.byKey(const ValueKey('workflow-run-run-align')));
+    final card = tester.getRect(
+      find.byKey(const ValueKey('workflow-run-run-align')),
+    );
     final time = tester.getRect(find.textContaining('天前'));
-    expect(card.right - time.right, lessThan(20),
-        reason: '时间贴卡片右缘（12 内边距；修复前≈99dp=87 死区+内边距）');
+    expect(
+      card.right - time.right,
+      lessThan(20),
+      reason: '时间贴卡片右缘（12 内边距；修复前≈99dp=87 死区+内边距）',
+    );
     // 状态紧跟时间左侧，同簇右对齐（不再各自参差）。
     final status = tester.getRect(find.text('已完成'));
     expect(time.left - status.right, lessThan(10));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('目录入口 + 投影联接：hasMore 未追平 → 加载更多在场且继续翻页',
-      (tester) async {
+  testWidgets('目录入口 + 投影联接：hasMore 未追平 → 加载更多在场且继续翻页', (tester) async {
     final app = _WfApp(
       runsResult: const {
         'runs': [
@@ -553,8 +599,11 @@ void main() {
 
     // 首载从 700 起逐页追到 >=1200（5 页），未到顶 → 诚实标题+按钮。
     expect(app.eventCalls.first, 700);
-    expect(app.eventCalls.length, 5,
-        reason: '追平即停（700→800→900→1000→1100→末页 1200）');
+    expect(
+      app.eventCalls.length,
+      5,
+      reason: '追平即停（700→800→900→1000→1100→末页 1200）',
+    );
     expect(find.textContaining('已加载至 #1200'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('workflow-events-load-more')),
@@ -567,8 +616,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(app.eventCalls.last, 1200, reason: '手动续页从已加载末条之后继续');
-    expect(find.text('#1300'), findsOneWidget,
-        reason: '续页事件已追加渲染（精确匹配行文本，标题的 #1300 不算）');
+    expect(
+      find.text('#1300'),
+      findsOneWidget,
+      reason: '续页事件已追加渲染（精确匹配行文本，标题的 #1300 不算）',
+    );
   });
 
   testWidgets('无投影序号：官方语义从头取，标题只敢称「最早」', (tester) async {
@@ -596,8 +648,11 @@ void main() {
       ),
     );
     expect(app.eventCalls, [null], reason: '无序号=不传 afterSequence（官方从头取）');
-    expect(find.text('最早 2 条'), findsOneWidget,
-        reason: '从头取的页不许标「最新」（旧实现标题撒谎的红绿）');
+    expect(
+      find.text('最早 2 条'),
+      findsOneWidget,
+      reason: '从头取的页不许标「最新」（旧实现标题撒谎的红绿）',
+    );
   });
 
   // 修订链（supersededBy，官方 AmendWorkflow 语义）：run 被「调整」
@@ -643,8 +698,7 @@ void main() {
     await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
     // 目录行：停止原因词替换状态词（72dp 状态位放不下「已停止 · 已被
     // 替代」全串；官方目录同信息）。
-    expect(find.text('已被替代'), findsOneWidget,
-        reason: '红=旧实现只显示「已停止」，修订链事实不可见');
+    expect(find.text('已被替代'), findsOneWidget, reason: '红=旧实现只显示「已停止」，修订链事实不可见');
     expect(find.text('已停止'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('workflow-run-dwfrun-old')));
@@ -654,7 +708,9 @@ void main() {
     // 详情血缘行：前驱侧=已被替代+后继 runId，投影可联接 → 可点。
     expect(find.textContaining('已被替代，后继 run dwfrun-new'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('workflow-lineage-supersededBy-dwfrun-new')));
+    await tester.tap(
+      find.byKey(const ValueKey('workflow-lineage-supersededBy-dwfrun-new')),
+    );
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -662,8 +718,7 @@ void main() {
     expect(find.textContaining('调整自 run dwfrun-old'), findsOneWidget);
   });
 
-  testWidgets('修订链负向：普通 stopped 仍「已停止」；自引用血缘不可点',
-      (tester) async {
+  testWidgets('修订链负向：普通 stopped 仍「已停止」；自引用血缘不可点', (tester) async {
     final app = _WfApp(
       runsResult: const {
         'runs': [
@@ -713,11 +768,7 @@ void main() {
   testWidgets('修订链：会话内 run 卡种类词「工作流已被替代」', (tester) async {
     await tester.pumpWidget(
       _host(
-        _WfApp(
-          runsResult: const {},
-          detailResult: const {},
-          artifactText: '',
-        ),
+        _WfApp(runsResult: const {}, detailResult: const {}, artifactText: ''),
         Scaffold(
           body: WorkflowRunCard(
             row: const {
@@ -742,7 +793,668 @@ void main() {
     );
     // 官方 v4 轮尾摘要卡（WorkflowCardChrome.tsx:41-54）：stopped+
     // superseded 换「工作流已被替代」种类词。
-    expect(find.text('工作流已被替代'), findsOneWidget,
-        reason: '红=旧实现显示「已停止」工具态/状态词，修订事实不可见');
+    expect(
+      find.text('工作流已被替代'),
+      findsOneWidget,
+      reason: '红=旧实现显示「已停止」工具态/状态词，修订事实不可见',
+    );
   });
+
+  controlTests();
+}
+
+// ---- 批C（workflow-control-1）：恢复/配置 ----
+
+/// resume/amend/模型目录可注入的扩展夹具。
+class _WfControlApp extends _WfApp {
+  _WfControlApp({
+    required super.runsResult,
+    required super.detailResult,
+    required super.artifactText,
+  });
+
+  final resumeCalls = <(String, String, String?)>[];
+  Map<String, dynamic> resumeReply = const {'status': 'accepted'};
+
+  final amendCalls = <(String, String, String?, bool, int?, bool)>[];
+  Map<String, dynamic> amendReply = const {'status': 'accepted'};
+
+  @override
+  Future<dynamic> resumeWorkflowRun(
+    String sessionId,
+    String workId, {
+    String? name,
+  }) async {
+    resumeCalls.add((sessionId, workId, name));
+    return resumeReply;
+  }
+
+  @override
+  Future<dynamic> amendWorkflowRunSettings(
+    String sessionId,
+    String workId, {
+    String? subagentModelValue,
+    bool subagentModelReset = false,
+    int? maxConcurrencyValue,
+    bool maxConcurrencyReset = false,
+  }) async {
+    amendCalls.add((
+      sessionId,
+      workId,
+      subagentModelValue,
+      subagentModelReset,
+      maxConcurrencyValue,
+      maxConcurrencyReset,
+    ));
+    return amendReply;
+  }
+
+  @override
+  Future<List<dynamic>> modelSelectionOptions() async => [
+    ConfigOption.fromMap(const {
+      'id': 'model',
+      'name': '模型',
+      'type': 'select',
+      'options': [
+        {'value': 'zai/glm-5.3', 'name': 'GLM-5.3', 'modelProviderName': '智谱'},
+        {
+          'value': 'bigmodel/glm-5.3-flash',
+          'name': 'GLM-5.3-Flash',
+          'modelProviderName': 'BigModel',
+        },
+      ],
+    }),
+  ];
+}
+
+const _wfControlStoppedRun = {
+  'runs': [
+    {
+      'runId': 'run-stopped1',
+      'toolCallId': 'tc-s1',
+      'label': '发布门检查',
+      'status': 'stopped',
+      'updatedAt': 1,
+      'resumable': true,
+    },
+  ],
+};
+
+const _wfControlDetail = {
+  'events': [
+    {'sequence': 1, 'type': 'run.started', 'payload': {}},
+  ],
+  'hasMore': false,
+  'artifacts': [],
+};
+
+Future<void> _openDetail(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('workflow-run-run-stopped1')));
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
+void controlTests() {
+  test('fault 人话：capabilityUnsupported/恢复词表/配置词表/未知回退', () {
+    expect(
+      workflowCommandFaultText('fault.command.capabilityUnsupported', ''),
+      contains('动态工作流'),
+    );
+    expect(
+      workflowCommandFaultText(
+        'fault.command.workflowRunResumeRejected.not_resumable',
+        '',
+      ),
+      contains('仅已取消或被中断'),
+    );
+    expect(
+      workflowCommandFaultText(
+        'fault.command.workflowRunResumeRejected.compile_failed',
+        'line 9',
+      ),
+      '脚本编译失败：line 9',
+    );
+    expect(
+      workflowCommandFaultText(
+        'fault.command.workflowRunSettingsRejected.model_unavailable',
+        '',
+      ),
+      '所选模型不可用',
+    );
+    expect(
+      workflowCommandFaultText(
+        'fault.command.workflowRunSettingsRejected.unchanged',
+        '',
+      ),
+      '设置没有变化',
+    );
+    expect(
+      workflowCommandFaultText('fault.command.something.else', '原始信息'),
+      '原始信息',
+      reason: '未知 reasonCode 时 message 优先（不裸露内部串）',
+    );
+  });
+
+  testWidgets('批C：resumable run 详情出「恢复」（配置不出）；accepted 提示+携带 label', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfControlApp(
+      runsResult: _wfControlStoppedRun,
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {'runId': 'run-stopped1', 'status': 'stopped', 'resumable': true},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await _openDetail(tester);
+
+    expect(find.byKey(const ValueKey('workflow-run-resume')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('workflow-run-config')),
+      findsNothing,
+      reason: '已停止 run 无配置入口（amend 只对运行中）',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('workflow-run-resume')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(app.resumeCalls, [
+      ('s1', 'run-stopped1', '发布门检查'),
+    ], reason: 'name 传 run label（官方：喂恢复后完成通知主题）');
+    expect(find.textContaining('已发起恢复'), findsOneWidget);
+  });
+
+  testWidgets('批C：恢复拒绝按词表人话上屏', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app =
+        _WfControlApp(
+            runsResult: _wfControlStoppedRun,
+            detailResult: _wfControlDetail,
+            artifactText: '',
+          )
+          ..resumeReply = const {
+            'status': 'failed',
+            'reasonCode':
+                'fault.command.workflowRunResumeRejected.not_resumable',
+          };
+    app.seedProjection(const [
+      {'runId': 'run-stopped1', 'status': 'stopped', 'resumable': true},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await _openDetail(tester);
+
+    await tester.tap(find.byKey(const ValueKey('workflow-run-resume')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      find.textContaining('仅已取消或被中断的失败可恢复'),
+      findsOneWidget,
+      reason: '词表人话，不裸露 reasonCode',
+    );
+  });
+
+  testWidgets('批C：运行中 run 出「配置」；三态保存（模型值+并发值）', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfControlApp(
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-live1',
+            'toolCallId': 'tc-l1',
+            'label': '并发审查',
+            'status': 'running',
+            'updatedAt': 2,
+          },
+        ],
+      },
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {'runId': 'run-live1', 'status': 'running'},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-live1')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    expect(find.byKey(const ValueKey('workflow-run-config')), findsOneWidget);
+    expect(find.byKey(const ValueKey('workflow-run-resume')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('workflow-run-config')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('amend-save')), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('amend-save')))
+          .onPressed,
+      isNull,
+      reason: '零改动禁存（官方：只发用户改过的项）',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('amend-model-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('amend-model-zai/glm-5.3')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('智谱 GLM-5.3'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('amend-concurrency')),
+      '4',
+    );
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('amend-save')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(app.amendCalls, [
+      ('s1', 'run-live1', 'zai/glm-5.3', false, 4, false),
+    ], reason: '三态：模型=值、并发=值（未触碰键省略）');
+    expect(find.textContaining('已提交调整'), findsOneWidget);
+  });
+
+  testWidgets('批C：三态——模型回默认（显式 null）+并发不填=省略', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfControlApp(
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-live1',
+            'label': '并发审查',
+            'status': 'running',
+            'updatedAt': 2,
+          },
+        ],
+      },
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {'runId': 'run-live1', 'status': 'running'},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-live1')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(const ValueKey('workflow-run-config')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('amend-model-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('amend-model-default')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('会话模型'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('amend-save')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(app.amendCalls, [
+      ('s1', 'run-live1', null, true, null, false),
+    ], reason: '模型=显式 null 回默认；并发未触碰=键省略（reset=false）');
+  });
+
+  testWidgets('批C：配置拒绝词表人话内联在弹层（不关弹层）', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app =
+        _WfControlApp(
+            runsResult: const {
+              'runs': [
+                {
+                  'runId': 'run-live1',
+                  'label': '并发审查',
+                  'status': 'running',
+                  'updatedAt': 2,
+                },
+              ],
+            },
+            detailResult: _wfControlDetail,
+            artifactText: '',
+          )
+          ..amendReply = const {
+            'status': 'failed',
+            'reasonCode':
+                'fault.command.workflowRunSettingsRejected.model_unavailable',
+          };
+    app.seedProjection(const [
+      {'runId': 'run-live1', 'status': 'running'},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-live1')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(const ValueKey('workflow-run-config')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('amend-concurrency')),
+      '2',
+    );
+    await tester.pump();
+    // 收起键盘再点保存（键盘遮挡致 tap 落空）。
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('amend-save')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      find.textContaining('所选模型不可用'),
+      findsOneWidget,
+      reason: '拒绝留在弹层内联（可改选重交）',
+    );
+    expect(
+      find.byKey(const ValueKey('amend-save')),
+      findsOneWidget,
+      reason: '弹层未关',
+    );
+  });
+
+  review2Tests();
+}
+
+// ---- 审查轮2（tier-review-2-1120）补钉 ----
+
+/// 重拉计数扩展：workflowRuns 调用计数（目录重拉断言）。
+class _WfReloadApp extends _WfControlApp {
+  _WfReloadApp({
+    required super.runsResult,
+    required super.detailResult,
+    required super.artifactText,
+  });
+
+  int runsCalls = 0;
+
+  @override
+  Future<dynamic> workflowRuns(String sessionId, {int? limit}) async {
+    runsCalls++;
+    return runsResult;
+  }
+}
+
+Future<void> _openStoppedDetail(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('workflow-run-run-stopped1')));
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
+void review2Tests() {
+  testWidgets('轮2：恢复成功→事件重拉+返回目录重拉（账实钉）', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfReloadApp(
+      runsResult: _wfControlStoppedRun,
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {'runId': 'run-stopped1', 'status': 'stopped', 'resumable': true},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await _openStoppedDetail(tester);
+    final eventsBefore = app.eventCalls.length;
+    final runsBefore = app.runsCalls;
+
+    await tester.tap(find.byKey(const ValueKey('workflow-run-resume')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+      app.eventCalls.length,
+      greaterThan(eventsBefore),
+      reason: 'accepted 后时间线重拉（提交信息声称的行为）',
+    );
+
+    await tester.pageBack(); // 详情→目录
+    await tester.pumpAndSettle();
+    expect(app.runsCalls, runsBefore + 1, reason: '返回目录自动重拉');
+  });
+
+  testWidgets('轮2：投影缺席=零占位（RPC 摘要 resumable 不驱动按钮）', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfControlApp(
+      runsResult: _wfControlStoppedRun, // RPC 侧 resumable:true
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      // 投影可解析但无 resumable 位——动作区数据源=投影权威（设计口径钉）。
+      {'runId': 'run-stopped1', 'status': 'stopped'},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await _openStoppedDetail(tester);
+    expect(
+      find.byKey(const ValueKey('workflow-run-resume')),
+      findsNothing,
+      reason: '红=数据源改读 RPC 摘要（投影缺席零占位口径被拆）',
+    );
+  });
+
+  testWidgets('轮2：拒绝不裸露 reasonCode', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app =
+        _WfControlApp(
+            runsResult: _wfControlStoppedRun,
+            detailResult: _wfControlDetail,
+            artifactText: '',
+          )
+          ..resumeReply = const {
+            'status': 'failed',
+            'reasonCode':
+                'fault.command.workflowRunResumeRejected.not_resumable',
+          };
+    app.seedProjection(const [
+      {'runId': 'run-stopped1', 'status': 'stopped', 'resumable': true},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await _openStoppedDetail(tester);
+    await tester.tap(find.byKey(const ValueKey('workflow-run-resume')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.textContaining('fault.command'), findsNothing);
+    expect(find.textContaining('workflowRunResumeRejected'), findsNothing);
+  });
+
+  testWidgets('轮2：并发 0=禁存（官方 min(1) 前置拦截）', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfControlApp(
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-live1',
+            'label': '并发审查',
+            'status': 'running',
+            'updatedAt': 2,
+          },
+        ],
+      },
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {'runId': 'run-live1', 'status': 'running'},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-live1')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(const ValueKey('workflow-run-config')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('amend-concurrency')),
+      '0',
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const ValueKey('amend-save')))
+          .onPressed,
+      isNull,
+      reason: '0 会被官方 zod min(1) 拒，本地前置禁存',
+    );
+    expect(app.amendCalls, isEmpty);
+  });
+
+  testWidgets('轮2：清除改动钮=键省略（沿用）', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final app = _WfControlApp(
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-live1',
+            'label': '并发审查',
+            'status': 'running',
+            'updatedAt': 2,
+          },
+        ],
+      },
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app.seedProjection(const [
+      {'runId': 'run-live1', 'status': 'running'},
+    ]);
+    await _pump(tester, _host(app, const WorkflowRunsPage(sessionId: 's1')));
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-live1')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(const ValueKey('workflow-run-config')));
+    await tester.pumpAndSettle();
+    // 选模型（保留改动）+ 输入并发再清除（并发回沿用）。
+    await tester.tap(find.byKey(const ValueKey('amend-model-row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('amend-model-zai/glm-5.3')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('amend-concurrency')),
+      '4',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('amend-concurrency-reset')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('amend-save')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(app.amendCalls, [
+      ('s1', 'run-live1', 'zai/glm-5.3', false, null, false),
+    ], reason: '清除后=未触碰（键省略），非显式 null 回默认');
+  });
+
+  testWidgets('轮2 F1：保存在途不可关弹层；成功自关不吃详情页', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final gate = Completer<Map<String, dynamic>>();
+    final app2 = _WfGatedAmendApp(
+      gate: gate,
+      runsResult: const {
+        'runs': [
+          {
+            'runId': 'run-live1',
+            'label': '并发审查',
+            'status': 'running',
+            'updatedAt': 2,
+          },
+        ],
+      },
+      detailResult: _wfControlDetail,
+      artifactText: '',
+    );
+    app2.seedProjection(const [
+      {'runId': 'run-live1', 'status': 'running'},
+    ]);
+    await _pump(tester, _host(app2, const WorkflowRunsPage(sessionId: 's1')));
+    await tester.tap(find.byKey(const ValueKey('workflow-run-run-live1')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byKey(const ValueKey('workflow-run-config')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('amend-concurrency')),
+      '3',
+    );
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('amend-save')));
+    await tester.pump(const Duration(milliseconds: 200));
+    // 在途：返回键/拖拽关不掉（PopScope canPop=false）。
+    await tester.pageBack();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.byKey(const ValueKey('amend-save')),
+      findsOneWidget,
+      reason: '保存在途弹层不可关（旧实现可关→accepted 二次 pop 吃详情页）',
+    );
+
+    gate.complete(const {'status': 'accepted'});
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('amend-save')),
+      findsNothing,
+      reason: '成功后弹层自关',
+    );
+    expect(
+      find.byType(WorkflowRunDetailPage),
+      findsOneWidget,
+      reason: '详情页仍在栈顶（未被二次 pop 吃掉）',
+    );
+  });
+}
+
+/// amend 回复闸门夹具（用例）。
+class _WfGatedAmendApp extends _WfControlApp {
+  _WfGatedAmendApp({
+    required this.gate,
+    required super.runsResult,
+    required super.detailResult,
+    required super.artifactText,
+  });
+  final Completer<Map<String, dynamic>> gate;
+
+  @override
+  Future<dynamic> amendWorkflowRunSettings(
+    String sessionId,
+    String workId, {
+    String? subagentModelValue,
+    bool subagentModelReset = false,
+    int? maxConcurrencyValue,
+    bool maxConcurrencyReset = false,
+  }) => gate.future;
 }

@@ -15,7 +15,10 @@ void main() {
 
   group('导航白名单（纯函数）', () {
     test('官方域与子域放行；内部协议放行', () {
-      expect(isWebFallbackNavAllowed(Uri.parse('https://zcode.z.ai/remote/v4/')), isTrue);
+      expect(
+        isWebFallbackNavAllowed(Uri.parse('https://zcode.z.ai/remote/v4/')),
+        isTrue,
+      );
       expect(
         isWebFallbackNavAllowed(Uri.parse('https://static.zcode.z.ai/app.js')),
         isTrue,
@@ -58,13 +61,19 @@ void main() {
     });
 
     test('非官方域与危险协议阻止', () {
-      expect(isWebFallbackNavAllowed(Uri.parse('https://evil.example.com/')), isFalse);
+      expect(
+        isWebFallbackNavAllowed(Uri.parse('https://evil.example.com/')),
+        isFalse,
+      );
       expect(
         isWebFallbackNavAllowed(Uri.parse('https://zcode.z.ai.evil.com/')),
         isFalse,
         reason: '后缀伪装域名必须阻止',
       );
-      expect(isWebFallbackNavAllowed(Uri.parse('javascript:alert(1)')), isFalse);
+      expect(
+        isWebFallbackNavAllowed(Uri.parse('javascript:alert(1)')),
+        isFalse,
+      );
       expect(isWebFallbackNavAllowed(Uri.parse('file:///etc/passwd')), isFalse);
       expect(isWebFallbackNavAllowed(null), isFalse);
     });
@@ -111,6 +120,31 @@ void main() {
     // 错误视图入口（web-fallback-entry-error）与 AppBar 入口同款推入
     // 代码；错误态需真实网络失败才能驱动（测试假区 HTTP 永不返回），
     // 视觉确认留真机实测（evidence uncovered 留账）。
+  });
+
+  test('表格横滚注入脚本契约（rewards-table-fit-1）', () {
+    // 真机截图实锤：奖励中心桌面宽表格被卡片硬裁；上一版 viewport meta
+    // 注入在 useWideViewPort(false)（webview_flutter_android 写死）下
+    // 空转——本钉防再度退回 meta 方案。
+    expect(
+      kTableFitInjectScript,
+      contains('zp-table-fit'),
+      reason: '幂等 id 守卫（SPA 重渲染/onPageFinished 重放不叠加）',
+    );
+    // display:block 方案已退役（破坏 table 列宽分配→右半空白，用户真机
+    // 实锤）；现为 JS 包裹横滚容器，保留原生 table 布局。
+    expect(kTableFitInjectScript, contains('zp-table-scroll'));
+    expect(kTableFitInjectScript, contains('overflow-x:auto'));
+    expect(
+      kTableFitInjectScript,
+      isNot(contains('display:block')),
+      reason: 'display:block 使窄内容列不拉伸（候选 05 真机实锤）',
+    );
+    expect(
+      kTableFitInjectScript,
+      isNot(contains('viewport')),
+      reason: 'meta 方案已退役（本 WebView 忽略 viewport meta）',
+    );
   });
 
   test('http 明文官方域也拒绝（review-fix-1 安全组）', () {

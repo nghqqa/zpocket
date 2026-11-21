@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../transport/id.dart' show generateUuid;
+
 /// UI 偏好（阶段 2 波次 1）：工具调用显示开关（需求池 #1，设置页第一项）。
 /// 默认显示（与桌面端工具组默认可见一致）；关闭后消息流隐藏 edit/bash/
 /// read/write 等工具活动，仅保留思考条与正文。
@@ -95,6 +97,10 @@ class UiPrefs extends ChangeNotifier {
   /// / github=GitHub Releases（海外快）。三处发布同一构建。
   static const _keyUpdateSource = 'ui.updateSource';
 
+  /// marketing-claim-1：本安装的设备标识（官方营销投放 X-Device-Mid，
+  /// UUID）——懒生成懒读（营销拉取时才用），不进启动并行读清单。
+  static const _keyDeviceMid = 'ui.deviceMid';
+
   final FlutterSecureStorage _storage;
   bool _showToolCalls = true;
   bool _fabMenuHintShown = false;
@@ -162,6 +168,29 @@ class UiPrefs extends ChangeNotifier {
   bool get voiceRefineEnabled => _voiceRefineEnabled;
   String? get voiceApiKey => _voiceApiKey;
   String get voiceApiProvider => _voiceApiProvider;
+
+  /// 本安装设备标识（marketing-claim-1）：首次读取时生成 UUID 并落盘，
+  /// 之后恒返回同值；Future 记忆化+失败态会话内稳定值
+  /// （marketing-claim-review-1：此前存储故障时每次调用新 UUID——
+  /// X-Device-Mid 属服务端稳定风控维度，逐请求漂移失真；且并發首读
+  /// 会生成两个 UUID）。
+  Future<String>? _deviceMidFuture;
+  Future<String> ensureDeviceMid() =>
+      _deviceMidFuture ??= _ensureDeviceMidRaw();
+
+  Future<String> _ensureDeviceMidRaw() async {
+    try {
+      final existing = await _storage.read(key: _keyDeviceMid);
+      final trimmed = existing?.trim() ?? '';
+      if (trimmed.isNotEmpty) return trimmed;
+      final id = generateUuid();
+      final ok = await _persist(_keyDeviceMid, id);
+      if (!ok) return id; // 写失败：会话内稳定（不重掷）。
+      return id;
+    } catch (_) {
+      return generateUuid(); // 读失败仅此一次——Future 已记忆化不会重掷。
+    }
+  }
 
   /// 上次显式选择的模型（providerId/modelId）与思考档——新建窗口
   /// 默认预选（用户 2026-10-18 需求：不用每次手选）。

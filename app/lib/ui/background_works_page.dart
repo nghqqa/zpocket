@@ -11,25 +11,33 @@ import 'package:flutter/material.dart' hide Text;
 import '../core/localized_text.dart';
 import '../core/theme.dart';
 import '../transport/conversation.dart';
+import 'background_bash_output_page.dart';
 
 class BackgroundWorksPage extends StatelessWidget {
   final String sessionId;
   final ConversationState state;
   final Future<void> Function(String sessionId, String workId) onCancel;
 
+  /// 后台 Bash 输出查询（bg-bash-output-1）：bash 行点开详情页；
+  /// 子会话任务按 childSessionId 定向（服务端沿 parentID 遍历归属，
+  /// 传任务所属会话而非根会话）。
+  final Future<dynamic> Function(String sessionId, String workId)
+  fetchBashOutput;
+
   const BackgroundWorksPage({
     super.key,
     required this.sessionId,
     required this.state,
     required this.onCancel,
+    required this.fetchBashOutput,
   });
 
   static IconData _iconOf(String kind) => switch (kind) {
-        'bash' => Icons.terminal_outlined,
-        'subagent' => Icons.smart_toy_outlined,
-        'workflow' => Icons.account_tree_outlined,
-        _ => Icons.work_outline,
-      };
+    'bash' => Icons.terminal_outlined,
+    'subagent' => Icons.smart_toy_outlined,
+    'workflow' => Icons.account_tree_outlined,
+    _ => Icons.work_outline,
+  };
 
   static (Color, String) _statusOf(BuildContext context, String status) =>
       switch (status) {
@@ -74,59 +82,120 @@ class BackgroundWorksPage extends StatelessWidget {
               final (color, statusLabel) = _statusOf(context, status);
               final cancellable =
                   status == 'running' && w['cancellable'] != false;
-              return Padding(
-                key: ValueKey('background-work-$workId'),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Icon(
-                      _iconOf(kind),
-                      size: 16,
-                      color: status == 'running'
-                          ? context.colors.running
-                          : color,
+              // 3.19.0 起条目可带 resultSummary（终态 stderr/output 尾部，
+              // ≤4096）——旧桌面缺席自动隐藏；列表副行零 RPC 零轮询。
+              final summary = '${w['resultSummary'] ?? ''}'.trim();
+              final row = Row(
+                children: [
+                  Icon(
+                    _iconOf(kind),
+                    size: 16,
+                    color: status == 'running' ? context.colors.running : color,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${w['title'] ?? workId}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      translate: false,
+                      style: TextStyle(
+                        fontSize: AppType.uiBase,
+                        color: context.colors.foreground,
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${w['title'] ?? workId}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        translate: false,
-                        style: TextStyle(
-                          fontSize: AppType.uiBase,
-                          color: context.colors.foreground,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(fontSize: AppType.uiCaption, color: color),
+                  ),
+                  // 右列固定 44px 槽（视觉复核建议：状态右缘不随有无取消钮
+                  // 跳变）；取消钮 40→44 对齐项目触控下限纪律。
+                  if (cancellable)
+                    SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: IconButton(
+                        key: ValueKey('background-work-cancel-$workId'),
+                        padding: EdgeInsets.zero,
+                        alignment: Alignment.center,
+                        iconSize: 16,
+                        tooltip: '取消',
+                        onPressed: () => onCancel(sessionId, workId),
+                        icon: Icon(
+                          Icons.close,
+                          size: 16,
+                          color: context.colors.foregroundSubtle,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      statusLabel,
-                      style: TextStyle(
-                        fontSize: AppType.uiCaption,
-                        color: color,
+                    )
+                  else
+                    // 空槽同高 44：running→终态时取消钮消失行高不跳变
+                    //（视觉复核 r2 建议①）。
+                    const SizedBox(width: 44, height: 44),
+                ],
+              );
+              // bash 行整行可点开输出详情（bg-bash-output-1，副行同属点按
+              // 域——视觉复核建议③）；非 bash 行（subagent/workflow）保持
+              // 纯展示。竖向 6px 提触控目标。childSessionId 空串视同缺席
+              // 回落当前会话（对抗审查修复 U7）。
+              final childSession = '${w['childSessionId'] ?? ''}'.trim();
+              final summaryLine = summary.isEmpty
+                  ? null
+                  : Padding(
+                      key: ValueKey('background-work-summary-$workId'),
+                      padding: const EdgeInsets.only(
+                        left: 24,
+                        right: 44,
+                        bottom: 6,
                       ),
-                    ),
-                    if (cancellable)
-                      SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: IconButton(
-                          key: ValueKey('background-work-cancel-$workId'),
-                          padding: EdgeInsets.zero,
-                          alignment: Alignment.center,
-                          iconSize: 16,
-                          tooltip: '取消',
-                          onPressed: () => onCancel(sessionId, workId),
-                          icon: Icon(
-                            Icons.close,
-                            size: 16,
-                            color: context.colors.foregroundSubtle,
+                      child: Text(
+                        summary,
+                        translate: false,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        // 副行承载成败判断信息：foregroundSubtlest(2.7:1)
+                        // 「看得见但吃力」→ 提一档（视觉复核建议）。
+                        style: TextStyle(
+                          fontSize: AppType.uiSm,
+                          color: context.colors.foregroundSubtle,
+                        ),
+                      ),
+                    );
+              final cell = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [row, if (summaryLine != null) summaryLine],
+              );
+              final body = kind == 'bash'
+                  ? InkWell(
+                      key: ValueKey('background-work-open-$workId'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BackgroundBashOutputPage(
+                            sessionId: childSession.isEmpty
+                                ? sessionId
+                                : childSession,
+                            workId: workId,
+                            title: '${w['title'] ?? workId}',
+                            fetch: fetchBashOutput,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: cell,
+                      ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: cell,
+                    );
+              return Padding(
+                key: ValueKey('background-work-$workId'),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: body,
               );
             },
           );

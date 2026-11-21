@@ -97,15 +97,27 @@ const _customEn = <String, String>{
   '功能': 'Features',
   '关于': 'About',
   '开源许可': 'Open-source licenses',
-  '图表数据获取失败，额度卡不受影响；下拉可重试':
-      'Chart data failed to load; quota cards are unaffected. Pull down to retry.',
+  '图表数据获取失败，额度卡不受影响；下拉可重试': 'Chart data failed to load; quota cards are unaffected. Pull down to retry.',
   '当前未连接电脑，稍后再试': 'Not connected to a computer. Try again later.',
   '未连接，已排队待发送（': 'Offline — queued for sending (',
   // （三路同报）：英文侧补右括号与中文 `）` 对称，否则断网
   // 排队条括号永不闭合。
-  ' 条），恢复连接后自动发出':
-      ' message(s). They will be sent automatically when the connection recovers)',
+  ' 条），恢复连接后自动发出': ' message(s). They will be sent automatically when the connection recovers)',
   '展开': 'Expand',
+  // marketing-claim-1（官方福利领取）：领取卡文案——
+  // '领取失败，请稍后重试。'/'活动已结束或套餐暂不可领取。'
+  // 官方词表已有（official_l10n.g），此处只补手机特有。
+  '官方福利': 'Official reward',
+  '领取您的专属福利': 'Claim your exclusive reward',
+  '领取中…': 'Claiming…',
+  '账号凭据已失效，请重新登录后再领取。':
+      'Account credentials expired. Please sign in again to claim.',
+  '领取结果未知，请稍后重试。': 'Claim result unknown. Try again later.',
+  // marketing-claim-collapse-1：收起条文案（收起/展开已有词表项）。
+  '官方福利待领取': 'Reward waiting to be claimed',
+  // collapse-1 窄档短文案（审查①：232dp 档全文案只剩「官方福…」）。
+  '待领取福利': 'Unclaimed reward',
+  '已关闭，本会话内不再提醒': 'Dismissed for this session',
   '用网页版打开（备用通道）': 'Open web version (fallback channel)',
   '网页版远控（备用通道）': 'Web remote control (fallback)',
   '网页组件不可用：': 'Web view unavailable: ',
@@ -113,18 +125,15 @@ const _customEn = <String, String>{
   '模型已覆盖': 'Model overridden',
   '覆盖「': 'Override model & effort for "',
   '」的模型与思考档': '"',
-  '插件子智能体是只读档案（升级会被覆写），这里只覆盖模型与思考档，保存到你的用户配置。':
-      'Plugin subagents are read-only profiles (overwritten on upgrade). Only the model and effort are overridden here, saved to your user settings.',
-  '内置子智能体是只读档案，这里只覆盖模型与思考档，保存到你的用户配置。':
-      'Built-in subagents are read-only profiles. Only the model and effort are overridden here, saved to your user settings.',
+  '插件子智能体是只读档案（升级会被覆写），这里只覆盖模型与思考档，保存到你的用户配置。': 'Plugin subagents are read-only profiles (overwritten on upgrade). Only the model and effort are overridden here, saved to your user settings.',
+  '内置子智能体是只读档案，这里只覆盖模型与思考档，保存到你的用户配置。': 'Built-in subagents are read-only profiles. Only the model and effort are overridden here, saved to your user settings.',
   '思考档（默认继承）': 'Effort (default inherit)',
   '清除覆盖': 'Clear override',
   '保存中…': 'Saving…',
   '保存失败：': 'Save failed: ',
   '已保存；下发桌面端失败：': 'Saved; failed to push to desktop: ',
   '提问自动采纳': 'Ask-user auto-resolution',
-  '关闭后 AI 提问不再倒计时自动选择（仍可手动作答）':
-      'When off, AI questions no longer auto-pick when the countdown ends (you can still answer manually)',
+  '关闭后 AI 提问不再倒计时自动选择（仍可手动作答）': 'When off, AI questions no longer auto-pick when the countdown ends (you can still answer manually)',
   '搜索名称或描述': 'Search name or description',
   '待办 · ': 'Todo · ',
   '自定义答案…': 'Custom answer…',
@@ -134,19 +143,16 @@ const _customEn = <String, String>{
   '当前回合不接受新输入（': 'This turn is not accepting new input (',
   '已取消发送': 'Send cancelled',
   '有排队的消息': 'Queued messages pending',
-  '回合已结束但队列里有待发消息。清空队列后发送，还是保留队列立即发送？':
-      'The turn ended but there are queued messages. Send after clearing the queue, or keep the queue and send now?',
+  '回合已结束但队列里有待发消息。清空队列后发送，还是保留队列立即发送？': 'The turn ended but there are queued messages. Send after clearing the queue, or keep the queue and send now?',
   '清空队列后发送': 'Clear queue & send',
   '保留队列发送': 'Keep queue & send',
-  '已确认上次发送送达（无需重发），横幅稍后消失':
-      'Confirmed: your last message was delivered. This banner will disappear shortly.',
+  '已确认上次发送送达（无需重发），横幅稍后消失': 'Confirmed: your last message was delivered. This banner will disappear shortly.',
   '重新核对': 'Recheck',
-  '已确认上次发送未送达，草稿可重发':
-      'Confirmed: your last message was NOT delivered. You can resend the draft.',
-  '从左侧选择任务，或点「新建」开始':
-      'Select a task on the left, or tap "New" to start',
+  '已确认上次发送未送达，草稿可重发': 'Confirmed: your last message was NOT delivered. You can resend the draft.',
+  '从左侧选择任务，或点「新建」开始': 'Select a task on the left, or tap "New" to start',
   '撤销这条排队消息': 'Cancel this queued message',
-  '非官方第三方客户端，与 ZCode/智谱无关联。': 'Unofficial third-party client. Not affiliated with ZCode or Zhipu.',
+  '非官方第三方客户端，与 ZCode/智谱无关联。':
+      'Unofficial third-party client. Not affiliated with ZCode or Zhipu.',
   '第三方来源详见仓库 THIRD-PARTY-NOTICES.md。': 'See THIRD-PARTY-NOTICES.md in the repository for third-party attributions.',
   // 关于页（2026-11-04 开源说明聚合批）：声明/隐私/许可入口
   '关于 ZPocket': 'About ZPocket',
@@ -191,10 +197,10 @@ const _customEn = <String, String>{
   '定时任务': 'Scheduled tasks',
   // dual-pane-collapse-1：宽屏顶栏左栏收起/展开钮 tooltip。
 
-
   // 应用内更新（in-app-update-1）。
   '软件更新': 'Software update',
-  '检查新版本并应用内下载安装（需安装权限）': 'Check for updates and download in-app (install permission required)',
+  '检查新版本并应用内下载安装（需安装权限）':
+      'Check for updates and download in-app (install permission required)',
   '应用内更新': 'In-app updates',
   '关闭后仅提示新版本，不下载也不申请安装权限': 'When off, only notify about new versions; no downloads and no install permission request',
   '检查更新失败，请稍后再试': 'Update check failed. Try again later',
@@ -204,12 +210,14 @@ const _customEn = <String, String>{
   '稍后': 'Later',
   '立即更新': 'Update now',
   '使用移动数据下载？': 'Download over mobile data?',
-  '安装包约 31MB，当前在移动网络下': 'The update is about 31MB and you are on a mobile network',
+  '安装包约 31MB，当前在移动网络下':
+      'The update is about 31MB and you are on a mobile network',
   '继续下载': 'Download',
   '请在系统设置中允许本应用安装应用，然后回来重新点「立即更新」': 'Please allow this app to install apps in system settings, then tap Update now again',
   '当前为自行构建版本，无法应用内更新到官方包（签名不同），请手动下载安装': 'This is a self-built build; in-app update to the official package is not possible (different signature). Please download manually',
   '未找到适配本机架构的安装包': 'No package found for this device architecture',
-  '下载失败，请稍后重试（重试会从断点继续）': 'Download failed. Try again later (retry resumes from where it stopped)',
+  '下载失败，请稍后重试（重试会从断点继续）':
+      'Download failed. Try again later (retry resumes from where it stopped)',
   '安装包校验失败（可能被篡改或下载不完整），已删除，请重试': 'Package verification failed (possibly tampered or incomplete). File deleted; please retry',
   '无法调起安装器，请到 GitHub Releases 手动下载': 'Could not launch the installer. Please download manually from GitHub Releases',
   '正在下载更新': 'Downloading update',
@@ -218,7 +226,8 @@ const _customEn = <String, String>{
   // dup-skipped '重试': 'Retry',
   // dup-skipped '取消': 'Cancel',
   // dup-skipped '关闭': 'Close',
-  '应用内更新已关闭，请到 GitHub Releases 手动下载': 'In-app updates are off. Please download manually from GitHub Releases',
+  '应用内更新已关闭，请到 GitHub Releases 手动下载':
+      'In-app updates are off. Please download manually from GitHub Releases',
   // 产物分享（早前批次）：产物行/预览页入口+进度弹窗。
   '分享': 'Share',
   '正在获取产物…': 'Fetching artifact…',
@@ -226,13 +235,15 @@ const _customEn = <String, String>{
   '下载产物失败：': 'Failed to fetch artifact: ',
   '分享失败': 'Share failed',
   'PIN 码': 'PIN',
-  '应用锁数据缺失，已停用；请到设置中重新开启': 'App lock data missing; lock disabled. Re-enable it in Settings',
+  '应用锁数据缺失，已停用；请到设置中重新开启':
+      'App lock data missing; lock disabled. Re-enable it in Settings',
   '设备未设置系统屏幕锁，无法验证；请先在系统设置中配置锁屏': 'No system screen lock is set, verification unavailable. Configure a screen lock in system settings first',
   '打开系统安全设置': 'Open system security settings',
   '任务列表已收起': 'Task list collapsed',
   // 应用锁（app-lock-1）：设置页+锁屏。
   '应用锁': 'App lock',
-  '冷启动与后台锁定需验证（系统锁屏 / PIN 码）': 'Verify on cold start and after backgrounding (system lock / PIN)',
+  '冷启动与后台锁定需验证（系统锁屏 / PIN 码）':
+      'Verify on cold start and after backgrounding (system lock / PIN)',
   '应用已锁定': 'App locked',
   '解锁': 'Unlock',
   '验证中…': 'Verifying…',
@@ -242,7 +253,8 @@ const _customEn = <String, String>{
   '解锁方式': 'Unlock method',
   '不使用应用锁': 'No app lock',
   '系统锁屏': 'System screen lock',
-  '指纹 / 面容 / 图案 / PIN（跟随系统锁设置）': 'Fingerprint / face / pattern / PIN (follows system lock settings)',
+  '指纹 / 面容 / 图案 / PIN（跟随系统锁设置）':
+      'Fingerprint / face / pattern / PIN (follows system lock settings)',
   '应用内独立 PIN 码': 'Separate in-app PIN',
   '开启后每次冷启动需验证；切换或关闭应用锁需先通过当前方式验证。': 'Verify on every cold start; changing or disabling the app lock requires the current method first.',
   '自动锁定': 'Auto lock',
@@ -348,8 +360,7 @@ const _customEn = <String, String>{
   '相册不可用': 'Photo library unavailable',
   '对准桌面端「移动端远程控制」弹窗显示的二维码': 'Point the camera at the QR code in the “Mobile remote control” panel on your desktop',
   // 扫码无预览模式新文案（qr_scan_page）。
-  '对准桌面端「移动端远程控制」弹窗显示的二维码（无取景预览：对准框内即可识别）':
-      'Point the camera at the QR code in the "Mobile remote control" panel on your desktop (no live preview: align within the frame)',
+  '对准桌面端「移动端远程控制」弹窗显示的二维码（无取景预览：对准框内即可识别）': 'Point the camera at the QR code in the "Mobile remote control" panel on your desktop (no live preview: align within the frame)',
   '相机不可用，请返回改用「粘贴链接」添加':
       'Camera unavailable. Please go back and use Paste link instead',
   '思考强度 ': 'Thinking level ',
@@ -567,8 +578,7 @@ const _customEn = <String, String>{
   // 早前批次（2026-11-14）：产物下载页。
   '产物下载': 'Downloads',
   '如何下载会话中的文件': 'How to download files from this chat',
-  '会话生成的文件（含图片 / PDF / 表格）需先发布为工作流产物才能下载：点「收集产物」让智能体整理本回合文件；已发布的产物在下方运行里点开，行尾即可分享保存。':
-      "Files generated in this chat (images / PDFs / spreadsheets included) must be published as workflow artifacts before downloading: tap 'Collect artifacts' to have the agent gather this turn's files; published artifacts appear in the runs below — open one and tap Share to save.",
+  '会话生成的文件（含图片 / PDF / 表格）需先发布为工作流产物才能下载：点「收集产物」让智能体整理本回合文件；已发布的产物在下方运行里点开，行尾即可分享保存。': "Files generated in this chat (images / PDFs / spreadsheets included) must be published as workflow artifacts before downloading: tap 'Collect artifacts' to have the agent gather this turn's files; published artifacts appear in the runs below — open one and tap Share to save.",
   '已发送收集指令，产物就绪后会出现在下方':
       'Collect request sent — artifacts will appear below when ready',
   // 早前批次（2026-11-14）：二进制产物不支持预览页。
@@ -597,8 +607,7 @@ const _customEn = <String, String>{
   // ① 上下文组成下钻（v4/conversation/contextComposition）。
   '上下文组成': 'Context composition',
   '组成明细': 'Details',
-  '当前会话暂无可用的上下文组成（桌面端可能刚重启）':
-      'No context composition available for this session (the desktop may have just restarted)',
+  '当前会话暂无可用的上下文组成（桌面端可能刚重启）': 'No context composition available for this session (the desktop may have just restarted)',
   '草稿预演': 'Draft preview',
   '最近请求': 'Last request',
   '剩余': 'free ',
@@ -617,9 +626,9 @@ const _customEn = <String, String>{
   '永久删除「': 'Permanently delete "',
   '」？': '"?',
   '」': '"',
-  '该任务的会话数据已被彻底删除。': 'The session data of this task has already been permanently deleted.',
-  '将永久删除：任务本体（含子智能体 / 工作流子会话共 ':
-      'Will permanently delete: the task (including subagent/workflow child sessions, ',
+  '该任务的会话数据已被彻底删除。':
+      'The session data of this task has already been permanently deleted.',
+  '将永久删除：任务本体（含子智能体 / 工作流子会话共 ': 'Will permanently delete: the task (including subagent/workflow child sessions, ',
   ' 个会话）与 ': ' sessions total) and ',
   ' 个文件。删除后不可恢复。': ' files. This cannot be undone.',
   '上次删除未完成，本次将继续清理剩余数据。':
@@ -631,8 +640,7 @@ const _customEn = <String, String>{
       'Workspace files, Git history and shares are unaffected',
   '继续（需验证 PIN）': 'Continue (PIN required)',
   '需要先设置 PIN': 'Set up a PIN first',
-  '永久删除不可恢复。为防误删，请先在「设置 → 安全」开启应用锁（PIN 或系统锁屏均可），再回来执行永久删除。':
-      'Permanent deletion cannot be undone. To guard against accidents, enable the app lock (PIN or system screen lock) under "Settings → Security" first, then come back.',
+  '永久删除不可恢复。为防误删，请先在「设置 → 安全」开启应用锁（PIN 或系统锁屏均可），再回来执行永久删除。': 'Permanent deletion cannot be undone. To guard against accidents, enable the app lock (PIN or system screen lock) under "Settings → Security" first, then come back.',
   '输入 PIN 确认永久删除': 'Enter PIN to confirm permanent deletion',
   '该操作不可恢复，请输入应用锁 PIN 确认。':
       'This action cannot be undone. Enter your app-lock PIN to confirm.',
@@ -644,8 +652,7 @@ const _customEn = <String, String>{
   '继续（需系统验证）': 'Continue (device unlock required)',
   '删除结果未知，请刷新任务列表核对':
       'Deletion result unknown — refresh the task list to verify',
-  '应用锁数据已损坏（PIN 材料缺失或无效），验证已被跳过。请重新设置 PIN 码，或切换到其他解锁方式。':
-      'App lock data is damaged (PIN material missing or invalid); verification was skipped. Set a new PIN or switch to another unlock method.',
+  '应用锁数据已损坏（PIN 材料缺失或无效），验证已被跳过。请重新设置 PIN 码，或切换到其他解锁方式。': 'App lock data is damaged (PIN material missing or invalid); verification was skipped. Set a new PIN or switch to another unlock method.',
   '没有找到该任务的会话数据（可能已被删除）':
       'Session data for this task was not found (it may already be deleted)',
   '该任务仍有工作在运行（或有待处理输入），先停止后再删':
@@ -660,18 +667,18 @@ const _customEn = <String, String>{
   '看板类产物暂不支持在手机查看': 'Dashboard artifacts cannot be viewed on the phone yet',
   '内容过长已截断': 'Content too long — truncated',
   '压缩被拒绝：': 'Compaction rejected: ',
-  '连接中断，消息未发出，正文已放回输入框': 'Connection lost — message not sent; text restored to the input box',
-  '发送结果未知（连接抖动），稍后可点「重新核对」确认': 'Send result unknown (connection hiccup) — tap Recheck later to confirm',
+  '连接中断，消息未发出，正文已放回输入框':
+      'Connection lost — message not sent; text restored to the input box',
+  '发送结果未知（连接抖动），稍后可点「重新核对」确认':
+      'Send result unknown (connection hiccup) — tap Recheck later to confirm',
   '重启后无法自动核对，请对照电脑端确认':
       'Cannot auto-verify after restart. Please check on the desktop',
-  '未连接电脑，暂不能压缩上下文':
-      'Not connected to the desktop — cannot compact context yet',
+  '未连接电脑，暂不能压缩上下文': 'Not connected to the desktop — cannot compact context yet',
   '本会话由分支创建': 'This conversation was created from a branch',
   '上下文已压缩': 'Context compacted',
   '目标已完成，任务结束': 'Goal completed, task finished',
   '目标未完成，任务继续': 'Goal not met, task continues',
-  '此设备 CPU 不支持当前语音服务':
-      'This device CPU is not supported by the voice service',
+  '此设备 CPU 不支持当前语音服务': 'This device CPU is not supported by the voice service',
   '前天': 'The day before yesterday',
   '3 天前': '3 days ago',
   // 单数英文（英文界面出现「1 days ago」）：exact 表先于
@@ -806,8 +813,7 @@ const _customEn = <String, String>{
   'Token 活动热力图': 'Token activity heatmap',
   '点击格子查看当日明细': 'Tap a cell to see that day’s details',
   '点击图表查看当日明细': 'Tap the chart to see that day’s details',
-  '长按悬浮球：回到回合开始 / 收起输出':
-      'Long-press the floating button: jump to turn start / collapse turn output',
+  '长按悬浮球：回到回合开始 / 收起输出': 'Long-press the floating button: jump to turn start / collapse turn output',
   '点击切片查看模型明细': 'Tap a slice to see model details',
   '今日': 'Today',
   '单日峰值': 'Peak day',
@@ -858,8 +864,7 @@ const _customEn = <String, String>{
   '语音服务不可用：': 'Voice service unavailable: ',
   '语音服务未响应，请重试或改用键盘输入':
       'Voice service not responding. Try again or use the keyboard',
-  '该会话归属其他项目目录，当前桌面版本无法从手机打开':
-      'This session belongs to a different project directory. The current desktop version cannot open it from the phone',
+  '该会话归属其他项目目录，当前桌面版本无法从手机打开': 'This session belongs to a different project directory. The current desktop version cannot open it from the phone',
   '识别失败：': 'Recognition failed: ',
   '连接状态 · 上下文 ': 'Connection · Context ',
   ' · 点按看用量': ' · Tap for usage',
@@ -907,8 +912,7 @@ const _customEn = <String, String>{
   // F：批量操作二次确认。
   '标为已读': 'Mark as read',
   '已读': 'Read',
-  '任务将移入归档，可在归档列表恢复。':
-      'Tasks will be moved to archive and can be restored from the archive list.',
+  '任务将移入归档，可在归档列表恢复。': 'Tasks will be moved to archive and can be restored from the archive list.',
   '未读标记将被清除。': 'Unread markers will be cleared.',
   // A：审批卡收起+大 diff 折叠。
   '待处理，点击展开': 'Pending, tap to expand',
@@ -937,14 +941,11 @@ const _customEn = <String, String>{
       'No tasks yet\nTap “New” at the bottom right to start a conversation',
   '选择一个项目开始': 'Select a project to start',
   '选择一个工作区开始': 'Select a workspace to start',
-  '桌面端没有打开的工作区\n在电脑上用 ZCode 打开一个项目文件夹':
-      'No open workspaces on the desktop\nOpen a project folder in ZCode on your computer',
+  '桌面端没有打开的工作区\n在电脑上用 ZCode 打开一个项目文件夹': 'No open workspaces on the desktop\nOpen a project folder in ZCode on your computer',
   '正在连接工作区…': 'Connecting to workspace…',
-  '首次切换到该工作区需要唤醒，可能要等一会':
-      'First switch to this workspace needs to wake it up — this may take a moment',
+  '首次切换到该工作区需要唤醒，可能要等一会': 'First switch to this workspace needs to wake it up — this may take a moment',
   '正在同步任务索引…': 'Syncing task index…',
-  '该工作区暂无活跃进程——显示历史任务，点开会话时将自动唤醒':
-      'No active process in this workspace — showing past tasks; opening a conversation will wake it up',
+  '该工作区暂无活跃进程——显示历史任务，点开会话时将自动唤醒': 'No active process in this workspace — showing past tasks; opening a conversation will wake it up',
   '其他工作区': 'Other workspaces',
   '未命名项目': 'Unnamed project',
   '该电脑还在重连，稍后从列表点开':
@@ -956,25 +957,20 @@ const _customEn = <String, String>{
   '标为未读': 'Mark as unread',
   '移动到项目…': 'Move to project…',
   '会话 ID 已复制': 'Session ID copied',
-  '从列表移入归档，可通过撤销恢复':
-      'Moves to the archive; you can undo to restore',
+  '从列表移入归档，可通过撤销恢复': 'Moves to the archive; you can undo to restore',
   '加入目录并移动？': 'Add the folder and move?',
   '加入并移动': 'Add and move',
-  '任务归属数据未就绪，稍后再试':
-      'Task ownership data is not ready yet. Try again later',
+  '任务归属数据未就绪，稍后再试': 'Task ownership data is not ready yet. Try again later',
   '没有可移动到的项目': 'No projects to move to',
-  '工作区切换未完成，请稍后重试':
-      'The workspace switch did not finish. Try again later',
+  '工作区切换未完成，请稍后重试': 'The workspace switch did not finish. Try again later',
   '新建对话': 'New conversation',
   '搜索项目或路径': 'Search projects or paths',
   '搜索标题 / 预览 / 对话内容': 'Search titles / previews / messages',
   '调整项目顺序': 'Reorder projects',
   '删除任务': 'Delete task',
-  '归档的任务不在任务列表显示；可恢复或删除':
-      'Archived tasks are hidden from the task list; restore or delete them here',
+  '归档的任务不在任务列表显示；可恢复或删除': 'Archived tasks are hidden from the task list; restore or delete them here',
   '部分任务已不在归档态，跳过': 'Some tasks are no longer archived; skipped',
-  '任务将从任务列表和归档列表中移除（官方同款语义，不可恢复）。':
-      'The task will be removed from both the task list and the archive (same as the desktop; this cannot be undone).',
+  '任务将从任务列表和归档列表中移除（官方同款语义，不可恢复）。': 'The task will be removed from both the task list and the archive (same as the desktop; this cannot be undone).',
   '删除全部归档任务': 'Delete all archived tasks',
   // 归档语境的「恢复」是 Restore（官方词），不能沿用会话语境
   // 的 Resume——归档页按钮换独立键。
@@ -983,8 +979,7 @@ const _customEn = <String, String>{
   '删除后需要重新登录才能连接该账号的电脑。':
       'You will need to sign in again to connect this account’s computers.',
   '已重命名': 'Renamed',
-  '仅移除本机保存的连接档案，不影响电脑端。需要时可重新扫码添加。':
-      'Only the locally saved connection profile is removed; the computer is not affected. You can scan again to re-add it.',
+  '仅移除本机保存的连接档案，不影响电脑端。需要时可重新扫码添加。': 'Only the locally saved connection profile is removed; the computer is not affected. You can scan again to re-add it.',
   '被其他设备接管': 'Taken over by another device',
   '凭据失效，需重扫': 'Credentials expired — rescan required',
   '切换失败，请稍后重试': 'Switch failed. Try again later',
@@ -994,12 +989,9 @@ const _customEn = <String, String>{
   '该工作区不是 git 仓库': 'This workspace is not a git repository',
   '暂无本地分支': 'No local branches',
   '分支名，如 feature/x': 'Branch name, e.g. feature/x',
-  '有未提交改动会被切分支覆盖——请先在桌面端提交或暂存，再回来切换':
-      'Uncommitted changes would be overwritten — commit or stash them on the desktop first, then switch',
-  '有未跟踪的新文件会被切分支覆盖——请先在桌面端提交或暂存，再回来切换':
-      'Untracked new files would be overwritten — commit or stash them on the desktop first, then switch',
-  '仓库里有未解决的冲突——请先在桌面端处理':
-      'The repository has unresolved conflicts — resolve them on the desktop first',
+  '有未提交改动会被切分支覆盖——请先在桌面端提交或暂存，再回来切换': 'Uncommitted changes would be overwritten — commit or stash them on the desktop first, then switch',
+  '有未跟踪的新文件会被切分支覆盖——请先在桌面端提交或暂存，再回来切换': 'Untracked new files would be overwritten — commit or stash them on the desktop first, then switch',
+  '仓库里有未解决的冲突——请先在桌面端处理': 'The repository has unresolved conflicts — resolve them on the desktop first',
   '另一个 git 操作正在进行中，请稍后重试':
       'Another git operation is in progress. Try again later',
   '目标分支正被另一个 worktree 占用':
@@ -1007,18 +999,12 @@ const _customEn = <String, String>{
   '目标分支不存在——列表可能过期，请刷新后重试':
       'Target branch not found — the list may be stale. Refresh and retry',
   '分支名已存在': 'A branch with this name already exists',
-  '分支名不合法（含空格/特殊字符/中文斜杠等）':
-      'Invalid branch name (spaces / special characters / Chinese slashes, etc.)',
-  '链接无效：需要桌面端生成的完整远控链接（含 sid/hash/t 参数）':
-      'Invalid link: a complete remote-control link generated by the desktop is required (with sid/hash/t parameters)',
-  '引导：插入到下一轮工具调用后生效':
-      'Guide: takes effect after the next tool call',
-  '队列——排队等回合结束依次发送':
-      'Queue — sent one by one after the turn ends',
-  '引导——插到下一轮工具调用后运行':
-      'Guide — inserted to run after the next tool call',
-  '听写后自动整理成规范指令，可一键回退原文':
-      'Dictation is cleaned up into clear instructions automatically; revert to the original with one tap',
+  '分支名不合法（含空格/特殊字符/中文斜杠等）': 'Invalid branch name (spaces / special characters / Chinese slashes, etc.)',
+  '链接无效：需要桌面端生成的完整远控链接（含 sid/hash/t 参数）': 'Invalid link: a complete remote-control link generated by the desktop is required (with sid/hash/t parameters)',
+  '引导：插入到下一轮工具调用后生效': 'Guide: takes effect after the next tool call',
+  '队列——排队等回合结束依次发送': 'Queue — sent one by one after the turn ends',
+  '引导——插到下一轮工具调用后运行': 'Guide — inserted to run after the next tool call',
+  '听写后自动整理成规范指令，可一键回退原文': 'Dictation is cleaned up into clear instructions automatically; revert to the original with one tap',
   '已设置（key 仅存本机）': 'Set (the key is stored only on this device)',
   'DeepSeek（按量计费（极便宜））': 'DeepSeek (pay-as-you-go, very cheap)',
   'Kimi（按量计费（极便宜））': 'Kimi (pay-as-you-go, very cheap)',
@@ -1036,8 +1022,7 @@ const _customEn = <String, String>{
   '几秒': 'a few seconds',
   '该行缺少协议标识，反馈仅本地保留':
       'This row lacks a protocol ID; feedback is kept locally only',
-  '该行缺少协议标识，无法创建分支':
-      'This row lacks a protocol ID; a branch cannot be created',
+  '该行缺少协议标识，无法创建分支': 'This row lacks a protocol ID; a branch cannot be created',
   '已从此处创建分支': 'Branched from here',
   '分支会话': 'Branched session',
   '代码已复制': 'Code copied',
@@ -1047,15 +1032,13 @@ const _customEn = <String, String>{
   '待发': 'Pending',
   // 语音失败态两段字面量在源码相邻拼接成整串，整串入表（拆分 Text 会
   // 改布局）。
-  '当前设备无可用语音服务属预期；真机首次使用请确认麦克风权限。整理功能需在设置里选提供商并填对应 API key（没有则直接用原文）。':
-      'Voice services being unavailable on this device is expected; on a phone, grant microphone permission on first use. Choose a provider and enter its API key in Settings to enable cleanup (otherwise the original text is used).',
+  '当前设备无可用语音服务属预期；真机首次使用请确认麦克风权限。整理功能需在设置里选提供商并填对应 API key（没有则直接用原文）。': 'Voice services being unavailable on this device is expected; on a phone, grant microphone permission on first use. Choose a provider and enter its API key in Settings to enable cleanup (otherwise the original text is used).',
   '关闭自动发送': 'Turn off auto-send',
   '回合结束后自动发送': 'Auto-send when the turn ends',
   '编辑排队消息': 'Edit queued message',
   '正在获取额度…': 'Fetching quota…',
   '压缩上下文？': 'Compact context?',
-  '将把当前对话历史压缩为摘要以释放上下文空间。压缩后早期消息的原文不再可用。':
-      'The current conversation history will be compressed into a summary to free up context. After compaction, the original text of earlier messages is no longer available.',
+  '将把当前对话历史压缩为摘要以释放上下文空间。压缩后早期消息的原文不再可用。': 'The current conversation history will be compressed into a summary to free up context. After compaction, the original text of earlier messages is no longer available.',
   '已发起上下文压缩': 'Context compaction started',
   // 弹层与杂项（审批卡/Goal/自动化/台账/子代理）。
   '执行计划？': 'Approve this plan?',
@@ -1095,8 +1078,7 @@ const _customEn = <String, String>{
   '等待桌面端': 'Waiting for desktop',
   '凭据失效，请重新扫码': 'Credentials expired — please rescan',
   '无任务运行': 'No tasks running',
-  '已连接 · 保持后台实时通知':
-      'Connected · background notifications active',
+  '已连接 · 保持后台实时通知': 'Connected · background notifications active',
   '域名解析失败，正在重试': 'DNS resolution failed — retrying',
   '连接中继服务器超时，正在重试': 'Relay server timeout — retrying',
   '连接被拒绝，正在重试': 'Connection refused — retrying',
@@ -1111,8 +1093,7 @@ const _customEn = <String, String>{
   '总用量': 'Total',
   '按模型': 'By model',
   '色=当日用量最高模型': 'Color = top model of the day',
-  '已打开会话——要定位到产生通知的消息吗？':
-      'Conversation opened. Jump to the message that triggered this notification?',
+  '已打开会话——要定位到产生通知的消息吗？': 'Conversation opened. Jump to the message that triggered this notification?',
   '定位': 'Jump',
   '该消息在更早的历史中，请上滑加载':
       'That message is in earlier history — scroll up to load more',
@@ -1125,8 +1106,7 @@ const _customEn = <String, String>{
   '当前账号': 'Current account',
   // multi-account-ux-1 批4：多电脑任务聚合。
   '首页显示其他电脑任务': "Show other computers' tasks on home",
-  '来自本地缓存快照（可能过期，会标注缓存时间）；不额外连接电脑':
-      'From local cache snapshots (may be stale; cached time shown). No extra connections',
+  '来自本地缓存快照（可能过期，会标注缓存时间）；不额外连接电脑': 'From local cache snapshots (may be stale; cached time shown). No extra connections',
   '缓存快照': 'Cached snapshot',
   '（无标题任务）': '(untitled task)',
   '缓存于 ': 'Cached ',
@@ -1141,24 +1121,19 @@ const _customEn = <String, String>{
   '改绑': 'Change',
   '该电脑当前绑定「': 'This computer is bound to “',
   '」，将改为「': '” and will change to “',
-  '」。改绑后旧账号在此电脑上的连接会失效，需要用旧账号时可再改绑回来。':
-      '”. The old account’s connection on this computer will stop working. You can switch back later.',
+  '」。改绑后旧账号在此电脑上的连接会失效，需要用旧账号时可再改绑回来。': '”. The old account’s connection on this computer will stop working. You can switch back later.',
   // fullsweep-1108（14 路对抗审查后全修批）：各修复面新增文案。
   '该电脑已在另一台设备上打开': 'This computer is already open on another device',
-  '打开工作区超时，请稍后重试':
-      'Opening the workspace timed out. Please try again later.',
-  '发送结果未知，稍后会自动重试':
-      'Send result unknown; it will retry automatically',
-  '当前档不可用，已按默认档显示':
-      "This level isn't available; showing the default",
+  '打开工作区超时，请稍后重试': 'Opening the workspace timed out. Please try again later.',
+  '发送结果未知，稍后会自动重试': 'Send result unknown; it will retry automatically',
+  '当前档不可用，已按默认档显示': "This level isn't available; showing the default",
   '加载中…': 'Loading…',
   '加载更多': 'Load more',
   '工作流': 'Workflow',
   '等待补全': 'Awaiting completion',
   '后台': 'Background',
   '前台': 'Foreground',
-  '不可写盘（配置由来源文件维护）':
-      'Not writable (config maintained by its source file)',
+  '不可写盘（配置由来源文件维护）': 'Not writable (config maintained by its source file)',
   '系统通知权限未开启，审批提醒无法生效；请在系统设置中允许通知后重试':
       'Notification permission is off; approval alerts cannot work. '
       'Allow notifications in system settings and try again.',
@@ -1176,8 +1151,7 @@ const _customEn = <String, String>{
   '提交中…': 'Submitting…',
   '已到': 'Due now',
   // fullsweep-1108：V1 配对非官方域确认（拆段渲染，两段各成键）。
-  '该链接的服务器不是官方 zcode.z.ai（当前：':
-      'This link points to a server other than the official zcode.z.ai (current: ',
+  '该链接的服务器不是官方 zcode.z.ai（当前：': 'This link points to a server other than the official zcode.z.ai (current: ',
   '）。仅当你明确知道该服务器可信时才继续；连接后消息与凭据会发往该服务器。':
       '). Continue only if you know this server is trustworthy; '
       'your messages and credentials will be sent to it.',
@@ -1203,70 +1177,149 @@ const _customEn = <String, String>{
   '图片过大（超过 16MB），暂不支持预览':
       'Image too large (over 16 MB); preview is not supported yet',
   '该产物没有可读的内容': 'This artifact has no readable content',
-  '图片解码失败：该格式不受支持':
-      'Image decoding failed: this format is not supported',
+  '图片解码失败：该格式不受支持': 'Image decoding failed: this format is not supported',
+  // 工作流运行控制（workflow-control-1 批C）。
+  '配置': 'Configure',
+  '已发起恢复，新事件稍后出现在时间线': 'Resume requested; new events will appear shortly',
+  '配置运行': 'Configure run',
+  '调整可能生成新运行并停止旧运行，历史保留可回看': 'Adjusting creates a new run and stops the old one; history stays viewable',
+  '未调整（沿用当前设置）': 'Unchanged (keep current settings)',
+  '会话模型（回默认）': 'Session model (reset to default)',
+  '不再单独指定，跟随会话当前模型': 'No longer overridden; follows the session model',
+  '模型目录暂不可用，仍可直接回默认':
+      'Model catalog unavailable; you can still reset to default',
+  '并发上限': 'Concurrency limit',
+  '不填=保持当前设置': 'Leave empty to keep current setting',
+  '已清空=恢复默认并发': 'Cleared = reset to default concurrency',
+  '至少为 1': 'Must be at least 1',
+  '清除改动': 'Clear change',
+  '已提交调整': 'Adjustment submitted',
+  '当前会话运行时不支持此操作（旧版 CLI 或动态工作流未开启）': 'Not supported by this session runtime (older CLI or dynamic workflows disabled)',
+  '找不到该运行（可能已被清理）': 'Run not found (it may have been cleaned up)',
+  '该运行不可恢复（仅已取消或被中断的失败可恢复）': 'This run cannot be resumed (only cancelled or interrupted-failed runs can)',
+  '该运行已被新运行替代': 'This run has been superseded by a new run',
+  '该运行已在运行中': 'This run is already running',
+  '工作流脚本缺失（文件已被移动或删除）': 'Workflow script missing (moved or deleted)',
+  '脚本内容与原运行不匹配，拒绝恢复':
+      'Script no longer matches the original run; resume refused',
+  '脚本编译失败': 'Script compilation failed',
+  '该运行不支持调整配置': 'This run does not support configuration changes',
+  '设置没有变化': 'No settings changed',
+  '所选模型不可用': 'Selected model is unavailable',
+  '动态工作流端口缺席（旧版 CLI 或灰度未开）':
+      'Dynamic workflow port unavailable (older CLI or feature flag off)',
+  '新运行启动失败': 'Failed to start the new run',
+  // 后台 Bash 输出详情页（bg-bash-output-1）。
+  '已超时': 'Timed out',
+  '复制输出': 'Copy output',
+  '输出已复制': 'Output copied',
+  '读取输出失败': 'Failed to read output',
+  '读取输出失败，已保留上次内容': 'Failed to read output; last content kept',
+  '输出暂不可用（任务记录不在内存中）': 'Output unavailable (task record not in memory)',
+  '当前桌面版本不支持查看输出': 'This desktop version does not support viewing output',
 };
 
 final _customPatterns = <_L10nPattern>[
   // 修订链血缘行（中文前缀+动态 runId 拼接串；详情页 Text 走 tr→此
   // 模式命中）。官方 en-US.ts:7289-7290 对位。
-  _L10nPattern(
-    RegExp(r'^已被替代，后继 run ([\s\S]+)$'),
-    'Superseded by run {id}',
-    {'id': 1},
-  ),
-  _L10nPattern(
-    RegExp(r'^调整自 run ([\s\S]+)$'),
-    'Amends run {id}',
-    {'id': 1},
-  ),
-  _L10nPattern(
-    RegExp(r'^本次无法删除：([\s\S]+)$'),
-    'Cannot delete now: {reason}',
-    {'reason': 1},
-  ),
-  _L10nPattern(
-    RegExp(r'^· 分支会话「([\s\S]+)」$'),
-    '· Forked session “{t}”',
-    {'t': 1},
-  ),
+  _L10nPattern(RegExp(r'^已被替代，后继 run ([\s\S]+)$'), 'Superseded by run {id}', {
+    'id': 1,
+  }),
+  _L10nPattern(RegExp(r'^调整自 run ([\s\S]+)$'), 'Amends run {id}', {'id': 1}),
+  _L10nPattern(RegExp(r'^本次无法删除：([\s\S]+)$'), 'Cannot delete now: {reason}', {
+    'reason': 1,
+  }),
+  _L10nPattern(RegExp(r'^· 分支会话「([\s\S]+)」$'), '· Forked session “{t}”', {
+    't': 1,
+  }),
   _L10nPattern(
     RegExp(r'^· 产物 ([\s\S]+)（被其他会话引用）$'),
     '· Artifact {n} (referenced by another session)',
     {'n': 1},
   ),
   // multi-account-ux-1 批4：其他电脑聚合区。
-  _L10nPattern(RegExp(r'^其他电脑（(\d+)）$'), 'Other computers ({count})', {'count': 1}),
+  _L10nPattern(RegExp(r'^其他电脑（(\d+)）$'), 'Other computers ({count})', {
+    'count': 1,
+  }),
   _L10nPattern(RegExp(r'^缓存于 ([\s\S]+)$'), 'Cached {time}', {'time': 1}),
 
+  // marketing-claim-1：领取成功 snackbar（权益名顿号拼接）。
+  _L10nPattern(RegExp(r'^已领取：([\s\S]+)$'), 'Claimed: {names}', {'names': 1}),
+
   // multi-account-ux-1 批1：账号管理副标题（拼接串，count=1 单数）。
-  _L10nPattern(RegExp(r'^([\s\S]+) · 1 台电脑 · 连接中$'),
-      '{account} · 1 computer · Connected', {'account': 1}),
-  _L10nPattern(RegExp(r'^([\s\S]+) · (\d+) 台电脑 · 连接中$'),
-      '{account} · {count} computers · Connected', {'account': 1, 'count': 2}),
-  _L10nPattern(RegExp(r'^([\s\S]+) · 1 台电脑$'),
-      '{account} · 1 computer', {'account': 1}),
-  _L10nPattern(RegExp(r'^([\s\S]+) · (\d+) 台电脑$'),
-      '{account} · {count} computers', {'account': 1, 'count': 2}),
+  _L10nPattern(
+    RegExp(r'^([\s\S]+) · 1 台电脑 · 连接中$'),
+    '{account} · 1 computer · Connected',
+    {'account': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^([\s\S]+) · (\d+) 台电脑 · 连接中$'),
+    '{account} · {count} computers · Connected',
+    {'account': 1, 'count': 2},
+  ),
+  _L10nPattern(RegExp(r'^([\s\S]+) · 1 台电脑$'), '{account} · 1 computer', {
+    'account': 1,
+  }),
+  _L10nPattern(
+    RegExp(r'^([\s\S]+) · (\d+) 台电脑$'),
+    '{account} · {count} computers',
+    {'account': 1, 'count': 2},
+  ),
 
   // multi-account-ux-1 批1：设备列表「以 {账号} 拉取」chip。
-  _L10nPattern(RegExp(r'^以 ([\s\S]+) 拉取$'), 'Fetch with {account}', {'account': 1}),
+  _L10nPattern(RegExp(r'^以 ([\s\S]+) 拉取$'), 'Fetch with {account}', {
+    'account': 1,
+  }),
 
   // 插值成串的泄漏——tr() 只做精确匹配+regex，带
   // 数值/变量的文案必须走 pattern（此前成组泄漏的根因）。
   // 修复+优化批参数串。
-  _L10nPattern(RegExp(r'^归档选中的 (\d+) 个任务？$'), 'Archive {n} selected tasks?', {'n': 1}),
-  _L10nPattern(RegExp(r'^将选中的 (\d+) 个任务标为已读？$'), 'Mark {n} selected tasks as read?', {'n': 1}),
+  _L10nPattern(RegExp(r'^归档选中的 (\d+) 个任务？$'), 'Archive {n} selected tasks?', {
+    'n': 1,
+  }),
+  _L10nPattern(
+    RegExp(r'^将选中的 (\d+) 个任务标为已读？$'),
+    'Mark {n} selected tasks as read?',
+    {'n': 1},
+  ),
   _L10nPattern(RegExp(r'^显示全部 (\d+) 行$'), 'Show all {n} lines', {'n': 1}),
   _L10nPattern(RegExp(r'^事件（最新 (\d+) 条）$'), 'Events (latest {n})', {'n': 1}),
   _L10nPattern(RegExp(r'^产物（(\d+)）$'), 'Artifacts ({n})', {'n': 1}),
   _L10nPattern(
-      RegExp(r'^已加入闲时队列（第 (\d+) 位）$'),
-      'Queued for off-peak execution (#{pos})',
-      {'pos': 1}),
-  _L10nPattern(RegExp(r'^第 (\d+) 次迭代 · ([\s\S]+)$'), 'Iteration {n} · {status}', {
-    'n': 1,
-    'status': 2,
+    RegExp(r'^已加入闲时队列（第 (\d+) 位）$'),
+    'Queued for off-peak execution (#{pos})',
+    {'pos': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^第 (\d+) 次迭代 · ([\s\S]+)$'),
+    'Iteration {n} · {status}',
+    {'n': 1, 'status': 2},
+  ),
+  _L10nPattern(
+    RegExp(r'^压缩发起失败：([\s\S]+)$'),
+    'Failed to start compaction: {detail}',
+    {'detail': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^排队操作失败：([\s\S]+)$'),
+    'Queue operation failed: {detail}',
+    {'detail': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^读取产物失败：([\s\S]+)$'),
+    'Failed to read artifact: {detail}',
+    {'detail': 1},
+  ),
+  _L10nPattern(RegExp(r'^读取失败：([\s\S]+)$'), 'Failed to load: {detail}', {
+    'detail': 1,
+  }),
+  _L10nPattern(
+    RegExp(r'^网页组件不可用：([\s\S]+)$'),
+    'Web view unavailable: {detail}',
+    {'detail': 1},
+  ),
+  _L10nPattern(RegExp(r'^渲染失败：([\s\S]+)$'), 'Failed to render: {detail}', {
+    'detail': 1,
   }),
   _L10nPattern(RegExp(r'^压缩发起失败：([\s\S]+)$'), 'Failed to start compaction: {detail}', {'detail': 1}),
   _L10nPattern(RegExp(r'^排队操作失败：([\s\S]+)$'), 'Queue operation failed: {detail}', {'detail': 1}),
@@ -1468,17 +1521,11 @@ final _customPatterns = <_L10nPattern>[
   ),
   // ── 任务管理优化批（#13/#22）：多选操作栏与批量结果提示 ──
   _L10nPattern(RegExp(r'^已选 (\d+) 个$'), 'Selected {n}', {'n': 1}),
-  _L10nPattern(
-    RegExp(r'^删除选中的 (\d+) 个任务？$'),
-    'Delete {n} selected tasks?',
-    {'n': 1},
-  ),
+  _L10nPattern(RegExp(r'^删除选中的 (\d+) 个任务？$'), 'Delete {n} selected tasks?', {
+    'n': 1,
+  }),
   _L10nPattern(RegExp(r'^已归档 (\d+) 个$'), 'Archived {n}', {'n': 1}),
-  _L10nPattern(
-    RegExp(r'^已标为已读 (\d+) 个$'),
-    'Marked {n} as read',
-    {'n': 1},
-  ),
+  _L10nPattern(RegExp(r'^已标为已读 (\d+) 个$'), 'Marked {n} as read', {'n': 1}),
   _L10nPattern(RegExp(r'^已删除 (\d+) 个$'), 'Deleted {n}', {'n': 1}),
   _L10nPattern(
     RegExp(r'^已归档 (\d+) 个，(\d+) 个失败：([\s\S]+)$'),
@@ -1501,11 +1548,9 @@ final _customPatterns = <_L10nPattern>[
   _L10nPattern(RegExp(r'^置顶 \((\d+)\)$'), 'Pinned ({n})', {'n': 1}),
   _L10nPattern(RegExp(r'^运行中 \((\d+)\)$'), 'Running ({n})', {'n': 1}),
   _L10nPattern(RegExp(r'^全部 \((\d+)\)$'), 'All ({n})', {'n': 1}),
-  _L10nPattern(
-    RegExp(r'^其他工作区 \((\d+)\)$'),
-    'Other workspaces ({n})',
-    {'n': 1},
-  ),
+  _L10nPattern(RegExp(r'^其他工作区 \((\d+)\)$'), 'Other workspaces ({n})', {
+    'n': 1,
+  }),
   _L10nPattern(
     RegExp(r'^没有匹配「([\s\S]+)」的任务，换个关键词试试$'),
     'No tasks matching “{query}”. Try another keyword',
@@ -1516,12 +1561,24 @@ final _customPatterns = <_L10nPattern>[
     'Full-text search unavailable; matched by title/preview\nNo tasks matching “{query}”',
     {'query': 1},
   ),
-  _L10nPattern(RegExp(r'^置顶操作失败: ([\s\S]+)$'), 'Pin failed: {error}', {'error': 1}),
-  _L10nPattern(RegExp(r'^重命名失败: ([\s\S]+)$'), 'Rename failed: {error}', {'error': 1}),
-  _L10nPattern(RegExp(r'^操作失败: ([\s\S]+)$'), 'Operation failed: {error}', {'error': 1}),
-  _L10nPattern(RegExp(r'^撤销失败: ([\s\S]+)$'), 'Undo failed: {error}', {'error': 1}),
-  _L10nPattern(RegExp(r'^删除失败: ([\s\S]+)$'), 'Delete failed: {error}', {'error': 1}),
-  _L10nPattern(RegExp(r'^归档失败: ([\s\S]+)$'), 'Archive failed: {error}', {'error': 1}),
+  _L10nPattern(RegExp(r'^置顶操作失败: ([\s\S]+)$'), 'Pin failed: {error}', {
+    'error': 1,
+  }),
+  _L10nPattern(RegExp(r'^重命名失败: ([\s\S]+)$'), 'Rename failed: {error}', {
+    'error': 1,
+  }),
+  _L10nPattern(RegExp(r'^操作失败: ([\s\S]+)$'), 'Operation failed: {error}', {
+    'error': 1,
+  }),
+  _L10nPattern(RegExp(r'^撤销失败: ([\s\S]+)$'), 'Undo failed: {error}', {
+    'error': 1,
+  }),
+  _L10nPattern(RegExp(r'^删除失败: ([\s\S]+)$'), 'Delete failed: {error}', {
+    'error': 1,
+  }),
+  _L10nPattern(RegExp(r'^归档失败: ([\s\S]+)$'), 'Archive failed: {error}', {
+    'error': 1,
+  }),
   // 全角冒号变体（goal_panel/subagents/archived 等直拼 '：$e' 处）。
   _L10nPattern(RegExp(r'^已归档「([\s\S]+)」$'), 'Archived “{title}”', {'title': 1}),
   _L10nPattern(RegExp(r'^已恢复「([\s\S]+)」$'), 'Restored “{title}”', {'title': 1}),
@@ -1536,23 +1593,21 @@ final _customPatterns = <_L10nPattern>[
     '“{title}” will be permanently deleted. This cannot be undone.',
     {'title': 1},
   ),
-  _L10nPattern(RegExp(r'^已清理 (\d+) 个归档任务$'), 'Deleted {n} archived tasks', {'n': 1}),
+  _L10nPattern(RegExp(r'^已清理 (\d+) 个归档任务$'), 'Deleted {n} archived tasks', {
+    'n': 1,
+  }),
   _L10nPattern(RegExp(r'^已移动到 ([\s\S]+)$'), 'Moved to {name}', {'name': 1}),
-  _L10nPattern(
-    RegExp(r'^正在切换到 ([\s\S]+)…$'),
-    'Switching to {name}…',
-    {'name': 1},
-  ),
+  _L10nPattern(RegExp(r'^正在切换到 ([\s\S]+)…$'), 'Switching to {name}…', {
+    'name': 1,
+  }),
   _L10nPattern(
     RegExp(r'^切换失败，请重试：([\s\S]+)$'),
     'Switch failed. Try again: {error}',
     {'error': 1},
   ),
-  _L10nPattern(
-    RegExp(r'^移动「([\s\S]+)」到项目$'),
-    'Move “{title}” to a project',
-    {'title': 1},
-  ),
+  _L10nPattern(RegExp(r'^移动「([\s\S]+)」到项目$'), 'Move “{title}” to a project', {
+    'title': 1,
+  }),
   _L10nPattern(
     RegExp(r'^该任务的目录不在项目「([\s\S]+)」的文件夹列表里。\n「([\s\S]+)」将被加入该项目，然后移动任务。$'),
     'This task’s folder is not in project “{name}”’s folder list.\n“{path}” will be added to the project, then the task will be moved.',
@@ -1560,7 +1615,9 @@ final _customPatterns = <_L10nPattern>[
   ),
   // M3：分支弹层/git_branch_service/配对/账号。
   _L10nPattern(
-    RegExp(r'^该工作区有 (\d+) 个运行中任务。切分支对整个工作区全局生效（官方语义），运行中的会话也会受影响。确定切换到「([\s\S]+)」？$'),
+    RegExp(
+      r'^该工作区有 (\d+) 个运行中任务。切分支对整个工作区全局生效（官方语义），运行中的会话也会受影响。确定切换到「([\s\S]+)」？$',
+    ),
     'This workspace has {n} running tasks. Switching branches applies to the whole workspace (official behavior) and affects running conversations too. Switch to “{branch}”?',
     {'n': 1, 'branch': 2},
   ),
@@ -1574,7 +1631,9 @@ final _customPatterns = <_L10nPattern>[
     'Failed to load branch info: {error}',
     {'error': 1},
   ),
-  _L10nPattern(RegExp(r'^切换失败（([\s\S]+)）$'), 'Switch failed ({code})', {'code': 1}),
+  _L10nPattern(RegExp(r'^切换失败（([\s\S]+)）$'), 'Switch failed ({code})', {
+    'code': 1,
+  }),
   _L10nPattern(
     RegExp(r'^连接失败：([\s\S]+)\n（桌面端 ZCode 需处于运行状态）$'),
     'Connection failed: {error}\n(ZCode must be running on the desktop)',
@@ -1585,7 +1644,9 @@ final _customPatterns = <_L10nPattern>[
     'Connection failed: {error}\n(The desktop needs 3.16+ and the same account signed in)',
     {'error': 1},
   ),
-  _L10nPattern(RegExp(r'^连接失败：([\s\S]+)$'), 'Connection failed: {error}', {'error': 1}),
+  _L10nPattern(RegExp(r'^连接失败：([\s\S]+)$'), 'Connection failed: {error}', {
+    'error': 1,
+  }),
   _L10nPattern(
     RegExp(r'^有 (\d+) 个档案数据损坏已跳过（重扫该电脑可恢复）$'),
     '{count} corrupted profiles were skipped (rescan the computer to recover)',
@@ -1598,11 +1659,9 @@ final _customPatterns = <_L10nPattern>[
     {'count': 1},
   ),
   // 工具组/反馈/分支/链接。
-  _L10nPattern(
-    RegExp(r'^终端 · (\d+) 个命令$'),
-    'Terminal · {n} commands',
-    {'n': 1},
-  ),
+  _L10nPattern(RegExp(r'^终端 · (\d+) 个命令$'), 'Terminal · {n} commands', {
+    'n': 1,
+  }),
   _L10nPattern(
     RegExp(r'^终端 · (\d+) 个命令，(\d+) 个失败$'),
     'Terminal · {n} commands, {failed} failed',
@@ -1610,7 +1669,9 @@ final _customPatterns = <_L10nPattern>[
   ),
   _L10nPattern(RegExp(r'^(\d+) 个文件已更改$'), '{n} files changed', {'n': 1}),
   // 时长片段（思考/工作条/Goal/重置倒计时共用；模板串拼接前先 tr 片段）。
-  _L10nPattern(RegExp(r'^思考 · 持续了 ([\s\S]+)$'), 'Thought for {duration}', {'duration': 1}),
+  _L10nPattern(RegExp(r'^思考 · 持续了 ([\s\S]+)$'), 'Thought for {duration}', {
+    'duration': 1,
+  }),
   _L10nPattern(RegExp(r'^(\d+) 秒$'), '{count}s', {'count': 1}),
   _L10nPattern(RegExp(r'^(\d+) 分$'), '{count}m', {'count': 1}),
   _L10nPattern(RegExp(r'^(\d+) 分 (\d+) 秒$'), '{m}m {s}s', {'m': 1, 's': 2}),
@@ -1639,7 +1700,9 @@ final _customPatterns = <_L10nPattern>[
     {'n': 1},
   ),
   // 审批卡倒计时/计数条/题数按钮/工具权限标题/Goal/自动化。
-  _L10nPattern(RegExp(r'^(\d+) 秒后自动结束$'), 'Auto-resolves in {count}s', {'count': 1}),
+  _L10nPattern(RegExp(r'^(\d+) 秒后自动结束$'), 'Auto-resolves in {count}s', {
+    'count': 1,
+  }),
   _L10nPattern(
     RegExp(r'^还有 (\d+) 个待处理，处理完当前后依次出现$'),
     '{count} more pending — they will appear one by one after the current one',
@@ -1658,17 +1721,16 @@ final _customPatterns = <_L10nPattern>[
     {'error': 1},
   ),
   _L10nPattern(RegExp(r'^第 (\d+) 轮$'), 'Iteration {count}', {'count': 1}),
-  _L10nPattern(
-    RegExp(r'^验证 (\d+)/(\d+)$'),
-    'Verified {passed}/{total}',
-    {'passed': 1, 'total': 2},
-  ),
-  _L10nPattern(
-    RegExp(r'^正在运行「([\s\S]+)」$'),
-    'Now running “{title}”',
-    {'title': 1},
-  ),
-  _L10nPattern(RegExp(r'^已触发（([\s\S]+)）$'), 'Triggered ({status})', {'status': 1}),
+  _L10nPattern(RegExp(r'^验证 (\d+)/(\d+)$'), 'Verified {passed}/{total}', {
+    'passed': 1,
+    'total': 2,
+  }),
+  _L10nPattern(RegExp(r'^正在运行「([\s\S]+)」$'), 'Now running “{title}”', {
+    'title': 1,
+  }),
+  _L10nPattern(RegExp(r'^已触发（([\s\S]+)）$'), 'Triggered ({status})', {
+    'status': 1,
+  }),
   // 重置礼包徽标（单机会）与弹层行副标题（倒计时段拼接前先 tr）。
   _L10nPattern(
     RegExp(r'^(\d+) 次重置额度 · 剩余 ([\s\S]+)$'),
@@ -1697,32 +1759,32 @@ final _customPatterns = <_L10nPattern>[
     {'n': 1},
   ),
   _L10nPattern(
-    RegExp(r'^将把本轮对 (\d+) 个文件的修改恢复到本轮开始前；(\d+) 个不能安全撤销、(\d+) 个已忽略（自动跳过）。聊天记录不受影响。$'),
+    RegExp(
+      r'^将把本轮对 (\d+) 个文件的修改恢复到本轮开始前；(\d+) 个不能安全撤销、(\d+) 个已忽略（自动跳过）。聊天记录不受影响。$',
+    ),
     'Changes to {n} files will be restored to the state before this turn; {unsafe} cannot be safely undone and {ignored} are ignored (skipped automatically). Chat history is not affected.',
     {'n': 1, 'unsafe': 2, 'ignored': 3},
   ),
   _L10nPattern(
-    RegExp(r'^将把本轮对 (\d+) 个文件的修改恢复到本轮开始前（含「([\s\S]+)」；撤销按文件逐个进行，越过安全边界的文件会被跳过）。聊天记录不受影响。$'),
+    RegExp(
+      r'^将把本轮对 (\d+) 个文件的修改恢复到本轮开始前（含「([\s\S]+)」；撤销按文件逐个进行，越过安全边界的文件会被跳过）。聊天记录不受影响。$',
+    ),
     'Changes to {n} files will be restored to the state before this turn (including “{path}”; undo proceeds file by file, and files past the safety boundary are skipped). Chat history is not affected.',
     {'n': 1, 'path': 2},
   ),
   // FGS 常驻通知运行中后缀（标题为用户内容保持原文）。
-  _L10nPattern(
-    RegExp(r'^(\d+) 个任务运行中$'),
-    '{count} task(s) running',
-    {'count': 1},
-  ),
+  _L10nPattern(RegExp(r'^(\d+) 个任务运行中$'), '{count} task(s) running', {
+    'count': 1,
+  }),
   _L10nPattern(
     RegExp(r'^「([\s\S]+)」等 (\d+) 个任务运行中$'),
     '“{title}” — {count} task(s) running in total',
     {'title': 1, 'count': 2},
   ),
   // fullsweep-1108：工作流事件翻页 / Hook 审核 / 后台工作面板等组合串。
-  _L10nPattern(
-    RegExp(r'^加载更多失败：([\s\S]+)$'),
-    'Load more failed: {detail}',
-    {'detail': 1},
-  ),
+  _L10nPattern(RegExp(r'^加载更多失败：([\s\S]+)$'), 'Load more failed: {detail}', {
+    'detail': 1,
+  }),
   _L10nPattern(RegExp(r'^最早 (\d+) 条$'), 'Earliest {n}', {'n': 1}),
   _L10nPattern(
     RegExp(r'^最早 (\d+) 条 · 仍有更晚事件未加载$'),
@@ -1734,11 +1796,9 @@ final _customPatterns = <_L10nPattern>[
     'Loaded up to #{n} · later events not loaded',
     {'n': 1},
   ),
-  _L10nPattern(
-    RegExp(r'^信任失败：([\s\S]+)$'),
-    'Trust failed: {detail}',
-    {'detail': 1},
-  ),
+  _L10nPattern(RegExp(r'^信任失败：([\s\S]+)$'), 'Trust failed: {detail}', {
+    'detail': 1,
+  }),
   _L10nPattern(
     RegExp(r'^信任未生效（([\s\S]+)）——审核已更新，请返回重进$'),
     'Trust not applied ({reason}) — the review has changed; go back and re-enter',
@@ -1777,4 +1837,21 @@ final _customPatterns = <_L10nPattern>[
     '{event} · foreground · timeout {n}s',
     {'event': 1, 'n': 2},
   ),
+  // workflow-control-1 批C：fault 人话带诊断/异常后缀的拼接形态。
+  _L10nPattern(
+    RegExp(r'^脚本编译失败：([\s\S]+)$'),
+    'Script compilation failed: {msg}',
+    {'msg': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^新运行启动失败：([\s\S]+)$'),
+    'Failed to start the new run: {msg}',
+    {'msg': 1},
+  ),
+  _L10nPattern(RegExp(r'^恢复失败：([\s\S]+)$'), 'Resume failed: {msg}', {'msg': 1}),
+  _L10nPattern(RegExp(r'^调整失败：([\s\S]+)$'), 'Adjustment failed: {msg}', {
+    'msg': 1,
+  }),
+  // 审查轮2 ：加载失败整串（此前 tr('加载失败：')+err 片段拼接永不命中）。
+  _L10nPattern(RegExp(r'^加载失败：([\s\S]+)$'), 'Load failed: {msg}', {'msg': 1}),
 ];

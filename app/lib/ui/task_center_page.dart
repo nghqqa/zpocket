@@ -22,6 +22,7 @@ import '../transport/project_tree.dart';
 import '../transport/z_transport.dart';
 import 'app_widgets.dart';
 import 'login_page.dart';
+import 'marketing_claim_card.dart';
 import 'status_badge.dart';
 import 'archived_tasks_page.dart';
 import 'automation_page.dart';
@@ -33,6 +34,17 @@ import 'task_home.dart';
 
 /// 任务中心（home）：全部任务 + 最近｜项目分组（项目栏优化 B 方案）。
 /// 折叠/展开共用同一主页；项目成为分组与新建上下文，不再是常驻导航轨。
+
+/// 首页刷新统一联动福利卡拉取（marketing-claim-review-1）：任务刷新与
+/// 营销 force 拉取并行，一起 await（顶栏刷新与下拉刷新同款；搜索路径
+/// 仍纯任务刷新）。
+Future<void> refreshWorkspacesWithMarketing(AppState app) async {
+  final marketing = app.marketing;
+  await Future.wait([
+    app.refreshWorkspaces(),
+    if (marketing != null) marketing.pull(force: true),
+  ]);
+}
 
 /// 卡片摘要剥 Markdown 记号（**强调**/`代码`/标题# 等）——纯文本场景
 /// 裸符号观感糙（视觉走查-10-18）。
@@ -962,7 +974,9 @@ class _TaskCenterPageState extends State<TaskCenterPage> {
                         '${app.activeAccountLabel}',
               subtitle: '任务主页',
               onTitleTap: () => showProfilesSheet(context),
-              onRefresh: app.refreshWorkspaces,
+              // 顶栏刷新同样联动福利卡（marketing-claim-review-1，审查
+              // ④低-5：仅下拉联动时顶栏刷新漏营销）；搜索路径仍纯任务。
+              onRefresh: () => refreshWorkspacesWithMarketing(app),
               onSettings: openSettings,
               onAutomations: openAutomations,
               onSearchToggle: () {
@@ -1910,10 +1924,18 @@ class _TaskHomeViewState extends State<_TaskHomeView> {
     return Column(
       children: [
         _buildHeader(context),
+        // 官方福利领取卡（marketing-claim-1）：header 下方常驻槽位——
+        // 无投放时零高度；搜索期本视图整体不出现，卡天然隐藏。
+        const MarketingClaimCard(),
         Expanded(child: _buildBody(context, app, rows)),
       ],
     );
   }
+
+  /// 下拉刷新联动福利卡拉取（marketing-claim-1）：统一走
+  /// [refreshWorkspacesWithMarketing]（顶栏刷新同款）。
+  Future<void> _refreshHome(AppState app) =>
+      refreshWorkspacesWithMarketing(app);
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
@@ -2038,7 +2060,7 @@ class _TaskHomeViewState extends State<_TaskHomeView> {
           (app.workspaceOpening ||
               (app.readTreeStatus == 'loading' && app.taskList == null));
       return RefreshIndicator(
-        onRefresh: app.refreshWorkspaces,
+        onRefresh: () => _refreshHome(app),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.fromLTRB(
@@ -2106,7 +2128,7 @@ class _TaskHomeViewState extends State<_TaskHomeView> {
       fullyExpandedGroups: widget.fullyExpandedGroups,
     );
     return RefreshIndicator(
-      onRefresh: app.refreshWorkspaces,
+      onRefresh: () => _refreshHome(app),
       // 主页行也包 _MinuteTicker——「刚刚/N 分钟前」
       // 标签此前只在下一次数据 notify 才重算，停留期间不刷新（搜索路径
       // 既有同款先例）。
@@ -3576,15 +3598,19 @@ void _showTaskActions(
                   run(() async {
                     await app.archiveTask(entry.sessionId);
                     if (!context.mounted) return;
-                    // 验收（用户两轮反馈不消失）：duration 显式 3s——旧的
-                    // 6s hideCurrentSnackBar 兜底会误关后续提示条，已移除。
+                    // rewards-table-fit-1 同批（用户三轮反馈不消失，真因
+                    // 才找到）：本 SDK 的 SnackBar `persist = persist ??
+                    // action != null`（snack_bar.dart:303）——带 action 默认
+                    // 永不过期，前两轮只调 duration 全是死代码。显式
+                    // persist:false + 4s（撤销留反应时间）。
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         behavior: SnackBarBehavior.floating,
                         content: Text(
                           '已归档「${entry.title.isEmpty ? '未命名任务' : entry.title}」',
                         ),
-                        duration: const Duration(milliseconds: 3000),
+                        duration: const Duration(seconds: 4),
+                        persist: false,
                         action: SnackBarAction(
                           label: '撤销',
                           onPressed: () => run(

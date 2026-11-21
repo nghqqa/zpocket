@@ -94,7 +94,9 @@ class _WireBridge implements BridgeSession {
   @override
   final ValueNotifier<int> recovered = ValueNotifier(0);
   @override
-  Future<void> waitHealthy({Duration timeout = const Duration(seconds: 45)}) async {}
+  Future<void> waitHealthy({
+    Duration timeout = const Duration(seconds: 45),
+  }) async {}
   @override
   Map<String, dynamic> get bridge => const {};
   @override
@@ -171,7 +173,10 @@ void main() {
       reason: 'wire 方法名 typo=全套门全绿只能真机发现（审查 D5 实锤）',
     );
     // scope 平铺在参数顶层（官方 {...workspace, ...} 同构）。
-    expect(byMethod['conversationWorkflowRunsV4']!['workspacePath'], r'C:\demo');
+    expect(
+      byMethod['conversationWorkflowRunsV4']!['workspacePath'],
+      r'C:\demo',
+    );
     expect(byMethod['conversationWorkflowRunsV4']!['sessionId'], 's-1');
     expect(
       byMethod['conversationWorkflowRunsV4']!.containsKey('limit'),
@@ -184,8 +189,11 @@ void main() {
         .where((c) => c.$1 == 'conversationWorkflowRunEventsV4')
         .toList();
     expect(eventsCalls.first.$2.containsKey('afterSequence'), isFalse);
-    expect(eventsCalls[1].$2['afterSequence'], projectionLastEventSequence - 500,
-        reason: '最新页反推（run lastEventSequence-500）经此参数到达');
+    expect(
+      eventsCalls[1].$2['afterSequence'],
+      projectionLastEventSequence - 500,
+      reason: '最新页反推（run lastEventSequence-500）经此参数到达',
+    );
     // workflowRunArtifactData：sessionId/runId/artifactId 三参必带，
     // afterSequence/limit 缺省省略（官方 strict 语义）。
     final dataCalls = channel.calls
@@ -195,8 +203,11 @@ void main() {
     expect(dataCalls.first.$2['sessionId'], 's-1');
     expect(dataCalls.first.$2['runId'], 'run-1');
     expect(dataCalls.first.$2['artifactId'], 'a1');
-    expect(dataCalls.first.$2.containsKey('afterSequence'), isFalse,
-        reason: '缺省=从头取（官方同语义，不带键）');
+    expect(
+      dataCalls.first.$2.containsKey('afterSequence'),
+      isFalse,
+      reason: '缺省=从头取（官方同语义，不带键）',
+    );
     expect(dataCalls.first.$2.containsKey('limit'), isFalse);
     expect(dataCalls[1].$2['afterSequence'], 7);
     expect(dataCalls[1].$2['limit'], 200);
@@ -204,8 +215,82 @@ void main() {
     expect(read['artifactId'], 'a1');
     expect(read['version'], 2);
     expect(read['offset'], 0);
-    expect(read['limit'], 512 * 1024,
-        reason: '分块上限=官方 attachmentChunkMaxBytes');
+    expect(
+      read['limit'],
+      512 * 1024,
+      reason: '分块上限=官方 attachmentChunkMaxBytes',
+    );
+  });
+
+  test('workflow 控制（批C）：resume 信封 name 可选省略 + amend 三态载荷', () async {
+    await conv.resumeWorkflowRun('s-1', 'run-9', name: '发布门');
+    final withName = channel.calls
+        .where((c) => c.$1 == 'sendConversationCommandV4')
+        .map((c) => c.$2['envelope'] as Map)
+        .lastWhere((e) => e['type'] == 'resumeWorkflowRun');
+    expect(withName['payload'], {'workId': 'run-9', 'name': '发布门'});
+    await conv.resumeWorkflowRun('s-1', 'run-9');
+    final withoutName = channel.calls
+        .where((c) => c.$1 == 'sendConversationCommandV4')
+        .map((c) => c.$2['envelope'] as Map)
+        .lastWhere((e) => e['type'] == 'resumeWorkflowRun');
+    expect(withoutName['payload'], {
+      'workId': 'run-9',
+    }, reason: 'name 可选缺省省略（strict 最小化）');
+
+    // 三态纪律：省略=键不在 / 显式 null=回默认 / 值=设定。
+    expect(conv.amendWorkflowRunSettingsPayload('run-9'), {'workId': 'run-9'});
+    expect(
+      conv.amendWorkflowRunSettingsPayload(
+        'run-9',
+        subagentModelValue: 'zai/glm-5.3',
+        maxConcurrencyValue: 4,
+      ),
+      {'workId': 'run-9', 'subagentModel': 'zai/glm-5.3', 'maxConcurrency': 4},
+    );
+    final reset = conv.amendWorkflowRunSettingsPayload(
+      'run-9',
+      subagentModelReset: true,
+      maxConcurrencyReset: true,
+    );
+    expect(reset, {
+      'workId': 'run-9',
+      'subagentModel': null,
+      'maxConcurrency': null,
+    }, reason: 'reset 时显式 null（键必须在，JSON 序列化为 null ≠ 缺席）');
+    // amend 真实信封（值档）。
+    await conv.amendWorkflowRunSettings(
+      's-1',
+      'run-9',
+      subagentModelValue: 'zai/glm-5.3',
+    );
+    final amendEnv = channel.calls
+        .where((c) => c.$1 == 'sendConversationCommandV4')
+        .map((c) => c.$2['envelope'] as Map)
+        .lastWhere((e) => e['type'] == 'amendWorkflowRunSettings');
+    expect(amendEnv['payload'], {
+      'workId': 'run-9',
+      'subagentModel': 'zai/glm-5.3',
+    });
+  });
+
+  test('backgroundBashOutput 查询：服务名（≠CLI wire 名）+ scope 平铺', () async {
+    await conv.backgroundBashOutput('s-1', 'w-1');
+    final call = channel.calls.firstWhere(
+      (c) => c.$1 == 'backgroundBashOutputV4',
+    );
+    expect(call.$2['sessionId'], 's-1');
+    expect(call.$2['workId'], 'w-1');
+    expect(
+      call.$2['workspacePath'],
+      r'C:\demo',
+      reason: 'scope 平铺（官方 {...workspace,...} 同构）',
+    );
+    expect(
+      call.$2.keys,
+      isNot(contains('limit')),
+      reason: '官方固定尾读 8KiB，不接受读取上限参数',
+    );
   });
 
   test('compact 命令信封：空载荷 + 全字段', () async {
@@ -220,14 +305,16 @@ void main() {
     expect(compact['commandId'], isNotEmpty);
     expect(compact['sessionId'], 's-1');
     expect(compact['issuedAt'], isPositive);
-    expect(sent['workspacePath'], r'C:\demo',
-        reason: 'scope 平铺在 params 顶层（官方 commandParams 同构）');
+    expect(
+      sent['workspacePath'],
+      r'C:\demo',
+      reason: 'scope 平铺在 params 顶层（官方 commandParams 同构）',
+    );
     // 官方 3.17 给 compact 加了可选 modelSelection——{} 仍合法（对照
     // 官方 3.17.1 源码快照 command.ts:169）。
   });
 
-  test('cancelBackgroundWork 命令信封：workId 载荷（2026-11-08）',
-      () async {
+  test('cancelBackgroundWork 命令信封：workId 载荷（2026-11-08）', () async {
     await conv.cancelBackgroundWork('s-1', 'w-9');
     final sent = channel.calls
         .firstWhere((c) => c.$1 == 'sendConversationCommandV4')
@@ -239,25 +326,29 @@ void main() {
     expect(cmd['commandId'], isNotEmpty);
   });
 
-  test('contextComposition RPC：getContextComposition 方法名+平铺参数（H1 钉死）',
-      () async {
-    await conv.contextComposition('s-1');
-    // 早前批次 ：zcode-agent 服务方法名是 getContextComposition
-    //（zcodeAgent.ts:1105-1111）——不是 CLI wire 名的仿造
-    // conversationContextCompositionV4。此钉防通道名再串线（真机
-    // method-not-found 级死链）。
-    final sent = channel.calls
-        .firstWhere((c) => c.$1 == 'getContextComposition')
-        .$2;
-    expect(sent['sessionId'], 's-1');
-    expect(sent['workspacePath'], r'C:\demo',
-        reason: 'ZCodeAgentWorkspaceTarget 平铺（无嵌套 workspace 对象）');
-    // 返回值原样透传（裸 ContextComposition|null），解包在页面层
-    //（compositionOf）——传输层不得读 ['composition'] 键。
-  });
+  test(
+    'contextComposition RPC：getContextComposition 方法名+平铺参数（H1 钉死）',
+    () async {
+      await conv.contextComposition('s-1');
+      // 早前批次 ：zcode-agent 服务方法名是 getContextComposition
+      //（zcodeAgent.ts:1105-1111）——不是 CLI wire 名的仿造
+      // conversationContextCompositionV4。此钉防通道名再串线（真机
+      // method-not-found 级死链）。
+      final sent = channel.calls
+          .firstWhere((c) => c.$1 == 'getContextComposition')
+          .$2;
+      expect(sent['sessionId'], 's-1');
+      expect(
+        sent['workspacePath'],
+        r'C:\demo',
+        reason: 'ZCodeAgentWorkspaceTarget 平铺（无嵌套 workspace 对象）',
+      );
+      // 返回值原样透传（裸 ContextComposition|null），解包在页面层
+      //（compositionOf）——传输层不得读 ['composition'] 键。
+    },
+  );
 
-  test('stopSubagent 命令信封：taskId/executionId strict 载荷（② 1.0.7）',
-      () async {
+  test('stopSubagent 命令信封：taskId/executionId strict 载荷（② 1.0.7）', () async {
     await conv.stopSubagent('s-1', 'agent-7', 'exec-a');
     final sent = channel.calls
         .firstWhere((c) => c.$1 == 'sendConversationCommandV4')
@@ -275,16 +366,20 @@ void main() {
 
   test('sendText 重放沿用钉住的 commandId（队列双发红线）', () async {
     await conv.sendText('s-1', 'hi', replayCommandId: 'pinned-id');
-    Map<String, dynamic> lastEnvelope() => (channel.calls
-            .lastWhere((c) => c.$1 == 'sendConversationCommandV4')
-            .$2['envelope'] as Map)
-        .cast<String, dynamic>();
+    Map<String, dynamic> lastEnvelope() =>
+        (channel.calls
+                    .lastWhere((c) => c.$1 == 'sendConversationCommandV4')
+                    .$2['envelope']
+                as Map)
+            .cast<String, dynamic>();
     final env = lastEnvelope();
     expect(env['type'], 'sendText');
-    expect(env['commandId'], 'pinned-id',
-        reason: '离线队列崩溃窗口重放必须同 ID（服务端幂等去重）');
+    expect(env['commandId'], 'pinned-id', reason: '离线队列崩溃窗口重放必须同 ID（服务端幂等去重）');
     await conv.sendText('s-1', 'fresh');
-    expect(lastEnvelope()['commandId'], isNot('pinned-id'),
-        reason: '正常发送照常生成新 ID');
+    expect(
+      lastEnvelope()['commandId'],
+      isNot('pinned-id'),
+      reason: '正常发送照常生成新 ID',
+    );
   });
 }

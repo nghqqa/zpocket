@@ -103,7 +103,6 @@ class ContextUsageRingPainter extends CustomPainter {
       old.color != color || old.progress != progress;
 }
 
-
 class InputBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -111,6 +110,12 @@ class InputBar extends StatelessWidget {
 
   /// 本地发送在途：发送键转圈+禁用——原实现可点但静默无反应。
   final bool sending;
+
+  /// runtime 初始化未就绪（history-first-1，官方 runtimeBlocked 同口径）：
+  /// 有草稿时发送键禁用（initializing 期官方不显示提示条；failed 态由
+  /// 会话页失败条+重试承载）。空草稿的麦克风直达不受限（语音面板可开，
+  /// 发送在 _sendText 前置拦截并回填文本）。
+  final bool runtimeBlocked;
   final VoidCallback onSend;
   final VoidCallback onStop;
   final String selectionMain;
@@ -149,6 +154,7 @@ class InputBar extends StatelessWidget {
     required this.sending,
     required this.onSend,
     required this.onStop,
+    this.runtimeBlocked = false,
     this.selectionMain = '',
     this.selectionSub,
     this.selectionBrand,
@@ -433,17 +439,26 @@ class InputBar extends StatelessWidget {
                                                 .foregroundSubtlest,
                                           ),
                                           // 发送在途时禁用+转圈；验收回填
-                                          // （2026-10-22 可发现性）：空闲且无
+                                          //（2026-10-22 可发现性）：空闲且无
                                           // 草稿时图标换麦克风、点按直达语音
-                                          // （微信/Telegram 同款惯例；长按
+                                          //（微信/Telegram 同款惯例；长按
                                           // 语音不变）——「发送键能语音」
-                                          // 从此可见。
+                                          // 从此可见。history-first-1：
+                                          // runtimeBlocked 有草稿=禁用；空
+                                          // 草稿麦克风点按不受限（语音面板
+                                          // 可开，发送由 _sendText 门控+回填
+                                          // 兜底——对抗审查修复 U3）。
                                           onPressed:
                                               (sending ||
+                                                  runtimeBlocked ||
                                                   controller.text
                                                       .trim()
                                                       .isEmpty)
-                                              ? ((onVoice != null && !sending)
+                                              ? ((onVoice != null &&
+                                                        !sending &&
+                                                        controller.text
+                                                            .trim()
+                                                            .isEmpty)
                                                     ? onVoice
                                                     : null)
                                               // 优化批 #1：发送键触觉反馈
@@ -718,92 +733,87 @@ class OfflineSendQueueStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return             Padding(
-              key: const ValueKey('send-queue-strip'),
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 6, 4, 4),
-                decoration: BoxDecoration(
-                  color: context.colors.brandAccent.withValues(
-                    alpha: AppAlpha.faint,
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(
-                    color: context.colors.brandAccent.withValues(
-                      alpha: AppAlpha.mid,
+    return Padding(
+      key: const ValueKey('send-queue-strip'),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 4, 4),
+        decoration: BoxDecoration(
+          color: context.colors.brandAccent.withValues(alpha: AppAlpha.faint),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(
+            color: context.colors.brandAccent.withValues(alpha: AppAlpha.mid),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  size: 16,
+                  color: context.colors.brandAccent,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    tr('未连接，已排队待发送（') +
+                        '${entries.length}' +
+                        tr(' 条），恢复连接后自动发出'),
+                    style: TextStyle(
+                      fontSize: AppType.uiCaption,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.foreground,
                     ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 16,
-                          color: context.colors.brandAccent,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            tr('未连接，已排队待发送（') +
-                                '${entries.length}' +
-                                tr(' 条），恢复连接后自动发出'),
-                            style: TextStyle(
-                              fontSize: AppType.uiCaption,
-                              fontWeight: FontWeight.w600,
-                              color: context.colors.foreground,
-                            ),
+                if (entries.length > 1)
+                  TextButton(
+                    key: const ValueKey('send-queue-toggle'),
+                    onPressed: onToggle,
+                    child: Text(expanded ? tr('收起') : tr('展开')),
+                  ),
+              ],
+            ),
+            // 单条直接展示（无展开钮也可撤销）；多条默认收起、
+            // 展开逐条可见可撤销。
+            if (expanded || entries.length == 1)
+              for (final e in entries)
+                Padding(
+                  padding: const EdgeInsets.only(left: 20, top: 2),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          e.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          translate: false,
+                          style: TextStyle(
+                            fontSize: AppType.uiXs,
+                            color: context.colors.foregroundSubtle,
                           ),
-                        ),
-                        if (entries.length > 1)
-                          TextButton(
-                            key: const ValueKey('send-queue-toggle'),
-                            onPressed: onToggle,
-                            child: Text(expanded ? tr('收起') : tr('展开')),
-                          ),
-                      ],
-                    ),
-                  // 单条直接展示（无展开钮也可撤销）；多条默认收起、
-                  // 展开逐条可见可撤销。
-                  if (expanded || entries.length == 1)
-                    for (final e in entries)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 20, top: 2),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                e.text,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                translate: false,
-                                style: TextStyle(
-                                  fontSize: AppType.uiXs,
-                                  color: context.colors.foregroundSubtle,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: IconButton(
-                                key: ValueKey('send-queue-cancel-${e.id}'),
-                                padding: EdgeInsets.zero,
-                                iconSize: 16,
-                                tooltip: tr('撤销这条排队消息'),
-                                onPressed: () =>
-                                    unawaited(onCancel(e)),
-                                icon: const Icon(Icons.close),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                  ],
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: IconButton(
+                          key: ValueKey('send-queue-cancel-${e.id}'),
+                          padding: EdgeInsets.zero,
+                          iconSize: 16,
+                          tooltip: tr('撤销这条排队消息'),
+                          onPressed: () => unawaited(onCancel(e)),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
+          ],
+        ),
+      ),
+    );
   }
 }
