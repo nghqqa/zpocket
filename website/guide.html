@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZPocket 用户手册 — 上手指南与常见问题</title>
+  <meta name="description" content="ZPocket 安卓伴侣客户端用户手册：安装配对、通知快捷审批、机型后台保活、工作区文件保存、工作流控制与隐私安全指南。">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="brand">
+        <img src="assets/icon.png" alt="ZPocket 图标" class="brand-icon">
+        <span class="brand-name">ZPocket</span>
+        <span class="brand-tag">用户手册</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#features">核心能力</a>
+        <a href="index.html#showcase">界面预览</a>
+        <a href="guide.html" class="nav-active">使用手册</a>
+        <a href="index.html#download">下载安装</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="https://github.com/nghqqa/zpocket/blob/main/docs/user-guide.md" target="_blank" rel="noopener" class="btn btn-ghost">Markdown 原文</a>
+        <a href="index.html#download" class="btn btn-primary btn-sm">下载 v1.6.0</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container guide-layout">
+    <aside class="guide-toc" aria-label="手册目录">
+      <div class="toc-title">目录导航</div>
+      <a href="#setup">一、安装与首次配对</a>
+      <a href="#features">二、日常使用核心功能</a>
+      <a href="#keepalive">三、各品牌手机后台保活</a>
+      <a href="#files">四、文件保存与产物分享</a>
+      <a href="#workflow">五、工作流、子代理与 Bash</a>
+      <a href="#security">六、安全、隐私与更新</a>
+      <a href="#faq">七、常见问题（FAQ）</a>
+    </aside>
+
+    <article class="guide-content">
+      <div class="guide-header">
+        <span class="eyebrow">USER GUIDE · v1.6.0</span>
+        <h1>ZPocket 用户手册</h1>
+        <p>面向日常手机端使用，涵盖配对连接、通知栏快捷审批、机型后台保活、工作区取文件、工作流控制与隐私安全。</p>
+      </div>
+
+      <section id="setup" class="guide-section">
+        <h2>一、安装与首次配对</h2>
+        <ul>
+          <li><strong>手机端要求</strong>：Android 7.0 及以上（主流手机选 <code>arm64-v8a</code>，旧款 32 位选 <code>armeabi-v7a</code>）。</li>
+          <li><strong>桌面端要求</strong>：电脑端已安装并登录 <strong>ZCode 桌面端</strong>（上下文下钻、子代理逐条停止、冷会话秒开需 <code>3.18+</code>；后台 Bash 失败摘要需 <code>3.19+</code>）。</li>
+          <li><strong>连接方式</strong>：打开 ZPocket 后使用与桌面端相同的账号登录，或直接扫码配对。若绑定了多台电脑，每台电脑的数据与凭据在 App 内独立隔离，可随时显式切换。</li>
+        </ul>
+      </section>
+
+      <section id="features" class="guide-section">
+        <h2>二、日常使用核心功能</h2>
+        <ul>
+          <li><strong>任务主页与双栏视图</strong>：任务按时间与项目分组展示，支持项目排序、置顶与归档。平板或折叠屏展开态（逻辑宽度 ≥600dp）自动开启「左栏任务 + 右栏会话」双栏模式，且支持整栏收起。</li>
+          <li><strong>冷会话秒开历史（v1.6.0）</strong>：打开已退出的旧会话时，先立即渲染历史消息，再在后台唤醒桌面端运行时；唤醒期间可正常输入并保存草稿，就绪后自动恢复发送。</li>
+          <li><strong>通知栏快捷审批</strong>：开启审批通知提醒后，收到权限请求通知时可直接下拉通知栏点击「批准」或「拒绝」，无需解锁或进入会话。</li>
+          <li><strong>上下文下钻与配置溯源</strong>：用量页点击「组成明细」可查看 11 类上下文占用；消息流中切换过模型或思考档时，消息上方会显示当时的配置快照角标。</li>
+        </ul>
+      </section>
+
+      <section id="keepalive" class="guide-section">
+        <h2>三、各品牌手机后台保活建议</h2>
+        <p class="guide-note">可在 App 内「设置 → 后台与通知保障」一键跳转到本机对应设置项。</p>
+        <div class="guide-cards">
+          <div class="guide-mini-card">
+            <strong>华为 / 荣耀</strong>
+            <p>设置 → 应用 → 应用启动管理 → ZPocket → 改为「手动管理」，开启自启动、关联启动、后台活动。</p>
+          </div>
+          <div class="guide-mini-card">
+            <strong>vivo / OriginOS</strong>
+            <p>应用管理开启「自启动」，再到「设置 → 电池 → 后台耗电管理」允许 ZPocket 后台运行。</p>
+          </div>
+          <div class="guide-mini-card">
+            <strong>小米 / HyperOS</strong>
+            <p>应用管理开启「自启动」，并将省电策略设为「无限制」。</p>
+          </div>
+          <div class="guide-mini-card">
+            <strong>OPPO / Realme / 一加</strong>
+            <p>应用管理允许自启动与后台运行，并在电池「应用速冻」中移出 ZPocket。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="files" class="guide-section">
+        <h2>四、工作区文件保存与产物分享</h2>
+        <ul>
+          <li><strong>工作区直读保存（不耗模型额度）</strong>：点击文件摘要行右侧下载按钮，或直接点按聊天消息里的文件路径，即可预览或保存到手机 SAF 目录（支持进度显示、取消、单文件与本轮产物批量保存）。</li>
+          <li><strong>流式落盘校验</strong>：大文件采用分段写入磁盘 + 逐段 <code>SHA-256</code> 校验，避免低内存手机触发 OOM。</li>
+          <li><strong>工作流产物收集与分享（顶栏 ⬇）</strong>：点击会话顶栏 <code>⬇</code> 进入产物页，可一键发送「收集产物」指令让 Agent 发布文件，并对图片、网页、代码或二进制产物进行预览与分享。</li>
+        </ul>
+      </section>
+
+      <section id="workflow" class="guide-section">
+        <h2>五、工作流控制、子代理与后台 Bash</h2>
+        <ul>
+          <li><strong>工作流恢复与调参</strong>：已中断（取消/失败）的工作流支持一键「恢复」续跑；运行中的工作流支持「调整配置」（切换子代理模型或并发上限），自动停旧起新并保留历史血缘链。</li>
+          <li><strong>子代理逐条停止</strong>：在子代理列表中，可对单个运行中的子代理点击停止，不影响其他任务。</li>
+          <li><strong>后台 Bash 实时输出</strong>：在会话菜单「后台工作」中点开 bash 任务，可查看每秒刷新的实时输出、一键复制或重试。</li>
+        </ul>
+      </section>
+
+      <section id="security" class="guide-section">
+        <h2>六、安全、隐私与更新</h2>
+        <ul>
+          <li><strong>应用锁与防截屏</strong>：支持系统生物识别/锁屏凭证或独立 PIN 码，可配置后台自动锁定时间与防截屏 / 隐藏多任务缩略图。</li>
+          <li><strong>普通删除 vs 永久删除</strong>：普通删除仅移出列表；归档任务中的「永久删除」会彻底清除会话与关联文件，需通过「范围预览 → PIN/锁屏验证 → 结果回执」三段防呆确认。</li>
+          <li><strong>更新源与完整性校验</strong>：设置页支持「自动测速（auto）」「自有服务器（selfhost）」「GitHub Releases（github）」三档更新源，安装前强制校验 <code>SHA-256</code> 与发布签名指纹。</li>
+        </ul>
+      </section>
+
+      <section id="faq" class="guide-section">
+        <h2>七、常见问题（FAQ）</h2>
+        <div class="faq-item">
+          <strong>Q1：为什么「上下文组成明细」或「子代理停止」提示不支持？</strong>
+          <p>这两项功能依赖桌面端 ZCode <code>3.18+</code> 协议，请将电脑端 ZCode 升级到 3.18 或最新版本。</p>
+        </div>
+        <div class="faq-item">
+          <strong>Q2：退到后台一段时间后收不到审批通知？</strong>
+          <p>默认策略会在退后台约 90 秒后断开连接以省电。如需实时接收审批推送，请在设置中开启「审批通知后台保活」，并按第三节放行系统后台限制。</p>
+        </div>
+        <div class="faq-item">
+          <strong>Q3：如何确认下载的 APK 安全未篡改？</strong>
+          <p>请仅从 <a href="index.html#download">官网下载区</a> 或 <a href="https://github.com/nghqqa/zpocket/releases" target="_blank" rel="noopener">GitHub Releases</a> 获取安装包，并核对页面展示的 <code>SHA-256</code>。</p>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img src="assets/icon.png" alt="ZPocket" class="footer-icon">
+        <span>ZPocket · Apache-2.0 License</span>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">返回首页</a>
+        <a href="https://github.com/nghqqa/zpocket" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/nghqqa/zpocket/blob/main/CHANGELOG.md" target="_blank" rel="noopener">更新日志</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

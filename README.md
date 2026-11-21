@@ -38,9 +38,10 @@ ZPocket 把这三件事搬进手机：连接桌面端后，任务状态实时可
 
 要求：Android 7.0+，桌面端已登录 [ZCode](https://github.com/zai-org/ZCode) 且手机使用同一账号。
 
-1. 下载最新 APK：`https://nghqqa.cn/updates/zpocket-<version>-arm64-v8a.apk`（绝大多数手机）
+1. 下载最新 APK：`https://nghqqa.cn/updates/zpocket-<version>-arm64-v8a.apk`（绝大多数手机），或前往官网 [zpocket.nghqqa.cn](https://zpocket.nghqqa.cn)
 2. 或在 App 内：**设置 → 软件更新 → 一键更新**
 3. 首次使用：登录账号 → 从设备列表选择你的电脑（或扫码配对）
+4. 详细功能说明与各品牌后台保活指南请阅读 **[用户手册](docs/user-guide.md)**
 
 > 更新清单与 APK 由自托管服务分发（见 [`tools/release.py`](tools/release.py)），不依赖任何第三方发布平台。
 
