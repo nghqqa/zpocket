@@ -745,6 +745,7 @@ class AppState extends ChangeNotifier {
     final title = '${intent['title'] ?? ''}';
     final accept = act == 'accept';
     String resultTitle;
+    String resultBody = '';
     try {
       await resolveInteraction(
         sessionId,
@@ -752,7 +753,13 @@ class AppState extends ChangeNotifier {
         action: accept ? 'accept' : 'decline',
       );
       if (!accept && replyText.isNotEmpty) {
-        await sendText(sessionId, replyText);
+        try {
+          await sendText(sessionId, replyText);
+          resultBody = replyText;
+        } on Object catch (e) {
+          resultBody = tr('附言发送失败，请打开会话补充说明');
+          _log('[approval-action] decline reply sendText failed: $e');
+        }
       }
       resultTitle = '${accept ? tr('已批准') : tr('已拒绝')}：$title';
       await notifyService?.cancelApprovalForSession(sessionId);
@@ -761,10 +768,13 @@ class AppState extends ChangeNotifier {
       _log('[approval-action] resolve failed (contained): $e');
     }
     try {
+      await storage.delete(key: _approvalActionIntentKey);
+    } catch (_) {}
+    try {
       await notifyService?.backend.show(
         DateTime.now().millisecondsSinceEpoch % 100000 + 300000,
         resultTitle,
-        '',
+        resultBody,
         NotificationService.channelTasks,
         NotifyTapPayload(intent['sid'] as String? ?? '', sessionId,
                 NotifyEventKind.approvalPending.name,
@@ -1920,12 +1930,21 @@ class AppState extends ChangeNotifier {
   }
 
   /// @文件 候选（file.searchWorkspaceFiles）。
-  Future<List<Map<String, dynamic>>> searchFiles(String query) async {
+  Future<List<Map<String, dynamic>>> searchFiles(
+    String query, {
+    bool rethrowError = false,
+  }) async {
     final conv = _conv;
-    if (conv == null) return const [];
+    if (conv == null) {
+      if (rethrowError) {
+        throw StateError(tr('当前未连接到电脑'));
+      }
+      return const [];
+    }
     try {
       return await conv.searchWorkspaceFiles(query);
     } catch (_) {
+      if (rethrowError) rethrow;
       return const [];
     }
   }

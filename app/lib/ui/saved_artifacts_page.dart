@@ -45,6 +45,24 @@ class _SavedArtifactsPageState extends State<SavedArtifactsPage> {
   }
 
   Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('清空记录'),
+        content: const Text('确认清空全部已保存产物记录？（不会删除手机里的实际文件）'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('清空'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
     await _store.clear();
     if (!mounted) return;
     setState(() => _items = const []);
@@ -188,7 +206,8 @@ class _SavedArtifactsPageState extends State<SavedArtifactsPage> {
                                 );
                               },
                             ),
-                            if (!item.savedPath.startsWith('content://'))
+                            if (item.source != 'saf' &&
+                                !item.savedPath.startsWith('content://'))
                               IconButton(
                                 tooltip: tr('分享'),
                                 icon: const Icon(Icons.share_outlined, size: 18),

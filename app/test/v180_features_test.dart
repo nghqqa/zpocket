@@ -49,6 +49,11 @@ class _MemSavedArtifactsStore extends SavedArtifactsStore {
       ),
     );
   }
+
+  @override
+  Future<void> clear() async {
+    _items.clear();
+  }
 }
 
 class _CapturingBackend extends NotificationBackend {
@@ -112,6 +117,19 @@ void main() {
       final afterReset = await store.resetDefaults();
       expect(afterReset, QuickPromptsStore.defaultPrompts);
     });
+
+    test('stays empty when user removes all prompts until reset', () async {
+      final tmp = await Directory.systemTemp.createTemp('zpocket_qp_empty_');
+      addTearDown(() => tmp.delete(recursive: true));
+      final store = QuickPromptsStore(directoryProvider: () async => tmp);
+
+      var list = await store.load();
+      while (list.isNotEmpty) {
+        list = await store.removeAt(0);
+      }
+      expect(await store.load(), isEmpty);
+      expect(await store.resetDefaults(), QuickPromptsStore.defaultPrompts);
+    });
   });
 
   group('SavedArtifactsStore', () {
@@ -151,6 +169,26 @@ void main() {
       );
       await store.clear();
       expect(await store.list(), isEmpty);
+    });
+
+    test('preserves all entries under concurrent record calls', () async {
+      final tmp = await Directory.systemTemp.createTemp('zpocket_sa_conc_');
+      addTearDown(() => tmp.delete(recursive: true));
+      final store = SavedArtifactsStore(directoryProvider: () async => tmp);
+
+      await Future.wait([
+        for (var i = 0; i < 10; i++)
+          store.record(
+            fileName: 'file_$i.txt',
+            savedPath: '/storage/emulated/0/Download/ZPocket/file_$i.txt',
+            mimeType: 'text/plain',
+            sizeBytes: 100 + i,
+            source: 'downloads',
+          ),
+      ]);
+
+      final list = await store.list();
+      expect(list, hasLength(10));
     });
   });
 
@@ -200,6 +238,39 @@ void main() {
 
       expect(find.text('build.apk'), findsOneWidget);
       expect(find.textContaining('1.0 MB'), findsOneWidget);
+      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+
+      await tester.tap(find.text('清空记录'));
+      await tester.pumpAndSettle();
+      expect(find.text('取消'), findsOneWidget);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(find.text('build.apk'), findsOneWidget);
+
+      await tester.tap(find.text('清空记录'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('清空'));
+      await tester.pumpAndSettle();
+      expect(find.text('build.apk'), findsNothing);
+    });
+
+    testWidgets('SavedArtifactsPage hides share button for SAF entries', (tester) async {
+      final store = _MemSavedArtifactsStore();
+      await store.record(
+        fileName: 'doc.pdf',
+        savedPath: '/storage/emulated/0/Download/doc.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 4096,
+        source: 'saf',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: SavedArtifactsPage(store: store)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('doc.pdf'), findsOneWidget);
+      expect(find.byIcon(Icons.share_outlined), findsNothing);
     });
   });
 

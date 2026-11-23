@@ -140,7 +140,6 @@ Future<bool> saveBytesToPhone(
     return false;
   }
   if (uri == null) return false; // 用户取消
-  if (!context.mounted) return false;
   final display = displayPathFor(uri);
   unawaited(
     SavedArtifactsStore.instance
@@ -153,6 +152,7 @@ Future<bool> saveBytesToPhone(
         )
         .catchError((_) {}),
   );
+  if (!context.mounted) return true;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(tr('已保存到手机：') + display),

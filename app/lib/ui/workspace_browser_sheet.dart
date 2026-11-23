@@ -43,6 +43,7 @@ class _WorkspaceBrowserSheetState extends State<_WorkspaceBrowserSheet> {
 
   final _queryCtrl = TextEditingController(text: 'lib');
   Timer? _debounce;
+  int _searchSeq = 0;
   List<Map<String, dynamic>> _items = const [];
   bool _loading = true;
   String? _error;
@@ -68,6 +69,8 @@ class _WorkspaceBrowserSheetState extends State<_WorkspaceBrowserSheet> {
   }
 
   Future<void> _search(String query) async {
+    _debounce?.cancel();
+    final seq = ++_searchSeq;
     final q = query.trim();
     if (q.isEmpty) {
       if (!mounted) return;
@@ -85,14 +88,15 @@ class _WorkspaceBrowserSheetState extends State<_WorkspaceBrowserSheet> {
       });
     }
     try {
-      final res = await widget.app.searchFiles(q);
-      if (!mounted) return;
+      final res = await widget.app.searchFiles(q, rethrowError: true);
+      if (!mounted || seq != _searchSeq) return;
+      final filtered = res.where((e) => _pathOf(e).isNotEmpty).toList();
       setState(() {
-        _items = res;
+        _items = filtered;
         _loading = false;
       });
     } on Object catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _searchSeq) return;
       setState(() {
         _loading = false;
         _error = '$e';
@@ -169,7 +173,11 @@ class _WorkspaceBrowserSheetState extends State<_WorkspaceBrowserSheet> {
                   return ActionChip(
                     label: Text(chip, style: const TextStyle(fontSize: 12)),
                     onPressed: () {
-                      _queryCtrl.text = chip;
+                      _debounce?.cancel();
+                      _queryCtrl.value = TextEditingValue(
+                        text: chip,
+                        selection: TextSelection.collapsed(offset: chip.length),
+                      );
                       _search(chip);
                     },
                   );

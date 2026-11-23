@@ -1265,6 +1265,15 @@ const _customEn = <String, String>{
   '未找到匹配文件，请更换关键字试试': 'No matching files found. Try another keyword.',
   '拒绝并说明': 'Decline & reply',
   '输入拒绝原因…': 'Enter reason for declining…',
+  '附言发送失败，请打开会话补充说明': 'Reply failed to send; open the chat to follow up',
+  '当前未连接到电脑': 'Not connected to a computer',
+  '确认清空全部已保存产物记录？（不会删除手机里的实际文件）':
+      'Clear all saved artifact records? (Actual files on your phone will not be deleted)',
+  '先分析原因，暂不修改代码': 'Analyze the root cause first without modifying code',
+  '跑一下相关单元测试并总结结果': 'Run the relevant unit tests and summarize the results',
+  '列出本次修改的所有文件与改动摘要': 'List all modified files and summarize the changes',
+  '用更简洁的方式重构刚才的代码': 'Refactor the code above to be cleaner and simpler',
+  '检查是否有边界条件或潜在 bug': 'Check for edge cases or potential bugs',
 };
 
 final _customPatterns = <_L10nPattern>[

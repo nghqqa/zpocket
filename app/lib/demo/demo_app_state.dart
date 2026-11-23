@@ -527,10 +527,14 @@ class DemoAppState extends AppState {
       _conv.prepareWorkspace(refresh: refresh);
 
   @override
-  Future<List<Map<String, dynamic>>> searchFiles(String query) async {
+  Future<List<Map<String, dynamic>>> searchFiles(
+    String query, {
+    bool rethrowError = false,
+  }) async {
     try {
       return await _conv.searchWorkspaceFiles(query);
     } catch (_) {
+      if (rethrowError) rethrow;
       return const [];
     }
   }

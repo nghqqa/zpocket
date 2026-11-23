@@ -5939,8 +5939,8 @@ class _ConversationPageState extends State<ConversationPage> {
                           _inputFocusNode.requestFocus();
                         },
                         onSend: (text) {
-                          _input.text = text;
-                          _send();
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          unawaited(_sendText(text, clearInput: false));
                         },
                       ),
               onVoice: voiceRecognitionAvailable ? _startVoiceInput : null,

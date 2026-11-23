@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,20 @@ class QuickPromptsStore {
   QuickPromptsStore({this.directoryProvider});
 
   final Future<Directory> Function()? directoryProvider;
+  Future<void> _opQueue = Future<void>.value();
+
+  Future<T> _enqueue<T>(Future<T> Function() action) {
+    final prev = _opQueue;
+    final completer = Completer<T>();
+    _opQueue = prev.then((_) async {
+      try {
+        completer.complete(await action());
+      } on Object catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
 
   static const List<String> defaultPrompts = [
     '先分析原因，暂不修改代码',
@@ -33,7 +48,7 @@ class QuickPromptsStore {
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
-      return items.isEmpty ? List<String>.from(defaultPrompts) : items;
+      return items;
     } on Object {
       return List<String>.from(defaultPrompts);
     }
@@ -49,28 +64,34 @@ class QuickPromptsStore {
     await f.writeAsString(jsonEncode(clean));
   }
 
-  Future<List<String>> add(String text) async {
-    final trimmed = text.trim();
-    final list = await load();
-    if (trimmed.isEmpty) return list;
-    list.remove(trimmed);
-    list.insert(0, trimmed);
-    await save(list);
-    return list;
-  }
-
-  Future<List<String>> removeAt(int index) async {
-    final list = await load();
-    if (index >= 0 && index < list.length) {
-      list.removeAt(index);
+  Future<List<String>> add(String text) {
+    return _enqueue(() async {
+      final trimmed = text.trim();
+      final list = await load();
+      if (trimmed.isEmpty) return list;
+      list.remove(trimmed);
+      list.insert(0, trimmed);
       await save(list);
-    }
-    return list;
+      return list;
+    });
   }
 
-  Future<List<String>> resetDefaults() async {
-    final list = List<String>.from(defaultPrompts);
-    await save(list);
-    return list;
+  Future<List<String>> removeAt(int index) {
+    return _enqueue(() async {
+      final list = await load();
+      if (index >= 0 && index < list.length) {
+        list.removeAt(index);
+        await save(list);
+      }
+      return list;
+    });
+  }
+
+  Future<List<String>> resetDefaults() {
+    return _enqueue(() async {
+      final list = List<String>.from(defaultPrompts);
+      await save(list);
+      return list;
+    });
   }
 }

@@ -1,21 +1,21 @@
 {
-  "version": "1.8.0",
-  "notes": "ZPocket 独立演进版本：工作区文件浏览器、通知栏带批注拒绝、快捷指令模板、已保存产物中心、流式输出 160ms 合帧节流与 ModelSheet 48dp 触控优化",
-  "assets": [
-    {
-      "name": "zpocket-1.8.0-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.8.0-arm64-v8a.apk",
-      "sha256": "1ef38bc2a4ec8a23a694056ac962dc125ed661f81e1fbdca883218ba0e41badf"
-    },
-    {
-      "name": "zpocket-1.8.0-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.8.0-armeabi-v7a.apk",
-      "sha256": "a21f1926fc05b44405b2a82444fbc3269ccfab890e386b4d678173f5c6f3cbac"
-    },
-    {
-      "name": "zpocket-1.8.0-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.8.0-x86_64.apk",
-      "sha256": "19275323b8122b7e36826d8bf32a0a96dd15d7abd32f55cfaa6c6cb5c0868aab"
-    }
-  ]
+    "version":  "1.8.1",
+    "notes":  "v1.8.0 质量加固版本：修复通知栏带批注拒绝异常隔离、台账与快捷指令并发写保护、快捷指令草稿保护与空列表修复、文件浏览器搜索防竞态与离线提示、已保存产物清空确认与英文词条补全",
+    "assets":  [
+                   {
+                       "name":  "zpocket-1.8.1-arm64-v8a.apk",
+                       "url":  "https://nghqqa.cn/updates/zpocket-1.8.1-arm64-v8a.apk",
+                       "sha256":  "271eb2d82eb1dd8c5d55db4b04542b6f3f4cb44d9a6db2c13ee7031f34b7c623"
+                   },
+                   {
+                       "name":  "zpocket-1.8.1-armeabi-v7a.apk",
+                       "url":  "https://nghqqa.cn/updates/zpocket-1.8.1-armeabi-v7a.apk",
+                       "sha256":  "7137110a4c99f3e58722a9852a83baefec01089759cde34c1324517f292ad883"
+                   },
+                   {
+                       "name":  "zpocket-1.8.1-x86_64.apk",
+                       "url":  "https://nghqqa.cn/updates/zpocket-1.8.1-x86_64.apk",
+                       "sha256":  "20a216799579d145ae1d9d7e4b4fc4cccea8b636b42ce810602e44ad222b784e"
+                   }
+               ]
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -56,8 +57,22 @@ class SavedArtifactsStore {
 
   static const int maxEntries = 200;
   final Future<Directory> Function()? directoryProvider;
+  Future<void> _opQueue = Future<void>.value();
 
   static final SavedArtifactsStore instance = SavedArtifactsStore();
+
+  Future<T> _enqueue<T>(Future<T> Function() action) {
+    final prev = _opQueue;
+    final completer = Completer<T>();
+    _opQueue = prev.then((_) async {
+      try {
+        completer.complete(await action());
+      } on Object catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
 
   Future<File> _file() async {
     final dir = await (directoryProvider ?? getApplicationSupportDirectory)();
@@ -91,42 +106,50 @@ class SavedArtifactsStore {
     required String mimeType,
     required int sizeBytes,
     String source = 'workspace',
-  }) async {
-    final cleanName = fileName.trim();
-    final cleanPath = savedPath.trim();
-    if (cleanName.isEmpty || cleanPath.isEmpty) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final current = List<SavedArtifactEntry>.from(await list());
-    current.removeWhere((e) => e.savedPath == cleanPath && e.fileName == cleanName);
-    current.insert(
-      0,
-      SavedArtifactEntry(
-        id: '${now}_$cleanName',
-        fileName: cleanName,
-        savedPath: cleanPath,
-        mimeType: mimeType,
-        sizeBytes: sizeBytes,
-        source: source,
-        savedAtMs: now,
-      ),
-    );
-    if (current.length > maxEntries) {
-      current.removeRange(maxEntries, current.length);
-    }
-    await _write(current);
+  }) {
+    return _enqueue(() async {
+      final cleanName = fileName.trim();
+      final cleanPath = savedPath.trim();
+      if (cleanName.isEmpty || cleanPath.isEmpty) return;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final current = List<SavedArtifactEntry>.from(await list());
+      current.removeWhere(
+        (e) => e.savedPath == cleanPath && e.fileName == cleanName,
+      );
+      current.insert(
+        0,
+        SavedArtifactEntry(
+          id: '${now}_$cleanName',
+          fileName: cleanName,
+          savedPath: cleanPath,
+          mimeType: mimeType,
+          sizeBytes: sizeBytes,
+          source: source,
+          savedAtMs: now,
+        ),
+      );
+      if (current.length > maxEntries) {
+        current.removeRange(maxEntries, current.length);
+      }
+      await _write(current);
+    });
   }
 
-  Future<List<SavedArtifactEntry>> remove(String id) async {
-    final current = List<SavedArtifactEntry>.from(await list())
-      ..removeWhere((e) => e.id == id);
-    await _write(current);
-    return current;
+  Future<List<SavedArtifactEntry>> remove(String id) {
+    return _enqueue(() async {
+      final current = List<SavedArtifactEntry>.from(await list())
+        ..removeWhere((e) => e.id == id);
+      await _write(current);
+      return current;
+    });
   }
 
-  Future<void> clear() async {
-    final f = await _file();
-    if (await f.exists()) {
-      await f.delete();
-    }
+  Future<void> clear() {
+    return _enqueue(() async {
+      final f = await _file();
+      if (await f.exists()) {
+        await f.delete();
+      }
+    });
   }
 }
