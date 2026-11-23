@@ -1,21 +1,21 @@
 {
-  "version": "1.7.0",
-  "notes": "合入上游 v1.0.9（兼容 ZCode 3.19.1）：PDF 产物应用内预览、会话内搜索增强、扫码实时预览按机型分流、收集产物直达条与自动激活工作流、平板/折叠屏横屏解锁、任务完成横幅开关、子代理模型按提供方分组",
+  "version": "1.8.0",
+  "notes": "ZPocket 独立演进版本：工作区文件浏览器、通知栏带批注拒绝、快捷指令模板、已保存产物中心、流式输出 160ms 合帧节流与 ModelSheet 48dp 触控优化",
   "assets": [
     {
-      "name": "zpocket-1.7.0-arm64-v8a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.7.0-arm64-v8a.apk",
-      "sha256": "533f6c83a753dc41bc8f68c185395296099f5d7639fdfdaf0f3445d0f07e94b4"
+      "name": "zpocket-1.8.0-arm64-v8a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.8.0-arm64-v8a.apk",
+      "sha256": "1ef38bc2a4ec8a23a694056ac962dc125ed661f81e1fbdca883218ba0e41badf"
     },
     {
-      "name": "zpocket-1.7.0-armeabi-v7a.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.7.0-armeabi-v7a.apk",
-      "sha256": "a99bed849fe792bca1cdb3339e035aeee6bdad1d1960cbd2371fc7b5697c46c4"
+      "name": "zpocket-1.8.0-armeabi-v7a.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.8.0-armeabi-v7a.apk",
+      "sha256": "a21f1926fc05b44405b2a82444fbc3269ccfab890e386b4d678173f5c6f3cbac"
     },
     {
-      "name": "zpocket-1.7.0-x86_64.apk",
-      "url": "https://nghqqa.cn/updates/zpocket-1.7.0-x86_64.apk",
-      "sha256": "c12d19a47a248a9b7b2de372956e8c0173a3ebc7ce1f47cfd024e37bc3aab568"
+      "name": "zpocket-1.8.0-x86_64.apk",
+      "url": "https://nghqqa.cn/updates/zpocket-1.8.0-x86_64.apk",
+      "sha256": "19275323b8122b7e36826d8bf32a0a96dd15d7abd32f55cfaa6c6cb5c0868aab"
     }
   ]
 }

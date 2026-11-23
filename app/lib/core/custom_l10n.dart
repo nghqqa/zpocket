@@ -1247,6 +1247,24 @@ const _customEn = <String, String>{
   '读取输出失败，已保留上次内容': 'Failed to read output; last content kept',
   '输出暂不可用（任务记录不在内存中）': 'Output unavailable (task record not in memory)',
   '当前桌面版本不支持查看输出': 'This desktop version does not support viewing output',
+  // ZPocket v1.8.0 自研功能词条
+  '已保存产物': 'Saved artifacts',
+  '查看已保存到手机的文件与路径记录': 'View files and paths saved to your phone',
+  '清空记录': 'Clear history',
+  '暂无保存记录。保存工作区产物或对话附件后，将自动归集到这里。':
+      'No saved artifacts yet. Files saved from workspace or chat will appear here.',
+  '系统相册/SAF 路径请前往文件管理器查看':
+      'Please open SAF/Gallery paths in your system file manager',
+  '移除记录': 'Remove entry',
+  '快捷指令': 'Quick prompts',
+  '恢复默认': 'Reset defaults',
+  '添加常用指令…': 'Add a quick prompt…',
+  '工作区文件': 'Workspace files',
+  '输入路径关键字或扩展名（如 .md / main）…':
+      'Filter by path keyword or extension (e.g. .md / main)…',
+  '未找到匹配文件，请更换关键字试试': 'No matching files found. Try another keyword.',
+  '拒绝并说明': 'Decline & reply',
+  '输入拒绝原因…': 'Enter reason for declining…',
 };
 
 final _customPatterns = <_L10nPattern>[

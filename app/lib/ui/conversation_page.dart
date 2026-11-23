@@ -32,6 +32,8 @@ import 'brand_logo.dart';
 import 'attachments_compose.dart';
 import 'attachment_annotate_page.dart';
 import 'file_save.dart';
+import 'quick_prompts_sheet.dart';
+import 'workspace_browser_sheet.dart';
 import 'quota_banner.dart';
 import 'voice_input_sheet.dart';
 import '../state/cache_policy.dart';
@@ -1477,6 +1479,9 @@ class _ConversationPageState extends State<ConversationPage> {
   Timer? _renderThrottle;
   bool _renderPending = false;
   static const Duration _renderThrottleWindow = Duration(milliseconds: 40);
+  // 流式输出期合帧窗口（T1 性能报告建议）：减少高速吐字期 MarkdownBody 全文重解析频次，
+  // 降低中低端机 CPU 占用与发热；非流式交互仍保持 40ms 即时响应。
+  static const Duration _streamingThrottleWindow = Duration(milliseconds: 160);
 
   /// 搜索索引刷新节流：流式期 500ms 上限+尾沿补跳。
   DateTime? _searchRefreshAt;
@@ -1488,7 +1493,12 @@ class _ConversationPageState extends State<ConversationPage> {
       return;
     }
     _doRender(); // 窗口首次通知立即渲染
-    _renderThrottle = Timer(_renderThrottleWindow, () {
+    final isStreaming = _sub?.state.rows.any(
+          (r) => r['state'] == 'streaming',
+        ) ??
+        false;
+    final window = isStreaming ? _streamingThrottleWindow : _renderThrottleWindow;
+    _renderThrottle = Timer(window, () {
       if (_renderPending) {
         _renderPending = false;
         _doRender();
@@ -3627,6 +3637,9 @@ class _ConversationPageState extends State<ConversationPage> {
           await Clipboard.setData(ClipboardData(text: sessionId));
           snack('会话 ID 已复制');
           break;
+        case 'workspaceFiles':
+          await showWorkspaceBrowserSheet(context, app);
+          break;
       }
     } catch (e) {
       snack('操作失败：$e');
@@ -5018,6 +5031,10 @@ class _ConversationPageState extends State<ConversationPage> {
                         '后台工作（${_sub!.state.backgroundWorks.length} 项）'),
                   ),
                 const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'workspaceFiles',
+                  child: Text('工作区文件'),
+                ),
                 const PopupMenuItem(value: 'copyId', child: Text('复制会话 ID')),
               ],
             ),
@@ -5908,6 +5925,24 @@ class _ConversationPageState extends State<ConversationPage> {
               // 回落）——离线/缓存首帧点开不再显示空「模型/思考档」。
               onSelectionTap: () => _openModelSheet(effState),
               onAdd: _sending ? null : _showAddSheet,
+              onQuickPrompts: _sending
+                  ? null
+                  : () => showQuickPromptsSheet(
+                        context,
+                        onInsert: (text) {
+                          final cur = _input.text;
+                          _input.text =
+                              cur.isEmpty ? text : '$cur\n$text';
+                          _input.selection = TextSelection.collapsed(
+                            offset: _input.text.length,
+                          );
+                          _inputFocusNode.requestFocus();
+                        },
+                        onSend: (text) {
+                          _input.text = text;
+                          _send();
+                        },
+                      ),
               onVoice: voiceRecognitionAvailable ? _startVoiceInput : null,
               statusColor: _statusDotColor(context),
               statusProgress: _contextUsageProgress(effState),

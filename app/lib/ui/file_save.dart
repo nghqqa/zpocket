@@ -1,5 +1,6 @@
 // 通用「保存到手机」：SAF 另存为（file_picker.saveFile，仓库既有依赖，
 // 零新增）。对话附件、工作区产物文件共用本入口，统一反馈与 MIME 推断。
+import 'dart:async';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' hide Text;
@@ -8,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../core/localized_text.dart';
+import '../core/saved_artifacts_store.dart';
 import '../state/app_state.dart';
 
 const _channel = MethodChannel('companion/update');
@@ -30,6 +32,17 @@ Future<String> saveBytesToDownloadsFolder({
     if (path == null || path.isEmpty) {
       throw StateError('saveToDownloads returned empty path');
     }
+    unawaited(
+      SavedArtifactsStore.instance
+          .record(
+            fileName: fileName,
+            savedPath: path,
+            mimeType: mimeType ?? mimeForFileName(fileName),
+            sizeBytes: bytes.length,
+            source: 'downloads',
+          )
+          .catchError((_) {}),
+    );
     return path;
   }
 
@@ -129,6 +142,17 @@ Future<bool> saveBytesToPhone(
   if (uri == null) return false; // 用户取消
   if (!context.mounted) return false;
   final display = displayPathFor(uri);
+  unawaited(
+    SavedArtifactsStore.instance
+        .record(
+          fileName: fileName,
+          savedPath: display,
+          mimeType: mimeType ?? mimeForFileName(fileName),
+          sizeBytes: bytes.length,
+          source: 'saf',
+        )
+        .catchError((_) {}),
+  );
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(tr('已保存到手机：') + display),
@@ -203,6 +227,18 @@ Future<String> saveFileToDownloadsFolder({
     if (path == null || path.isEmpty) {
       throw StateError('saveToDownloads returned empty path');
     }
+    final size = await File(tempPath).length().catchError((_) => 0);
+    unawaited(
+      SavedArtifactsStore.instance
+          .record(
+            fileName: fileName,
+            savedPath: path,
+            mimeType: mimeType ?? mimeForFileName(fileName),
+            sizeBytes: size,
+            source: 'downloads',
+          )
+          .catchError((_) {}),
+    );
     return path;
   }
 

@@ -9,6 +9,7 @@ import '../platform/capabilities.dart';
 import '../state/app_state_scope.dart';
 import 'app_widgets.dart';
 import 'about_page.dart';
+import 'saved_artifacts_page.dart';
 import 'settings_accounts_page.dart';
 import 'settings_security_page.dart';
 import 'update_flow.dart';
@@ -142,6 +143,22 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
             const AppSectionHeader('功能'),
+            ListTile(
+              key: const ValueKey('settings-saved-artifacts'),
+              leading: const Icon(Icons.folder_copy_outlined, size: 20),
+              title: const Text(
+                '已保存产物',
+                style: TextStyle(fontSize: AppType.uiBase),
+              ),
+              subtitle: const Text(
+                '查看已保存到手机的文件与路径记录',
+                style: TextStyle(fontSize: AppType.uiCaption),
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SavedArtifactsPage()),
+              ),
+            ),
             // multi-account-ux-1 批4（2026-11-04 拍板）：多电脑任务聚合
             // 开关（默认关）——纯读本地缓存快照，不建连接不订阅。
             SwitchListTile(

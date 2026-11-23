@@ -1,4 +1,4 @@
-# ZPocket 用户手册（v1.7.0）
+# ZPocket 用户手册（v1.8.0）
 
 > ZPocket 是 [ZCode](https://github.com/zai-org/ZCode) 桌面编程智能体的安卓伴侣客户端（基于 `zcode-pocket` Apache-2.0 分支演进）。本手册面向日常手机端使用，涵盖配对连接、通知快捷审批、文件保存、工作流控制与隐私安全。
 

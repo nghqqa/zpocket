@@ -721,10 +721,12 @@ class AppState extends ChangeNotifier {
     Map<String, dynamic> intent;
     int at;
     String act;
+    String replyText;
     try {
       final outer = jsonDecode(raw) as Map;
       at = (outer['at'] as num?)?.toInt() ?? 0;
-      act = '${outer['act'] ?? ''}';
+      act = '${outer['act'] ?? outer['choice'] ?? ''}';
+      replyText = '${outer['replyText'] ?? ''}'.trim();
       final innerRaw = outer['intent'];
       if (innerRaw is! String || innerRaw.isEmpty) {
         throw StateError('empty intent');
@@ -749,6 +751,9 @@ class AppState extends ChangeNotifier {
         iid,
         action: accept ? 'accept' : 'decline',
       );
+      if (!accept && replyText.isNotEmpty) {
+        await sendText(sessionId, replyText);
+      }
       resultTitle = '${accept ? tr('已批准') : tr('已拒绝')}：$title';
       await notifyService?.cancelApprovalForSession(sessionId);
     } on Object catch (e) {

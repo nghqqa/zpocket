@@ -1,3 +1,3 @@
-533f6c83a753dc41bc8f68c185395296099f5d7639fdfdaf0f3445d0f07e94b4 *zpocket-1.7.0-arm64-v8a.apk
-a99bed849fe792bca1cdb3339e035aeee6bdad1d1960cbd2371fc7b5697c46c4 *zpocket-1.7.0-armeabi-v7a.apk
-c12d19a47a248a9b7b2de372956e8c0173a3ebc7ce1f47cfd024e37bc3aab568 *zpocket-1.7.0-x86_64.apk
+1ef38bc2a4ec8a23a694056ac962dc125ed661f81e1fbdca883218ba0e41badf *zpocket-1.8.0-arm64-v8a.apk
+a21f1926fc05b44405b2a82444fbc3269ccfab890e386b4d678173f5c6f3cbac *zpocket-1.8.0-armeabi-v7a.apk
+19275323b8122b7e36826d8bf32a0a96dd15d7abd32f55cfaa6c6cb5c0868aab *zpocket-1.8.0-x86_64.apk

@@ -104,13 +104,22 @@ class NotifyNotificationAction {
   final String id;
   final String title;
   final String payload;
-  const NotifyNotificationAction(this.id, this.title, this.payload);
+  final bool allowFreeFormInput;
+  final String? inputLabel;
+  const NotifyNotificationAction(
+    this.id,
+    this.title,
+    this.payload, {
+    this.allowFreeFormInput = false,
+    this.inputLabel,
+  });
 }
 
 /// 审批快捷动作意图的落盘键（后台 isolate 写 → 主 isolate 轮询消费）。
 const approvalActionIntentKey = 'notify.approvalActionIntent';
 const _approvalActionChoiceAccept = 'accept';
 const _approvalActionChoiceDecline = 'decline';
+const _approvalActionChoiceDeclineReply = 'decline_reply';
 
 /// 后台 isolate 动作回调（插件约定：顶层函数 + vm:entry-point）。
 /// 只落盘审批意图 + 受理反馈——真正的审批执行在主 isolate 轮询
@@ -119,18 +128,31 @@ const _approvalActionChoiceDecline = 'decline';
 @pragma('vm:entry-point')
 Future<void> notificationActionBackgroundHandler(NotificationResponse response) async {
   DartPluginRegistrant.ensureInitialized();
-  final choice = response.actionId ?? '';
-  if (choice != _approvalActionChoiceAccept && choice != _approvalActionChoiceDecline) {
+  final rawAction = response.actionId ?? '';
+  final String choice;
+  if (rawAction == _approvalActionChoiceAccept) {
+    choice = _approvalActionChoiceAccept;
+  } else if (rawAction == _approvalActionChoiceDecline ||
+      rawAction == _approvalActionChoiceDeclineReply) {
+    choice = _approvalActionChoiceDecline;
+  } else {
     return;
   }
+  final replyText = response.input?.trim() ?? '';
   final intent = response.payload ?? '';
   if (intent.isEmpty) return;
   try {
-    const storage = FlutterSecureStorage();
+    const storage = FlutterSecureStorage(
+      iOptions: IOSOptions(
+        accessibility: KeychainAccessibility.first_unlock_this_device,
+      ),
+    );
     await storage.write(
       key: approvalActionIntentKey,
       value: jsonEncode({
+        'act': choice,
         'choice': choice,
+        if (replyText.isNotEmpty) 'replyText': replyText,
         'intent': intent,
         'at': DateTime.now().millisecondsSinceEpoch,
       }),
@@ -139,8 +161,10 @@ Future<void> notificationActionBackgroundHandler(NotificationResponse response) 
     final plugin = FlutterLocalNotificationsPlugin();
     await plugin.show(
       id: response.id ?? DateTime.now().millisecondsSinceEpoch % 100000,
-      title: choice == _approvalActionChoiceAccept ? '已提交批准' : '已提交拒绝',
-      body: '打开应用后自动完成',
+      title: choice == _approvalActionChoiceAccept
+          ? '已提交批准'
+          : (replyText.isNotEmpty ? '已提交拒绝并附说明' : '已提交拒绝'),
+      body: replyText.isNotEmpty ? replyText : '打开应用后自动完成',
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'approvals', '审批提醒',
@@ -364,6 +388,13 @@ class NotificationService {
             actionPayload(_approvalActionChoiceAccept)),
         NotifyNotificationAction('decline', tr('拒绝'),
             actionPayload(_approvalActionChoiceDecline)),
+        NotifyNotificationAction(
+          'decline_reply',
+          tr('拒绝并说明'),
+          actionPayload(_approvalActionChoiceDecline),
+          allowFreeFormInput: true,
+          inputLabel: tr('输入拒绝原因…'),
+        ),
       ];
     }
     try {
@@ -564,7 +595,19 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
       // 审批快捷动作按钮（2026-11-14）：[批准] [拒绝] 通知栏直接应答；
       // 意图 JSON 在 payload（后台 isolate 落盘 → 主 isolate 消费）。
       actions: [
-        for (final a in actions) AndroidNotificationAction(a.id, a.title),
+        for (final a in actions)
+          AndroidNotificationAction(
+            a.id,
+            a.title,
+            inputs: a.allowFreeFormInput
+                ? [
+                    AndroidNotificationActionInput(
+                      label: a.inputLabel,
+                      allowFreeFormInput: true,
+                    ),
+                  ]
+                : const [],
+          ),
       ],
       // 自动过期（ 决策 1）：tasks/goals 30 分钟后自动出栏，
       // approvals 不过期。策略在 notify_core.notificationTtlMs（纯函数，

@@ -1327,9 +1327,9 @@ class _ModelListRow extends StatelessWidget {
         onTap: () => onPick(value),
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 40),
+          constraints: const BoxConstraints(minHeight: 48),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Row(
               children: [
                 // logo 槽恒在（名字对齐）；无标模型用中性小圆点占位。

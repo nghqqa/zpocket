@@ -130,6 +130,7 @@ class InputBar extends StatelessWidget {
 
   /// V2 审美优化：上下文用量仪表（进度条并入输入卡顶部内边，评审
   final VoidCallback? onAdd;
+  final VoidCallback? onQuickPrompts;
 
   /// 待发送附件 chips 行（阶段 3 第三段；空附件传 null 不占位）。
   final Widget? attachmentsBar;
@@ -161,6 +162,7 @@ class InputBar extends StatelessWidget {
     this.selectionPending = false,
     this.onSelectionTap,
     this.onAdd,
+    this.onQuickPrompts,
     this.attachmentsBar,
     this.onVoice,
     this.statusColor,
@@ -270,6 +272,23 @@ class InputBar extends StatelessWidget {
                           tooltip: tr('添加（上下文/能力/技能）'),
                         ),
                       ),
+                      if (onQuickPrompts != null)
+                        SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: IconButton(
+                            key: const ValueKey('quick-prompts-trigger'),
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                            onPressed: onQuickPrompts,
+                            icon: Icon(
+                              Icons.bolt_outlined,
+                              size: 20,
+                              color: context.colors.foregroundSubtle,
+                            ),
+                            tooltip: tr('快捷指令'),
+                          ),
+                        ),
                       // 2026-10-23 用户反馈三轮：绿圈+模型药丸+发送键
                       // 整组靠右贴齐（「＋」独占左端）。弹性空白全部落在
                       // ＋与右组之间——Spacer+Flexible 各分一半会把绿圈
