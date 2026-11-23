@@ -540,6 +540,9 @@ class AppState extends ChangeNotifier {
     } else {
       notifyService = service;
     }
+    // 任务完成横幅开关（orientation-unlock-1）：解析器读 uiPrefs，
+    // 开关即生效（下一条任务完成通知走 tasks_alert 高优渠道）。
+    notifyService!.taskHeadsUpResolver = () => uiPrefs.taskHeadsUp;
     // 通知点击回调不依赖台账：存储降级环境（store
     // 创建失败）下 onTap 也要挂上——否则该次会话所有通知点击（含冷启
     // 动点击直达）失效，只剩无导航的通知。

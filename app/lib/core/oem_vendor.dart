@@ -9,6 +9,10 @@
 // 文案不必动原生。跳转组件候选仍按厂商写在原生侧（Activity 直跳只能
 // 原生做），两边 key（枚举）保持一致。
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, visibleForTesting;
+import 'package:flutter/services.dart' show MethodChannel;
+
 /// 规范化后的设备厂商档位。
 enum OemVendor { huawei, honor, vivo, xiaomi, oppo, other }
 
@@ -116,3 +120,98 @@ OemStartupGuide oemStartupGuideFor(OemVendor vendor) => switch (vendor) {
       OemVendor.oppo => _oppoGuide,
       OemVendor.other => _otherGuide,
     };
+
+/// 扫码页预览模式偏好（qr-preview-oem-1）：
+/// - `auto`：按平台与厂商自动判定（iOS 恒预览；Android 非华为/荣耀默认预览，
+///   华为/荣耀默认无预览兼容模式）；
+/// - `preview`：用户显式开启实时预览；
+/// - `no_preview`：用户显式切回无预览兼容模式（黑屏自救并持久化）。
+const kQrPreviewAuto = 'auto';
+const kQrPreviewOn = 'preview';
+const kQrPreviewOff = 'no_preview';
+
+/// 将持久化读取到的原始串规范化为合法扫码预览模式。
+String normalizeQrPreviewMode(String? raw) => switch (raw) {
+      kQrPreviewOn => kQrPreviewOn,
+      kQrPreviewOff => kQrPreviewOff,
+      _ => kQrPreviewAuto,
+    };
+
+/// 已知存在相机纹理与 Flutter 合成器冲突黑屏风险的 Android 厂商。
+bool oemNeedsQrNoPreviewDefense(OemVendor vendor) =>
+    vendor == OemVendor.huawei || vendor == OemVendor.honor;
+
+/// 判定扫码页是否展示实时相机预览（纯函数）。
+/// [vendor] 为 null 表示尚未完成厂商探测或读取失败：auto 档下保守回落无预览安全态。
+bool resolveQrPreviewEnabled({
+  required bool isIos,
+  required String mode,
+  required OemVendor? vendor,
+}) {
+  if (isIos) return true;
+  if (mode == kQrPreviewOn) return true;
+  if (mode == kQrPreviewOff) return false;
+  if (vendor == null) return false;
+  return !oemNeedsQrNoPreviewDefense(vendor);
+}
+
+/// 判定扫码配对成功后是否需要触发 Activity.recreate 防黑屏重建（纯函数）。
+/// - 仅在支持表面重建的平台（Android）生效；
+/// - 华为/荣耀始终保留重建防线（历史实证相机会话开合本身可楔死合成器）；
+/// - 用户手动切换无预览兼容模式时同样启用重建防线（小众机型自救闭环）；
+/// - 其余正常开预览的 Android 机型无需重建，直接平滑返回。
+bool resolveQrNeedsSurfaceRecreate({
+  required bool supportsSurfaceRecreate,
+  required String mode,
+  required OemVendor? vendor,
+}) {
+  if (!supportsSurfaceRecreate) return false;
+  if (mode == kQrPreviewOff) return true;
+  if (vendor == null) return true;
+  if (oemNeedsQrNoPreviewDefense(vendor)) return true;
+  return false;
+}
+
+/// 进程级设备厂商探针缓存（毫秒级本地 Build.MANUFACTURER 查询，零网络）。
+abstract final class OemDevice {
+  static const _notifyChannel = MethodChannel('companion/notify');
+  static OemVendor? _cached;
+  static Future<OemVendor?>? _inFlight;
+
+  @visibleForTesting
+  static OemVendor? debugVendorOverride;
+
+  /// 已探测的设备厂商（未探测/非 Android/探测失败为 null）。
+  static OemVendor? get vendor => debugVendorOverride ?? _cached;
+
+  /// 冷启动预热或按需探测设备厂商；结果缓存至进程结束。
+  static Future<OemVendor?> probe() {
+    if (debugVendorOverride != null) return Future.value(debugVendorOverride);
+    if (_cached != null) return Future.value(_cached);
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return Future.value(null);
+    }
+    return _inFlight ??= _probeOnce();
+  }
+
+  static Future<OemVendor?> _probeOnce() async {
+    try {
+      final raw = await _notifyChannel.invokeMethod<String>('manufacturer');
+      if (raw != null && raw.trim().isNotEmpty) {
+        _cached = oemVendorFromManufacturer(raw);
+      }
+    } catch (_) {
+      // 通道不可用（测试环境/老宿主）：保持 null，由上层走保守兜底。
+    } finally {
+      _inFlight = null;
+    }
+    return _cached;
+  }
+
+  @visibleForTesting
+  static void resetForTest() {
+    debugVendorOverride = null;
+    _cached = null;
+    _inFlight = null;
+  }
+}

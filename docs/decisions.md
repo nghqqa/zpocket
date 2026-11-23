@@ -268,6 +268,11 @@ this workflow (chat and approvals are used while holding the phone).
 factors; a wide unfolded screen gets the dual-pane home (#8) rather than a
 landscape mode.
 **Cost**: landscape users are out of scope until there is real demand for it.
+**Update (v1.0.9)**: the split is now by form factor rather than a blanket
+ban — narrow screens (short edge <600dp) stay portrait-locked, while wide
+unfolded/tablet screens (≥600dp) follow system rotation with the existing
+dual-pane layout; the scan/preview workaround below also became per-device
+instead of global.
 
 ## 24. Errors are translated, not surfaced raw
 

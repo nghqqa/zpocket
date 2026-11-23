@@ -13,6 +13,8 @@ import '../core/payload_guard.dart' show intOf;
 import '../core/system_inset.dart';
 import '../core/theme.dart';
 import 'workflow_dashboards.dart' show workflowRunStatusWord;
+import 'conversation_message_cells.dart'
+    show buildSearchHighlightSpans;
 import '../state/app_state.dart';
 import '../state/app_state_scope.dart';
 import '../state/cache_policy.dart';
@@ -2913,11 +2915,17 @@ class _TaskList extends StatelessWidget {
       running = model.running;
       rest = model.rest;
     } else {
+      // 1.0.9 验收②续：多词 AND（真机实锤任务主页搜索多词零命中——
+      // 原整串 contains 把「词1 词2」当一个子串）。标题+预览合并文本
+      // 内全部词命中才可见；连续短语查询是它的子集，行为兼容。
+      final terms = taskQueryTerms(query);
       final visible = model.cards
           .where(
             (c) =>
-                c.title.toLowerCase().contains(q) ||
-                (c.preview ?? '').toLowerCase().contains(q) ||
+                taskTextMatchesAllTerms(
+                  '${c.title} ${c.preview ?? ''}',
+                  terms,
+                ) ||
                 // 正文命中（标题/预览没命中）的当前工作区卡也提为可见。
                 serverSplit.currentIds.contains(c.sessionId),
           )
@@ -2937,10 +2945,14 @@ class _TaskList extends StatelessWidget {
         rest.isEmpty &&
         crossTasks.isEmpty) {
       // 零结果也必须让降级可见（此前早退把 failed 状态行一并吞掉）。
+      final multiword = taskQueryTerms(query).length > 1;
       return AppEmptyState(
         icon: Icons.search_off,
+
         text: searchFetch == _SearchFetchState.failed
             ? '对话内容搜索暂不可用，已按标题/预览匹配\n没有匹配「$query」的任务'
+            : multiword
+            ? '没有匹配「$query」的任务：多个词需同时出现在同一任务'
             : '没有匹配「$query」的任务，换个关键词试试',
       );
     }
@@ -3023,6 +3035,7 @@ class _TaskList extends StatelessWidget {
               if (compact) {
                 return _CompactTaskRow.fromEntry(
                   entry: entry,
+                  searchQuery: query,
                   selectedSessionId: selectedSessionId,
                   onTap: onOpen,
                   // 宽屏搜索行补长按菜单。
@@ -3041,6 +3054,7 @@ class _TaskList extends StatelessWidget {
               return _TaskCard(
                 entry: entry,
                 onOpen: onOpen,
+                searchQuery: query,
                 contentSnippet: snippetByTaskId[entry.sessionId],
                 multiSelectMode: multiSelectMode,
                 multiSelected: selectedTaskIds.contains(entry.sessionId),
@@ -3108,6 +3122,7 @@ class _TaskList extends StatelessWidget {
                       )
                     : _CrossTaskCard(
                         task: cross,
+                        searchQuery: query,
                         onOpen: onOpenCross!,
                         onLongPress: onCrossLongPress,
                         multiSelectMode: multiSelectMode,
@@ -3656,6 +3671,33 @@ void _showTaskActions(
 
 /// 跨工作区搜索结果行：workspace-list 任务条目（非活跃工作区）——
 /// 标题 + 工作区标签 + 状态 pill；点按=切工作区后打开。
+/// 搜索命中词高亮（1.0.9 验收②续）：复用会话内搜索的
+/// buildSearchHighlightSpans（空格多词 AND 同语义同视觉——命中词
+/// brandAccent 底色）。query 空/无命中时返回 null=调用方保持原 Text。
+List<InlineSpan>? _taskHitSpans(
+  BuildContext context,
+  String text,
+  String query,
+  TextStyle base,
+) {
+  if (query.trim().isEmpty || text.isEmpty) return null;
+  final spans = buildSearchHighlightSpans(
+    text,
+    query,
+    base: base,
+    hit: base.copyWith(
+      backgroundColor: context.colors.brandAccent.withValues(
+        alpha: AppAlpha.mid,
+      ),
+    ),
+  );
+  final only = spans.length == 1 && spans.first is TextSpan
+      ? spans.first as TextSpan
+      : null;
+  if (only != null && only.style?.backgroundColor == null) return null;
+  return spans;
+}
+
 class _CrossTaskCard extends StatelessWidget {
   final Map<String, dynamic> task;
   final void Function(Map<String, dynamic> task) onOpen;
@@ -3678,7 +3720,11 @@ class _CrossTaskCard extends StatelessWidget {
   /// 行级工作区键随选择集上报（批量操作按行归属执行）。
   final void Function(String taskId, String? workspaceKey)? onToggleSelect;
 
+  /// 搜索态传入：标题命中词高亮（1.0.9 验收②续）。
+  final String searchQuery;
+
   const _CrossTaskCard({
+    this.searchQuery = '',
     required this.task,
     required this.onOpen,
     this.showWorkspaceLabel = true,
@@ -3795,15 +3841,27 @@ class _CrossTaskCard extends StatelessWidget {
                         ),
                       ),
                     Expanded(
-                      child: Text(
-                        title.isEmpty ? '(未命名任务)' : title,
-                        translate: title.isEmpty,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                      child: Builder(builder: (rowCtx) {
+                        final base = const TextStyle(
                           fontSize: AppType.uiBase,
                           fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                        );
+                        final spans = title.isNotEmpty
+                            ? _taskHitSpans(rowCtx, title, searchQuery, base)
+                            : null;
+                        return spans == null
+                            ? Text(
+                                title.isEmpty ? '(未命名任务)' : title,
+                                translate: title.isEmpty,
+                                overflow: TextOverflow.ellipsis,
+                                style: base,
+                              )
+                            : Text.rich(
+                                key: const ValueKey('cross-card-hit-title'),
+                                TextSpan(children: spans),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                      }),
                     ),
                     const SizedBox(width: 8),
                     Container(
@@ -4002,10 +4060,14 @@ class _CompactTaskRow extends StatelessWidget {
     this.multiSelectMode = false,
     this.multiSelected = false,
     this.onToggleSelect,
+    this.searchQuery = '',
   });
 
   final String taskId;
   final String title;
+
+  /// 搜索态传入：标题命中词高亮（1.0.9 验收②续）。
+  final String searchQuery;
   final bool running;
   final bool unread;
   final int updatedAt;
@@ -4037,7 +4099,9 @@ class _CompactTaskRow extends StatelessWidget {
     bool multiSelectMode = false,
     bool multiSelected = false,
     VoidCallback? onToggleSelect,
+    String searchQuery = '',
   }) => _CompactTaskRow(
+    searchQuery: searchQuery,
     taskId: '${task['taskId'] ?? ''}',
     title: '${task['title'] ?? ''}'.trim(),
     running:
@@ -4069,7 +4133,9 @@ class _CompactTaskRow extends StatelessWidget {
     bool multiSelectMode = false,
     bool multiSelected = false,
     VoidCallback? onToggleSelect,
+    String searchQuery = '',
   }) => _CompactTaskRow(
+    searchQuery: searchQuery,
     taskId: entry.sessionId,
     title: entry.title.trim(),
     running: normalizePhase(entry.phase) == 'running',
@@ -4156,16 +4222,28 @@ class _CompactTaskRow extends StatelessWidget {
                     ),
                     const SizedBox(width: 2),
                     Expanded(
-                      child: Text(
-                        title.isEmpty ? '(未命名任务)' : title,
-                        translate: title.isEmpty,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                      child: Builder(builder: (rowCtx) {
+                        final base = const TextStyle(
                           fontSize: AppType.uiBase,
                           fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                        );
+                        final spans = title.isNotEmpty
+                            ? _taskHitSpans(rowCtx, title, searchQuery, base)
+                            : null;
+                        return spans == null
+                            ? Text(
+                                title.isEmpty ? '(未命名任务)' : title,
+                                translate: title.isEmpty,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: base,
+                              )
+                            : Text.rich(
+                                TextSpan(children: spans),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              );
+                      }),
                     ),
                     // （对抗审查·月亮压未读）：月亮归元信息列
                     //（官方 TaskListItem 月亮在时间前 meta 位）。
@@ -4221,10 +4299,14 @@ class _TaskCard extends StatelessWidget {
   /// 长按菜单「选择任务」入口（页面级 _enterMultiSelect）。
   final void Function(String taskId)? onEnterMultiSelect;
 
+  /// 搜索态传入：标题/预览/片段命中词高亮（1.0.9 验收②续）。
+  final String searchQuery;
+
   const _TaskCard({
     required this.entry,
     required this.onOpen,
     this.contentSnippet,
+    this.searchQuery = '',
     this.multiSelectMode = false,
     this.multiSelected = false,
     this.onToggleSelect,
@@ -4327,15 +4409,30 @@ class _TaskCard extends StatelessWidget {
                         ),
                       ),
                     Expanded(
-                      child: Text(
-                        entry.title.isEmpty ? '(未命名任务)' : entry.title,
-                        translate: entry.title.isEmpty,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                      child: Builder(builder: (rowCtx) {
+                        final base = const TextStyle(
                           fontSize: AppType.uiBase,
                           fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                        );
+                        final spans = entry.title.isNotEmpty
+                            ? _taskHitSpans(
+                                rowCtx, entry.title, searchQuery, base)
+                            : null;
+                        return spans == null
+                            ? Text(
+                                entry.title.isEmpty
+                                    ? '(未命名任务)'
+                                    : entry.title,
+                                translate: entry.title.isEmpty,
+                                overflow: TextOverflow.ellipsis,
+                                style: base,
+                              )
+                            : Text.rich(
+                                key: const ValueKey('task-card-hit-title'),
+                                TextSpan(children: spans),
+                                overflow: TextOverflow.ellipsis,
+                              );
+                      }),
                     ),
                     const SizedBox(width: 8),
                     Container(
@@ -4383,16 +4480,28 @@ class _TaskCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          contentSnippet!,
-                          translate: false,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                        child: Builder(builder: (snipCtx) {
+                          final base = TextStyle(
                             fontSize: AppType.uiCaption,
                             color: context.colors.foregroundSubtle,
-                          ),
-                        ),
+                          );
+                          final spans = _taskHitSpans(
+                            snipCtx, contentSnippet!, searchQuery, base,
+                          );
+                          return spans == null
+                              ? Text(
+                                  contentSnippet!,
+                                  translate: false,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: base,
+                                )
+                              : Text.rich(
+                                  TextSpan(children: spans),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                        }),
                       ),
                     ],
                   ),
@@ -4402,19 +4511,32 @@ class _TaskCard extends StatelessWidget {
                 ] else if ((entry.preview ?? '').isNotEmpty &&
                     (entry.unread || !entry.previewIsRunDigest)) ...[
                   const SizedBox(height: 6),
-                  Text(
+                  Builder(builder: (pvCtx) {
                     // 视觉走查修订（2026-10-18）：卡片摘要是纯文本场景，
                     // 桌面下发的行文常带 **强调**/`代码`——裸符号直接显示
                     // 观感糙，剥掉后再呈示。
-                    _stripMarkdown(entry.preview!),
-                    translate: false,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    final plain = _stripMarkdown(entry.preview!);
+                    final base = TextStyle(
                       fontSize: AppType.uiCaption,
                       color: context.colors.foregroundSubtle,
-                    ),
-                  ),
+                    );
+                    final spans = _taskHitSpans(
+                      pvCtx, plain, searchQuery, base,
+                    );
+                    return spans == null
+                        ? Text(
+                            plain,
+                            translate: false,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: base,
+                          )
+                        : Text.rich(
+                            TextSpan(children: spans),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          );
+                  }),
                 ],
                 if (entry.lastActivityAt > 0) ...[
                   const SizedBox(height: 4),

@@ -58,4 +58,14 @@ abstract final class ZpCapabilities {
   /// 永不翻 true。消费点：pairing_page 扫码配对成功后的收尾方式
   /// （Android=重建接管，iOS=正常 pop）+main.dart 帧看门狗装载。
   static bool get supportsSurfaceRecreate => _android;
+
+  /// 通知渠道横幅档开关（Android 8+ 渠道 importance=MAX 的 heads-up
+  /// 顶部弹窗呈现）。iOS 无渠道/importance 概念（呈现档由
+  /// interruptionLevel 按通道策略钉死）——结构性不可行，永不翻 true。
+  /// 消费点：通知设置页「任务完成横幅」开关（orientation-unlock-1 批）。
+  static bool get supportsHeadsUpChannelToggle => _android;
+
+  /// PDF 产物应用内预览（Android 系统内置 PdfRenderer，零第三方大库；
+  /// iOS 待后续批以 PDFKit 对位，未交付前由本门控回落分享页不撒谎）。
+  static bool get supportsInAppPdfPreview => _android;
 }

@@ -2739,6 +2739,9 @@ class ConfigOption {
 }
 
 class ConfigOptionValue {
+  /// 公开工厂（跨库构建：子代理模型分组弹层复用 provider 分组纯函数族）。
+  factory ConfigOptionValue.fromMap(Map raw) => ConfigOptionValue._(raw);
+
   final String value;
   final String name;
   final String? description;

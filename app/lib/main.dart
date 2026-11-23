@@ -9,6 +9,7 @@ import 'core/system_inset.dart';
 import 'platform/capabilities.dart';
 import 'core/backup_exclusion.dart';
 import 'core/localized_text.dart';
+import 'core/oem_vendor.dart';
 import 'core/system_asr.dart';
 
 import 'core/theme.dart';
@@ -161,6 +162,7 @@ void main() {
   // 指纹（验收#3 取证当时正缺这一行）。
   debugPrint('[voice] build probe $kVoiceHmsBuildProbe');
   SystemAsr.probe();
+  unawaited(OemDevice.probe());
   // 早前批次：iCloud 备份排除（应用支持/文档目录整树——关于页
   // 「云备份已关闭」承诺的落地；Android 由 allowBackup=false 全局排除无
   // 对位）。iOS 专属，失败内部留日志不阻塞启动。

@@ -9,6 +9,7 @@ import '../core/theme.dart';
 import '../state/app_state.dart';
 import '../state/app_state_scope.dart';
 import 'app_widgets.dart';
+import 'conversation_search.dart' show findSearchMatchRanges;
 import 'conversation_session_opener.dart';
 import 'file_preview.dart';
 import 'markdown_view.dart';
@@ -107,30 +108,28 @@ List<InlineSpan> buildSearchHighlightSpans(
   String query, {
   required TextStyle base,
   required TextStyle hit,
+  bool useRegex = false,
+  RegExp? compiledRegex,
 }) {
-  // toLowerCase 对 İ（U+0130）等
-  // 扩长字符改变码元长度，折叠串下标切原串会错位/RangeError——改用
-  // 长度稳定折叠（foldCaseStable），命中下标恒在原串坐标系。
-  final needle = foldCaseStable(query.trim());
-  if (needle.isEmpty) {
+  // 统一复用 findSearchMatchRanges（空格多词 AND / 可选正则，且保持
+  // foldCaseStable 长度稳定坐标系防 U+0130 越界）。
+  final ranges = findSearchMatchRanges(
+    source,
+    query,
+    useRegex: useRegex,
+    compiledRegex: compiledRegex,
+  );
+  if (ranges.isEmpty) {
     return [TextSpan(text: source, style: base)];
   }
   final spans = <InlineSpan>[];
-  final haystack = foldCaseStable(source);
   var from = 0;
-  while (from <= haystack.length - needle.length) {
-    final start = haystack.indexOf(needle, from);
-    if (start < 0) break;
-    if (start > from) {
-      spans.add(TextSpan(text: source.substring(from, start), style: base));
+  for (final r in ranges) {
+    if (r.start > from) {
+      spans.add(TextSpan(text: source.substring(from, r.start), style: base));
     }
-    spans.add(
-      TextSpan(
-        text: source.substring(start, start + needle.length),
-        style: hit,
-      ),
-    );
-    from = start + needle.length;
+    spans.add(TextSpan(text: source.substring(r.start, r.end), style: hit));
+    from = r.end;
   }
   if (from < source.length) {
     spans.add(TextSpan(text: source.substring(from), style: base));
@@ -157,6 +156,8 @@ class AssistantText extends StatelessWidget {
   /// markdown 渲染切换为纯文本预览（markdown 源文本+命中词底色）；
   /// 关闭搜索或关键词为空即恢复 markdown 渲染。
   final String? searchQuery;
+  final bool searchUseRegex;
+  final RegExp? searchCompiledRegex;
 
   const AssistantText({
     required this.text,
@@ -165,6 +166,8 @@ class AssistantText extends StatelessWidget {
     this.sessionId,
     this.header,
     this.searchQuery,
+    this.searchUseRegex = false,
+    this.searchCompiledRegex,
   });
 
   @override
@@ -205,6 +208,8 @@ class AssistantText extends StatelessWidget {
               header?['rowId'],
               header?['entityId'],
               searchQuery,
+              searchUseRegex,
+              searchCompiledRegex,
               Theme.of(context).brightness,
             ],
             // 空关键词按无高亮处理——页面在搜索开启
@@ -222,6 +227,8 @@ class AssistantText extends StatelessWidget {
                       children: buildSearchHighlightSpans(
                         text,
                         searchQuery!,
+                        useRegex: searchUseRegex,
+                        compiledRegex: searchCompiledRegex,
                         base: TextStyle(
                           fontSize: AppType.uiBase,
                           height: 1.6,
@@ -588,6 +595,8 @@ class UserBubble extends StatelessWidget {
   /// 验收#11（Bug H）：搜索激活时提问同享词级高亮（此前仅
   /// assistant 路径接入，提问命中只有行级定位效果）。
   final String? searchQuery;
+  final bool searchUseRegex;
+  final RegExp? searchCompiledRegex;
 
   /// ④ 提交配置溯源：本条消息的提交配置与「是否变化」（变化才渲染
   /// 徽标——用户拍板；null/未变化=零占位）。
@@ -601,6 +610,8 @@ class UserBubble extends StatelessWidget {
     this.onAttachment,
     this.searchReveal = false,
     this.searchQuery,
+    this.searchUseRegex = false,
+    this.searchCompiledRegex,
     this.submitConfig,
     this.showConfigBadge = false,
   });
@@ -650,6 +661,8 @@ class UserBubble extends StatelessWidget {
               children: buildSearchHighlightSpans(
                 data,
                 q,
+                useRegex: searchUseRegex,
+                compiledRegex: searchCompiledRegex,
                 base: const TextStyle(
                   fontSize: AppType.uiBase,
                   height: 1.5,
@@ -844,6 +857,8 @@ class UserBubble extends StatelessWidget {
                             selectable: (data) => _selectableText(context, data),
                             searchReveal: searchReveal,
                             searchQuery: searchQuery,
+                            searchUseRegex: searchUseRegex,
+                            searchCompiledRegex: searchCompiledRegex,
                           ),
                         ),
                       ),
@@ -871,6 +886,8 @@ class FoldableUserText extends StatefulWidget {
 
   /// 验收#11：搜索词变化时缓存必须失效（高亮重建）。
   final String? searchQuery;
+  final bool searchUseRegex;
+  final RegExp? searchCompiledRegex;
 
   const FoldableUserText({
     super.key,
@@ -878,6 +895,8 @@ class FoldableUserText extends StatefulWidget {
     required this.selectable,
     this.searchReveal = false,
     this.searchQuery,
+    this.searchUseRegex = false,
+    this.searchCompiledRegex,
   });
 
   @override
@@ -887,6 +906,12 @@ class FoldableUserText extends StatefulWidget {
 class FoldableUserTextState extends State<FoldableUserText> {
   bool _expanded = false;
   String _lastText = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _lastText = widget.text;
+  }
 
   @override
   void didUpdateWidget(covariant FoldableUserText oldWidget) {
@@ -927,6 +952,8 @@ class FoldableUserTextState extends State<FoldableUserText> {
         widget.text,
         expanded,
         widget.searchQuery,
+        widget.searchUseRegex,
+        widget.searchCompiledRegex,
         Theme.of(context).brightness,
       ],
       childBuilder: () => widget.selectable(widget.text),

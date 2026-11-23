@@ -7,7 +7,16 @@ import '../core/localized_text.dart';
 import '../core/theme.dart';
 import '../state/app_state_scope.dart';
 import '../transport/channel_client.dart';
+import '../transport/conversation.dart' show ConfigOptionValue;
 import 'app_widgets.dart';
+import 'composer_panels.dart'
+    show
+        groupDisambigSuffix,
+        isPlanProvider,
+        modelDedupKey,
+        planBadgeOf,
+        providerGroupKey,
+        providerShortLabel;
 
 // 优化批 #3：异常→人话映射（原始异常仍在调用方 debugPrint 留痕）。
 String friendlyError(Object e) {
@@ -211,6 +220,16 @@ class _SubagentsPageState extends State<SubagentsPage> {
             'value': v.value,
             'name': v.name,
             'thoughtLevels': v.modelThoughtLevels,
+            // 1.0.9 验收：provider 元数据此前被剥掉——模型选择只能
+            // 平铺。保留分组/徽标/短名四字段，供 _SubagentModelSheet
+            // 复用 composer 的 provider 分组纯函数族。
+            if (v.modelProviderId != null)
+              'modelProviderId': v.modelProviderId,
+            if (v.modelProviderName != null)
+              'modelProviderName': v.modelProviderName,
+            if (v.modelAccessMode != null) 'modelAccessMode': v.modelAccessMode,
+            if (v.modelAccessAccountType != null)
+              'modelAccessAccountType': v.modelAccessAccountType,
           });
           for (final level in v.modelThoughtLevels) {
             thought.add('$level');
@@ -253,10 +272,7 @@ class _SubagentsPageState extends State<SubagentsPage> {
       modelValue: modelValue,
       thought: thought,
       baseModelValue: baseModel,
-      models: [
-        for (final m in _modelCatalog)
-          ('${m['value']}', '${m['name']}'),
-      ],
+      models: _modelCatalog,
       thoughtLevels: _thoughtFor(modelValue ?? baseModel),
       onPickModel: (v) => _applyOverride(agent, modelValue: v, pickModel: true),
       onPickThought: (v) =>
@@ -605,9 +621,10 @@ class _InlineOverride {
 
   /// 覆盖??继承 的模型（思考档可用性判据；null=思考档禁用）。
   final String? baseModelValue;
-  final List<(String, String)> models;
 
-  /// (value, name) 位置记录。
+  /// 完整目录行（含 provider 元数据——1.0.9 验收：供分组弹层）。
+  final List<Map<String, dynamic>> models;
+
   final List<String> thoughtLevels;
   final void Function(String? value) onPickModel;
   final void Function(String? level) onPickThought;
@@ -672,9 +689,9 @@ class _AgentTileState extends State<_AgentTile> {
 
   String _modelLabel(String value) {
     final hit = widget.inlineOverride?.models
-        .where((m) => m.$1 == value)
+        .where((m) => '${m['value']}' == value)
         .firstOrNull;
-    if (hit != null) return hit.$2;
+    if (hit != null) return '${hit['name']}';
     final slash = value.indexOf('/');
     return slash > 0 ? value.substring(slash + 1) : value;
   }
@@ -866,15 +883,17 @@ class _AgentTileState extends State<_AgentTile> {
                 // 48dp 触控目标。
                 if (o != null && _expanded) ...[
                   Divider(height: 20, color: context.colors.border),
-                  _overrideRow(
-                    context: context,
-                    chipKey: 'override-model',
+                  // 1.0.9 验收：模型选择改分组弹层（provider 分组+
+                  // 套餐徽标，与输入框模型弹层同范式）；思考档仍为
+                  // 小列表下拉。
+                  _ModelPickerRow(
+                    rowKey: 'override-model-${widget.agent['id']}',
                     rowLabel: '模型',
                     label: o.modelValue == null
-                        ? '继承默认'
+                        ? tr('继承默认')
                         : _modelLabel(o.modelValue!),
-                    items: [('', '继承默认'), ...o.models],
-                    initialValue: o.modelValue,
+                    catalog: o.models,
+                    currentValue: o.modelValue,
                     onSelected: o.onPickModel,
                   ),
                   _overrideRow(
@@ -966,6 +985,354 @@ class _AgentTileState extends State<_AgentTile> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 打开子代理模型分组选择弹层；返回所选 value（空串=继承默认，
+/// null=dismiss 未改）。design_guard 守卫与 [_ModelPickerRow] 共用入口。
+Future<String?> showSubagentModelSheet(
+  BuildContext context, {
+  required List<Map<String, dynamic>> catalog,
+  String? currentValue,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    // 对抗审查③中：SafeArea（滚到底不被手势条遮挡）+ 滚动体高度上限
+    // ——两项均为 composer showModelSheet 对位保护（isScrollControlled
+    // 下无界 SingleChildScrollView 会恒占满全屏高）。
+    builder: (sheetContext) => SafeArea(
+      child: _SubagentModelSheet(
+        catalog: catalog,
+        currentValue: currentValue,
+      ),
+    ),
+  );
+}
+
+/// 1.0.9 验收：模型选择行（点按开 provider 分组弹层）。
+/// 行形态与 [_overrideRow] 一致（48dp 触控、行首灰 label+当前值+箭头），
+/// 选择面走 [_SubagentModelSheet]——与输入框模型弹层同范式（provider
+/// 分组+套餐徽标+组头折叠），取代此前平铺下拉。
+class _ModelPickerRow extends StatelessWidget {
+  final String rowKey;
+  final String rowLabel;
+  final String label;
+  final List<Map<String, dynamic>> catalog;
+  final String? currentValue;
+  final void Function(String? value) onSelected;
+
+  const _ModelPickerRow({
+    required this.rowKey,
+    required this.rowLabel,
+    required this.label,
+    required this.catalog,
+    required this.currentValue,
+    required this.onSelected,
+  });
+
+  Future<void> _open(BuildContext context) async {
+    final picked = await showSubagentModelSheet(
+      context,
+      catalog: catalog,
+      currentValue: currentValue,
+    );
+    if (picked == null) return; // dismiss=不改
+    onSelected(picked.isEmpty ? null : picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey(rowKey),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      onTap: () => _open(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 56,
+              child: Text(
+                rowLabel,
+                style: TextStyle(
+                  fontSize: AppType.uiCaption,
+                  color: context.colors.foregroundSubtle,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                label,
+                translate: false,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppType.uiCaption,
+                  fontWeight: FontWeight.w500,
+                  color: context.colors.foreground,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 18,
+              color: context.colors.foregroundSubtle,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// provider 分组模型选择弹层（composer _ModelSheet 的子代理对位版）：
+/// 复用其纯函数族（providerGroupKey/planBadgeOf/providerShortLabel/
+/// groupDisambigSuffix/isPlanProvider），交互=组头折叠+选中组默认展开；
+/// 首行恒为「继承默认」（空串值，由 [_ModelPickerRow] 映射 null）。
+class _SubagentModelSheet extends StatefulWidget {
+  final List<Map<String, dynamic>> catalog;
+  final String? currentValue;
+
+  const _SubagentModelSheet({required this.catalog, required this.currentValue});
+
+  @override
+  State<_SubagentModelSheet> createState() => _SubagentModelSheetState();
+}
+
+class _SubagentModelSheetState extends State<_SubagentModelSheet> {
+  final _collapsedByGroup = <String, bool>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    // 同 provider 内按 modelId 去重（composer modelDedupKey 语义）。
+    final seen = <String>{};
+    final values = <ConfigOptionValue>[];
+    for (final m in widget.catalog) {
+      final v = ConfigOptionValue.fromMap(m);
+      if (!seen.add(modelDedupKey(v))) continue;
+      values.add(v);
+    }
+    final groups = <String, List<ConfigOptionValue>>{};
+    for (final v in values) {
+      groups.putIfAbsent(providerGroupKey(v), () => []).add(v);
+    }
+    // 组头：短名+套餐徽标；label+badge 碰撞加消歧后缀（composer 同款）。
+    final groupMeta = <String, ({String label, String badge})>{};
+    for (final e in groups.entries) {
+      groupMeta[e.key] = (
+        label: providerShortLabel(e.value.first),
+        badge: planBadgeOf(e.value.first),
+      );
+    }
+    final collisions = <String, int>{};
+    for (final m in groupMeta.values) {
+      final k = '${m.label}|${m.badge}';
+      collisions[k] = (collisions[k] ?? 0) + 1;
+    }
+    if (collisions.values.any((n) => n > 1)) {
+      final seenCk = <String, int>{};
+      for (final k in groups.keys.toList()) {
+        final meta = groupMeta[k]!;
+        final ck = '${meta.label}|${meta.badge}';
+        if ((collisions[ck] ?? 0) > 1) {
+          final nth = (seenCk[ck] ?? 0) + 1;
+          seenCk[ck] = nth;
+          groupMeta[k] = (
+            label: '${meta.label}·${groupDisambigSuffix(k, nth)}',
+            badge: meta.badge,
+          );
+        }
+      }
+    }
+    // 排序：套餐组按 label 字母序在前，其余原序在后（composer 同款）。
+    final planKeys = groups.keys
+        .where((k) => isPlanProvider(groups[k]!.first))
+        .toList()
+      ..sort((a, b) => groupMeta[a]!.label.compareTo(groupMeta[b]!.label));
+    final otherKeys = groups.keys
+        .where((k) => !isPlanProvider(groups[k]!.first))
+        .toList();
+    final ordered = <MapEntry<String, List<ConfigOptionValue>>>[
+      for (final k in [...planKeys, ...otherKeys]) MapEntry(k, groups[k]!),
+    ];
+    // 选中值所在组默认展开；无选中=首组。
+    final selectedGroup = ordered
+        .where((g) => g.value.any((v) => v.value == widget.currentValue))
+        .map((g) => g.key)
+        .firstOrNull;
+    // 对抗审查③高危：空目录（装载窗口期/装载失败）时 ordered.first
+    // 抛 StateError——composer 原版由上游 options.isEmpty 早退保护，
+    // 本弹层的「继承默认」恒首行语义=空目录只渲染该行，不崩。
+    final defaultOpen = ordered.isEmpty ? null : selectedGroup ?? ordered.first.key;
+    bool collapsed(String key) =>
+        _collapsedByGroup[key] ?? (key != defaultOpen);
+
+    Widget header(String key) {
+      final meta = groupMeta[key]!;
+      return InkWell(
+        key: ValueKey('subagent-model-group-$key'),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: () => setState(() => _collapsedByGroup[key] = !collapsed(key)),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 4, top: 10, bottom: 4),
+          child: Row(
+            children: [
+              Icon(
+                collapsed(key) ? Icons.expand_more : Icons.expand_less,
+                size: 18,
+                color: c.foregroundSubtle,
+              ),
+              const SizedBox(width: 2),
+              Flexible(
+                child: Text(
+                  meta.label,
+                  translate: false,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppType.uiCaption,
+                    fontWeight: FontWeight.w600,
+                    color: c.foregroundSubtle,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: c.brandAccent.withValues(alpha: AppAlpha.faint),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Text(
+                  meta.badge,
+                  translate: false,
+                  style: TextStyle(
+                    fontSize: AppType.uiXs,
+                    // 深色目检（对抗审查回填）：brandAccent 在 8% 淡底上
+                    // 4.33:1 略低于小字 AA 线；亮蓝档 5.92:1（浅色=本尊）。
+                    color: c.brandAccentBright,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${groups[key]!.length}',
+                style: TextStyle(
+                  fontSize: AppType.uiXs,
+                  color: c.foregroundSubtle,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget modelRow(ConfigOptionValue v) {
+      final selected = v.value == widget.currentValue;
+      return InkWell(
+        key: ValueKey('subagent-model-option-${v.value}'),
+        onTap: () => Navigator.of(context).pop(v.value),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 40),
+          child: Padding(
+          padding: const EdgeInsets.only(left: 24, top: 9, bottom: 9, right: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  v.name,
+                  translate: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppType.uiBase,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: selected ? c.brandAccent : c.foreground,
+                  ),
+                ),
+              ),
+              if (selected)
+                Icon(Icons.check, size: 16, color: c.brandAccent),
+            ],
+          ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4, left: 4),
+            child: Text(
+              tr('选择模型'),
+              style: TextStyle(
+                fontSize: AppType.uiBase,
+                fontWeight: FontWeight.w600,
+                color: c.foreground,
+              ),
+            ),
+          ),
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 460),
+              child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 「继承默认」恒首行（null=清除覆盖/继承会话默认）。
+                  InkWell(
+                    key: const ValueKey('subagent-model-inherit'),
+                    onTap: () => Navigator.of(context).pop(''),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 40),
+                      child: Padding(
+                      padding: const EdgeInsets.only(
+                        left: 4, top: 9, bottom: 9, right: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '继承默认',
+                              style: TextStyle(
+                                fontSize: AppType.uiBase,
+                                fontWeight:
+                                    widget.currentValue == null
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                color: widget.currentValue == null
+                                    ? c.brandAccent
+                                    : c.foreground,
+                              ),
+                            ),
+                          ),
+                          if (widget.currentValue == null)
+                            Icon(Icons.check, size: 16, color: c.brandAccent),
+                        ],
+                      ),
+                      ),
+                    ),
+                  ),
+                  for (final g in ordered) ...[
+                    header(g.key),
+                    if (!collapsed(g.key))
+                      for (final v in g.value) modelRow(v),
+                  ],
+                ],
+              ),
+            ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1063,6 +1430,14 @@ class _AgentEditorSheetState extends State<_AgentEditorSheet> {
             'value': v.value,
             'name': v.name,
             'providerId': v.modelProviderId,
+            // 1.0.9 验收：provider 分组元数据（分组键/徽标/短名）。
+            if (v.modelProviderId != null)
+              'modelProviderId': v.modelProviderId,
+            if (v.modelProviderName != null)
+              'modelProviderName': v.modelProviderName,
+            if (v.modelAccessMode != null) 'modelAccessMode': v.modelAccessMode,
+            if (v.modelAccessAccountType != null)
+              'modelAccessAccountType': v.modelAccessAccountType,
             'thoughtLevels': v.modelThoughtLevels,
           });
           for (final level in v.modelThoughtLevels) {
@@ -1208,30 +1583,26 @@ class _AgentEditorSheetState extends State<_AgentEditorSheet> {
             ],
           ),
           const SizedBox(height: 10),
-          // 模型选择（目录=getTaskConfigOptions；空目录=继承默认）。
-          DropdownButtonFormField<String?>(
-            // 目录异步到达前 items 只有"继承默认"——value 必须在
-            // items 中否则 debug 断言崩溃；不在目录时退回 null（继承）。
-            initialValue: _modelCatalog.any((m) => m['value'] == _selectedModel)
-                ? _selectedModel
-                : null,
-            decoration: InputDecoration(
-              labelText: tr('模型（默认继承）'),
-              border: OutlineInputBorder(),
-              isDense: true,
+          // →1.0.9 验收：模型选择改分组弹层（provider 分组+套餐
+          // 徽标，与输入框模型弹层同范式）；空目录=只有「继承默认」。
+          Align(
+            alignment: Alignment.centerLeft,
+            child: _ModelPickerRow(
+              rowKey: 'editor-model-picker',
+              rowLabel: '模型',
+              label: _selectedModel == null
+                  ? tr('继承默认')
+                  : (_modelCatalog
+                          .where((m) => '${m['value']}' == _selectedModel)
+                          .firstOrNull?['name'] as String?) ??
+                        _selectedModel!,
+              catalog: _modelCatalog,
+              currentValue: _selectedModel,
+              onSelected: (v) => setState(() {
+                _selectedModel = v;
+                _selectedThought = null;
+              }),
             ),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('继承默认')),
-              for (final m in _modelCatalog)
-                DropdownMenuItem(
-                  value: '${m['value']}',
-                  child: Text('${m['name']}', overflow: TextOverflow.ellipsis),
-                ),
-            ],
-            onChanged: (v) => setState(() {
-              _selectedModel = v;
-              _selectedThought = null;
-            }),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String?>(

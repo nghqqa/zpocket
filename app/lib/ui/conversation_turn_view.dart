@@ -53,6 +53,9 @@ class TurnBar extends StatefulWidget {
   /// 搜索命中词级高亮（优化批 #25）：非空=搜索激活，段内正文切换为
   /// 纯文本预览+命中词底色（见 AssistantText.searchQuery）。
   final String? searchQuery;
+  final bool searchUseRegex;
+  final RegExp? searchCompiledRegex;
+  final bool searchIncludeReasoning;
   final ConversationSessionOpener openSession;
   final void Function(bool collapsed)? onLiveCollapsedChanged;
 
@@ -74,6 +77,9 @@ class TurnBar extends StatefulWidget {
     this.searchSourceText,
     this.searchSnippet,
     this.searchQuery,
+    this.searchUseRegex = false,
+    this.searchCompiledRegex,
+    this.searchIncludeReasoning = false,
     required this.openSession,
     this.onLiveCollapsedChanged,
   });
@@ -175,6 +181,14 @@ class TurnBarState extends State<TurnBar> {
   int get _turnId => widget.work.collapseKeyId;
 
   String _durationLabel() => workBarLabel(widget.work);
+
+  Widget _wrapSearchTarget(Map<String, dynamic> row, Widget child) =>
+      SearchTargetFrame(
+        rowId: intOf(row['rowId']),
+        activeRowId: widget.searchTargetRowId,
+        targetKey: widget.searchTargetKey,
+        child: child,
+      );
 
   /// 回合结束时刻（HH:mm；Paseo 参考 2026-10-23）。endedAt 缺失时用
   /// startedAt+activeMs 推（协议权威字段优先）。
@@ -324,6 +338,8 @@ class TurnBarState extends State<TurnBar> {
                   sessionId: widget.sessionId,
                   header: work.header,
                   searchQuery: widget.searchQuery,
+                  searchUseRegex: widget.searchUseRegex,
+                  searchCompiledRegex: widget.searchCompiledRegex,
                 ),
               ),
             ),
@@ -430,10 +446,24 @@ class TurnBarState extends State<TurnBar> {
                       running: parsed.$2,
                     );
                   }(),
-                  'reasoning' => ReasoningTile(
-                    row: row,
-                    firstSeen: widget.firstSeenOf(row),
-                    elapsedMs: widget.elapsedMsOf(row),
+                  'reasoning' => SearchTargetFrame(
+                    rowId: intOf(row['rowId']),
+                    activeRowId: widget.searchTargetRowId,
+                    targetKey: widget.searchTargetKey,
+                    child: ReasoningTile(
+                      row: row,
+                      firstSeen: widget.firstSeenOf(row),
+                      elapsedMs: widget.elapsedMsOf(row),
+                      searchTargetRowId: widget.searchTargetRowId,
+                      searchStart: widget.searchStart,
+                      searchQuery: widget.searchIncludeReasoning
+                          ? widget.searchQuery
+                          : null,
+                      searchUseRegex: widget.searchUseRegex,
+                      searchCompiledRegex: widget.searchIncludeReasoning
+                          ? widget.searchCompiledRegex
+                          : null,
+                    ),
                   ),
                   'assistantText' => GestureDetector(
                     onLongPress: widget.onRowActions == null
@@ -461,6 +491,8 @@ class TurnBarState extends State<TurnBar> {
                               sessionId: widget.sessionId,
                               header: work.header,
                               searchQuery: widget.searchQuery,
+                              searchUseRegex: widget.searchUseRegex,
+                              searchCompiledRegex: widget.searchCompiledRegex,
                             ),
                           )
                         : Column(
@@ -477,6 +509,9 @@ class TurnBarState extends State<TurnBar> {
                                   sessionId: widget.sessionId,
                                   header: work.header,
                                   searchQuery: widget.searchQuery,
+                                  searchUseRegex: widget.searchUseRegex,
+                                  searchCompiledRegex:
+                                      widget.searchCompiledRegex,
                                 ),
                               ),
                               TurnTailActions(
@@ -497,25 +532,47 @@ class TurnBarState extends State<TurnBar> {
                       when '${row['toolName'] ?? row['name'] ?? ''}' ==
                               'OffPeakCreate' &&
                           offPeakCreateSummary(row) != null =>
-                    OffPeakTaskCard(row: row),
+                    _wrapSearchTarget(row, OffPeakTaskCard(row: row)),
                   // （2026-11-08 拍板）：CreateWorkflow 专用 run 卡
                   //（官方对位——不再淹没在通用工具行里）。
                   'toolCall'
                       when '${row['toolName'] ?? row['name'] ?? ''}' ==
                               'CreateWorkflow' =>
-                    WorkflowRunCard(
-                      row: row,
-                      runs: widget.workflowRuns,
-                      sessionId: widget.sessionId,
+                    _wrapSearchTarget(
+                      row,
+                      WorkflowRunCard(
+                        row: row,
+                        runs: widget.workflowRuns,
+                        sessionId: widget.sessionId,
+                      ),
                     ),
                   'toolCall'
                       when '${row['toolName'] ?? row['name'] ?? ''}' ==
                               'TodoWrite' &&
                           TodoTile.todosOf(row) != null =>
-                    TodoTile(
-                      row: row,
-                      openByRow: widget.toolOpen,
-                      turnRunning: running,
+                    _wrapSearchTarget(
+                      row,
+                      TodoTile(
+                        row: row,
+                        openByRow: widget.toolOpen,
+                        turnRunning: running,
+                      ),
+                    ),
+                  'toolCall'
+                      when '${row['toolName'] ?? row['name'] ?? ''}' ==
+                              'ExitPlanMode' &&
+                          extractPlanToolCallContent(row) != null =>
+                    _wrapSearchTarget(
+                      row,
+                      ToolCallTile(
+                        row: row,
+                        openByRow: widget.toolOpen,
+                        turnRunning: running,
+                        searchTargetRowId: widget.searchTargetRowId,
+                        searchTargetKey: widget.searchTargetKey,
+                        searchStart: widget.searchStart,
+                        searchSourceText: widget.searchSourceText,
+                      ),
                     ),
                   _ => ToolCallTile(
                     row: row,
@@ -570,11 +627,21 @@ class ReasoningTile extends StatefulWidget {
 
   /// 页面级定格的实测时长（收起期间完成等 tile 未挂载场景的兜底）。
   final int? elapsedMs;
+  final int? searchTargetRowId;
+  final int? searchStart;
+  final String? searchQuery;
+  final bool searchUseRegex;
+  final RegExp? searchCompiledRegex;
 
   const ReasoningTile({
     required this.row,
     required this.firstSeen,
     this.elapsedMs,
+    this.searchTargetRowId,
+    this.searchStart,
+    this.searchQuery,
+    this.searchUseRegex = false,
+    this.searchCompiledRegex,
   });
 
   @override
@@ -585,6 +652,7 @@ class ReasoningTileState extends State<ReasoningTile> {
   final _innerScroll = ScrollController();
   Timer? _ticker;
   bool _userOpen = false;
+  bool _searchDismissed = false;
 
   /// 完成边沿冻结的实测时长（对抗审查 2-1，2026-10-22：服务端从不
   /// 下发 reasoning durationMs，官方在完成边沿用秒表实测值定稿——
@@ -601,6 +669,10 @@ class ReasoningTileState extends State<ReasoningTile> {
   bool _userToggled = false;
 
   bool get _streaming => widget.row['state'] == 'streaming';
+  bool get _searchReveal =>
+      widget.searchTargetRowId != null &&
+      intOf(widget.row['rowId']) == widget.searchTargetRowId;
+  bool get _open => (_searchReveal && !_searchDismissed) || _userOpen;
 
   @override
   void initState() {
@@ -612,6 +684,7 @@ class ReasoningTileState extends State<ReasoningTile> {
       final pos = _innerScroll.position;
       _autoFollow = pos.maxScrollExtent - pos.pixels <= 2.0;
     });
+    if (_searchReveal) _scheduleSearchReveal();
   }
 
   @override
@@ -632,6 +705,39 @@ class ReasoningTileState extends State<ReasoningTile> {
       }
     }
     _wasStreaming = _streaming;
+    final wasSearchReveal =
+        oldWidget.searchTargetRowId != null &&
+        intOf(oldWidget.row['rowId']) == oldWidget.searchTargetRowId;
+    if (wasSearchReveal != _searchReveal ||
+        !_searchReveal ||
+        (_searchReveal && oldWidget.searchStart != widget.searchStart)) {
+      _searchDismissed = false;
+    }
+    if (_searchReveal &&
+        !_searchDismissed &&
+        (!wasSearchReveal || oldWidget.searchStart != widget.searchStart)) {
+      _scheduleSearchReveal();
+    }
+  }
+
+  void _scheduleSearchReveal() {
+    final start = widget.searchStart;
+    if (start == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !_searchReveal ||
+          _searchDismissed ||
+          widget.searchStart != start ||
+          !_innerScroll.hasClients) {
+        return;
+      }
+      final text = '${widget.row['text'] ?? ''}';
+      if (text.isEmpty) return;
+      final ratio = (start / text.length).clamp(0.0, 1.0);
+      final target = (_innerScroll.position.maxScrollExtent * ratio)
+          .clamp(0.0, _innerScroll.position.maxScrollExtent);
+      _innerScroll.jumpTo(target);
+    });
   }
 
   @override
@@ -646,13 +752,17 @@ class ReasoningTileState extends State<ReasoningTile> {
       if (!mounted) return;
       // 对抗审查 2-6：收起态无秒数不逐秒重绘（官方 reasoning.tsx:142-156
       // 同款省电注释）；完成检测已移交 didUpdateWidget 边沿。
-      if (!_streaming || !_userOpen) return;
+      if (!_streaming || !_open) return;
       setState(() {});
     });
   }
 
   void _followBottom() {
-    if (!_innerScroll.hasClients || !_autoFollow) return;
+    if ((_searchReveal && !_searchDismissed) ||
+        !_innerScroll.hasClients ||
+        !_autoFollow) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_innerScroll.hasClients) return;
       _innerScroll.animateTo(
@@ -680,7 +790,7 @@ class ReasoningTileState extends State<ReasoningTile> {
 
   String _label() => reasoningLabel(
     streaming: _streaming,
-    expanded: _userOpen,
+    expanded: _open,
     durationMs: reasoningDurationMs(widget.row),
     // tile 级边沿值优先（当帧精确），页面级定格兜底。
     measuredMs: _frozenMs ?? widget.elapsedMs,
@@ -690,7 +800,7 @@ class ReasoningTileState extends State<ReasoningTile> {
   @override
   Widget build(BuildContext context) {
     if (_streaming) _startTicker();
-    if (_userOpen && _streaming) _followBottom();
+    if (_open && _streaming) _followBottom();
     // 对抗审查收敛：完成态退最淡档（官方 foreground-subtlest，
     // reasoning.tsx:339-353）。
     final color = _streaming
@@ -710,10 +820,21 @@ class ReasoningTileState extends State<ReasoningTile> {
           InkWell(
             borderRadius: BorderRadius.circular(4),
             onTap: () {
-              final opening = !_userOpen;
+              final opening = !_open;
               setState(() {
-                _userToggled = true;
-                _userOpen = !_userOpen;
+                if (opening) {
+                  _userToggled = true;
+                  _userOpen = true;
+                  _searchDismissed = false;
+                } else {
+                  if (_userOpen) {
+                    _userToggled = true;
+                    _userOpen = false;
+                  }
+                  if (_searchReveal) {
+                    _searchDismissed = true;
+                  }
+                }
               });
               if (!opening) return;
               // 验收回填（2026-10-22）：展开内滚停到最下端（最新内容——
@@ -750,8 +871,7 @@ class ReasoningTileState extends State<ReasoningTile> {
                     // 复刻；ui-references 承诺补交付）。
                     child: _streaming
                         ? ShimmerText(
-                            text:
-                                _streaming && !_userOpen && _lastLine.isNotEmpty
+                            text: _streaming && !_open && _lastLine.isNotEmpty
                                 ? '${_label()} · $_lastLine'
                                 : _label(),
                             // 批4 反馈②（2026-10-23 用户）：折叠态摘要一行
@@ -772,8 +892,7 @@ class ReasoningTileState extends State<ReasoningTile> {
                             // 定高（防 1↔2 行跳动），完成态回落一行高（两行
                             // 占位在收起的流式内容族中突兀）——2→1 的高度
                             // 收缩由整列 AnimatedSize 平滑过渡。
-                            text:
-                                _streaming && !_userOpen && _lastLine.isNotEmpty
+                            text: _streaming && !_open && _lastLine.isNotEmpty
                                 ? '${_label()} · $_lastLine'
                                 : _label(),
                             lines: 1,
@@ -785,7 +904,7 @@ class ReasoningTileState extends State<ReasoningTile> {
                           ),
                   ),
                   Icon(
-                    _userOpen ? Icons.expand_less : Icons.expand_more,
+                    _open ? Icons.expand_less : Icons.expand_more,
                     size: 15,
                     color: context.colors.foregroundSubtlest,
                   ),
@@ -799,7 +918,7 @@ class ReasoningTileState extends State<ReasoningTile> {
             curve: Curves.easeInOutCubic,
             alignment: Alignment.topCenter,
             clipBehavior: Clip.antiAlias,
-            child: _userOpen
+            child: _open
                 ? Container(
                     constraints: const BoxConstraints(maxHeight: 240),
                     margin: const EdgeInsets.only(left: 8, bottom: 4),
@@ -819,19 +938,51 @@ class ReasoningTileState extends State<ReasoningTile> {
                         controller: _innerScroll,
                         keyboardDismissBehavior:
                             ScrollViewKeyboardDismissBehavior.onDrag,
-                        child: Text(
-                          '${widget.row['text'] ?? ''}'.isEmpty
-                              ? '…'
-                              : '${widget.row['text']}',
-                          style: TextStyle(
-                            fontSize: AppType.uiBase,
-                            // 2026-11-05 反馈④：思考正文 70% 档归到与
-                            // 工具行同层（subtlest）——正文黑/工作行灰
-                            // 的层级差此前只达官方六成。
-                            color: context.colors.foregroundSubtlest,
-                            height: 1.5,
-                          ),
-                        ),
+                        child: (widget.searchQuery != null &&
+                                widget.searchQuery!.trim().isNotEmpty &&
+                                '${widget.row['text'] ?? ''}'.isNotEmpty)
+                            ? Text.rich(
+                                key: const ValueKey(
+                                  'reasoning-search-highlight',
+                                ),
+                                TextSpan(
+                                  children: buildSearchHighlightSpans(
+                                    '${widget.row['text']}',
+                                    widget.searchQuery!,
+                                    useRegex: widget.searchUseRegex,
+                                    compiledRegex: widget.searchCompiledRegex,
+                                    base: TextStyle(
+                                      fontSize: AppType.uiBase,
+                                      color: context.colors.foregroundSubtlest,
+                                      height: 1.5,
+                                    ),
+                                    hit: TextStyle(
+                                      fontSize: AppType.uiBase,
+                                      color: context.colors.foreground,
+                                      height: 1.5,
+                                      backgroundColor: context
+                                          .colors
+                                          .brandAccent
+                                          .withValues(alpha: AppAlpha.mid),
+                                    ),
+                                  ),
+                                ),
+                                translate: false,
+                              )
+                            : Text(
+                                '${widget.row['text'] ?? ''}'.isEmpty
+                                    ? '…'
+                                    : '${widget.row['text']}',
+                                translate: false,
+                                style: TextStyle(
+                                  fontSize: AppType.uiBase,
+                                  // 2026-11-05 反馈④：思考正文 70% 档归到与
+                                  // 工具行同层（subtlest）——正文黑/工作行灰
+                                  // 的层级差此前只达官方六成。
+                                  color: context.colors.foregroundSubtlest,
+                                  height: 1.5,
+                                ),
+                              ),
                       ),
                     ),
                   )

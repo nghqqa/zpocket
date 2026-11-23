@@ -158,6 +158,42 @@ void main() {
     expect(find.textContaining('另一个工作区的正文关键词'), findsWidgets);
   });
 
+  testWidgets('1.0.9 验收②续：多词 AND——分置两词命中当前工作区卡（旧整串 contains 必红）', (tester) async {
+    await _narrow(tester);
+    final app = _SearchApp((query) => []);
+    await tester.pumpWidget(_host(app));
+    await tester.pump();
+    // 标题「普通标题」逐词含「普通」与「标题」，但整串「普通 标题」不在。
+    await _enterQuery(tester, '普通 标题');
+    expect(find.text('普通标题'), findsOneWidget,
+        reason: '多词 AND：全部词出现在标题即命中');
+  });
+
+  testWidgets('1.0.9 验收②续：多词零命中显示 AND 语义提示；单词零命中保持原文', (tester) async {
+    await _narrow(tester);
+    final app = _SearchApp((query) => []);
+    await tester.pumpWidget(_host(app));
+    await tester.pump();
+    await _enterQuery(tester, '普通 完全不存在');
+    expect(find.textContaining('多个词需同时出现在同一任务'), findsOneWidget);
+    expect(find.textContaining('换个关键词试试'), findsNothing);
+  });
+
+  testWidgets('1.0.9 验收②续：命中词高亮——多词命中卡标题走富文本高亮（旧实现无此 key 必红）', (tester) async {
+    await _narrow(tester);
+    final app = _SearchApp((query) => []);
+    await tester.pumpWidget(_host(app));
+    await tester.pump();
+    await _enterQuery(tester, '普通 标题');
+    expect(find.byKey(const ValueKey('task-card-hit-title')), findsOneWidget,
+        reason: '标题两词均命中→Text.rich 高亮分支');
+    // 关搜索（清空查询）后回到纯文本分支。
+    await tester.enterText(find.byKey(const ValueKey('task-search')), '');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('task-card-hit-title')), findsNothing);
+  });
+
   testWidgets('零结果时正文搜索失败提示仍可见', (tester) async {
     await _narrow(tester);
     final app = _SearchApp((query) => null);

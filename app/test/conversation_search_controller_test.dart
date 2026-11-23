@@ -179,4 +179,129 @@ void main() {
     expect(h.controller.isOpen, isFalse);
     expect(h.loadCalls, 0);
   });
+
+  test('toggleRegex 切换正则匹配；非法正则置 regexError、清空 matches 且不补拉历史', () async {
+    final h = _Harness(
+      rows: [_row(1, 'ERR 404'), _row(2, 'ok')],
+      loader: () async => false,
+    );
+    h.state.firstRowId = 0;
+    h.state.totalCount = 10;
+    h.controller.open();
+    h.controller.controller.text = r'err\s+\d+';
+    h.controller.refresh(reset: true);
+    expect(h.controller.useRegex, isFalse);
+    expect(h.controller.matches, isEmpty);
+
+    h.controller.toggleRegex();
+    expect(h.controller.useRegex, isTrue);
+    expect(h.controller.regexError, isNull);
+    expect(h.controller.matches, hasLength(1));
+    expect(h.controller.matches.single.rowId, 1);
+    expect(h.located.last.rowId, 1);
+    await _until(() => !h.controller.loading);
+
+    h.controller.toggleRegex();
+    expect(h.controller.useRegex, isFalse);
+    await _until(() => !h.controller.loading);
+
+    final callsBeforeInvalid = h.loadCalls;
+    h.controller.controller.text = '[unclosed';
+    h.controller.refresh(reset: true);
+    h.controller.toggleRegex();
+    expect(h.controller.useRegex, isTrue);
+    expect(h.controller.regexError, isNotNull);
+    expect(h.controller.matches, isEmpty);
+    expect(h.controller.activeIndex, -1);
+
+    await h.controller.pumpHistory();
+    expect(h.loadCalls, callsBeforeInvalid);
+    h.dispose();
+  });
+
+  test('toggleIncludeReasoning 切换后命中原本折叠的 reasoning 行', () {
+    final h = _Harness(
+      rows: [
+        {'rowId': 1, 'kind': 'turnHeader', 'state': 'completedSuccess'},
+        {'rowId': 2, 'kind': 'reasoning', 'text': 'secret thought needle'},
+        {'rowId': 3, 'kind': 'assistantText', 'text': 'visible reply'},
+      ],
+    );
+    h.controller.open();
+    h.controller.controller.text = 'needle';
+    h.controller.refresh(reset: true);
+    expect(h.controller.includeReasoning, isFalse);
+    expect(h.controller.matches, isEmpty);
+
+    h.controller.toggleIncludeReasoning();
+    expect(h.controller.includeReasoning, isTrue);
+    expect(h.controller.matches, hasLength(1));
+    expect(h.controller.matches.single.kind, ConversationSearchKind.reasoning);
+    expect(h.controller.matches.single.rowId, 2);
+    expect(h.located.last.rowId, 2);
+
+    h.controller.toggleIncludeReasoning();
+    expect(h.controller.includeReasoning, isFalse);
+    expect(h.controller.matches, isEmpty);
+    h.dispose();
+  });
+
+  test('loadMoreHistory 在 truncated 时扩展 rowLimit 为 2400 并继续补拉更早历史', () async {
+    final rows = List.generate(1200, (i) => _row(i + 10, 'msg $i'));
+    late final _Harness h;
+    h = _Harness(
+      rows: rows,
+      loader: () async {
+        h.state.prependOlderRows(
+          [_row(5, 'older target')],
+          0,
+          hasMore: false,
+        );
+        return true;
+      },
+    );
+    h.state.firstRowId = 0;
+    h.state.totalCount = 1400;
+    h.controller.isOpen = true;
+    h.controller.controller.text = 'older target';
+    h.controller.refresh(reset: true);
+    await h.controller.pumpHistory();
+    expect(h.controller.truncated, isTrue);
+    expect(h.controller.rowLimit, conversationSearchRowLimit);
+    expect(h.loadCalls, 0);
+    expect(h.controller.matches, isEmpty);
+
+    h.controller.loadMoreHistory();
+    expect(h.controller.rowLimit, 2400);
+    await _until(() => !h.controller.loading && h.loadCalls == 1);
+    expect(h.loadCalls, 1);
+    expect(h.controller.truncated, isFalse);
+    expect(h.controller.matches, hasLength(1));
+    expect(h.controller.matches.single.rowId, 5);
+    h.dispose();
+  });
+
+  test('close 后复位 useRegex、includeReasoning、rowLimit 与 regexError', () {
+    final h = _Harness();
+    h.controller.open();
+    h.controller.toggleRegex();
+    h.controller.toggleIncludeReasoning();
+    h.controller.controller.text = '[unclosed';
+    h.controller.refresh(reset: true);
+    h.controller.loadMoreHistory();
+
+    expect(h.controller.useRegex, isTrue);
+    expect(h.controller.includeReasoning, isTrue);
+    expect(h.controller.rowLimit, 2400);
+    expect(h.controller.regexError, isNotNull);
+
+    h.controller.close();
+    expect(h.controller.isOpen, isFalse);
+    expect(h.controller.useRegex, isFalse);
+    expect(h.controller.includeReasoning, isFalse);
+    expect(h.controller.rowLimit, conversationSearchRowLimit);
+    expect(h.controller.regexError, isNull);
+    expect(h.controller.matches, isEmpty);
+    h.dispose();
+  });
 }

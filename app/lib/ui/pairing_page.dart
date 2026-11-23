@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart' show MethodChannel;
 
 import '../core/localized_text.dart';
+import '../core/oem_vendor.dart';
 import '../platform/capabilities.dart';
 import '../core/l10n.dart';
 
@@ -139,8 +140,15 @@ class _PairingPageState extends State<PairingPage> {
       await app.addComputer(_url.text.trim(), label: _name.text);
       if (!mounted) return;
       // V1 路径同接“扫码后重建 Activity”防线（相机
-      // 会话开合即触发面，与协议版本无关）；纯粘贴路径零打扰。
-      if (_usedScanner && ZpCapabilities.supportsSurfaceRecreate) {
+      // 会话开合即触发面，与协议版本无关）；非受影响机型开启实时预览时
+      // 免重建直接返回，纯粘贴路径零打扰。
+      final needsRecreate = _usedScanner &&
+          resolveQrNeedsSurfaceRecreate(
+            supportsSurfaceRecreate: ZpCapabilities.supportsSurfaceRecreate,
+            mode: app.uiPrefs.qrPreviewMode,
+            vendor: OemDevice.vendor,
+          );
+      if (needsRecreate) {
         debugPrint('[pairing-perf] scanner used (v1), recreating activity');
         await _surface
             .invokeMethod('recreate', {'reason': 'paired'})
@@ -228,11 +236,15 @@ class _PairingPageState extends State<PairingPage> {
       if (!added) return; // 用户取消改绑：仅收起连接态（finally 复位）
       debugPrint('[pairing-perf] addV2Profile done');
       if (!mounted) return;
-      // 扫码黑屏终局：相机会话开合（cameraX，与
-      // 预览纹理无关）在部分华为机型把渲染管线楔死（agent 实证 2/4，
-      // 三层防御+去纹理均不治）。用过扫码→配对成功后重建 Activity
-      // 换新表面，确定性消除；纯粘贴路径零打扰。
-      if (_usedScanner && ZpCapabilities.supportsSurfaceRecreate) {
+      // 扫码黑屏防线（qr-preview-oem-1 分流）：仅受影响厂商或用户主动
+      // 切到无预览兼容模式时重建 Activity；其余开预览机型平滑返回。
+      final needsRecreate = _usedScanner &&
+          resolveQrNeedsSurfaceRecreate(
+            supportsSurfaceRecreate: ZpCapabilities.supportsSurfaceRecreate,
+            mode: app.uiPrefs.qrPreviewMode,
+            vendor: OemDevice.vendor,
+          );
+      if (needsRecreate) {
         debugPrint('[pairing-perf] scanner used, recreating activity');
         await _surface
             .invokeMethod('recreate', {'reason': 'paired'})

@@ -9,7 +9,9 @@ import '../core/artifact_share.dart' show kArtifactShareBlockBytes;
 import '../core/localized_text.dart';
 import '../core/payload_guard.dart';
 import '../core/theme.dart';
+import '../platform/capabilities.dart';
 import '../transport/conversation.dart' show ConfigOption, ConfigOptionValue;
+import 'artifact_pdf_page.dart' show ArtifactPdfPage;
 import 'turn_model.dart' show toolInputArgs;
 import 'workflow_dashboards.dart';
 import '../state/app_state.dart';
@@ -41,13 +43,24 @@ const artifactImagePreviewMaxBytes = 16 * 1024 * 1024;
 /// 语言全价计费）③只发布文件本身（防 agent 默认产报告——实证其脚本
 /// 自带 Finding 汇报结构）。中文撰写：GLM 分词器中文优先于英文，
 /// agent 侧指令不随界面语言切换。
+///
+/// `/workflow ` 前缀（1.0.9 真机验收③）：官方 3.19 onDemand 模式下会话
+/// 首次 /workflow 前四个工作流工具不在工具列表（workflow-skill-gate）；
+/// 远程 sendText 与 TUI 同走 input facade 的 customCommandPromptResolver
+/// （create-app.ts:895-912），命令展开处即 onDemand 激活点，且原文作为
+/// displayInput 展示。灰度关闭的桌面原文照发——末句兜底让 agent 明确报
+/// 「未启用」而不是乱试。前缀是激活语义的一部分，禁止去掉。
 const kCollectArtifactsPrompt =
+    '/workflow '
     '把本回合生成的文件发布为工作流产物：cd 到文件所在目录（分散先 cp 集中）'
     '→ 建极简工作流：无子代理、无校验、脚本免注释，用相对路径逐个 '
     'artifact.file 发布这些文件本身；id 与 title 都用带后缀的完整文件名'
     '（如 report.pdf），并显式传 contentType——手机下载的文件名取自 '
     'title，无后缀的 xlsx/pptx/pdf 会打不开。不要附加报告或摘要类产物。'
-    '文件内容不动。';
+    '文件内容不动。'
+    '如果你没有名为 CreateWorkflow 的工具（当前环境未启用工作流），'
+    '不要尝试其他收集方式，直接一句话回复「当前环境未启用工作流，'
+    '无法收集产物」。';
 
 /// 分块读取一个内容产物（512KiB/块）。返回拼接字节与截断/超限标志。
 ///
@@ -66,11 +79,13 @@ class ArtifactBlocks {
     required this.truncated,
     required this.oversized,
     required this.isImage,
+    this.isPdf = false,
   });
   final List<int> bytes;
   final bool truncated;
   final bool oversized;
   final bool isImage;
+  final bool isPdf;
 }
 
 Future<ArtifactBlocks> readArtifactBlocks({
@@ -78,40 +93,55 @@ Future<ArtifactBlocks> readArtifactBlocks({
   required ArtifactBlockRead read,
 }) async {
   var isImage = artifactLooksImageByExtension(name);
-  var blockLimit = isImage ? 32 : 8;
+  var isPdf = !isImage && artifactLooksPdfByExtension(name);
+  var isRichPreview = isImage || isPdf;
+  var blockLimit = isRichPreview ? 32 : 8;
+  const maxRichIterations = 256;
   final bytes = <int>[];
   var offset = 0;
   var truncated = false;
-  for (var i = 0; i < blockLimit; i++) {
+  for (var i = 0; ; i++) {
+    final maxLoops = isRichPreview ? maxRichIterations : blockLimit;
+    if (i >= maxLoops) break;
     final res = await read(offset: offset, blockLimit: blockLimit);
     final b64 = '${(res is Map ? res['dataBase64'] : '') ?? ''}';
     if (b64.isEmpty) break;
     bytes.addAll(base64.decode(b64));
-    if (i == 0 && !isImage && sniffImageMagic(bytes)) {
-      isImage = true;
-      blockLimit = 32;
+    if (i == 0 && !isRichPreview) {
+      if (sniffImageMagic(bytes)) {
+        isImage = true;
+        isRichPreview = true;
+        blockLimit = 32;
+      } else if (sniffPdfMagic(bytes)) {
+        isPdf = true;
+        isRichPreview = true;
+        blockLimit = 32;
+      }
     }
     final next =
         (res is Map ? (res['nextOffset'] as num?)?.toInt() : null) ?? -1;
     if (next <= offset || next <= 0) break;
-    if (isImage &&
-        bytes.length >= artifactImagePreviewMaxBytes &&
+    if (isRichPreview &&
+        (bytes.length >= artifactImagePreviewMaxBytes ||
+            i == maxRichIterations - 1) &&
         next > offset) {
       return ArtifactBlocks(
         bytes: bytes,
         truncated: false,
         oversized: true,
         isImage: isImage,
+        isPdf: isPdf,
       );
     }
     offset = next;
-    if (i == blockLimit - 1) truncated = !isImage;
+    if (!isRichPreview && i == blockLimit - 1) truncated = true;
   }
   return ArtifactBlocks(
     bytes: bytes,
     truncated: truncated,
     oversized: false,
     isImage: isImage,
+    isPdf: isPdf,
   );
 }
 
@@ -122,6 +152,29 @@ bool artifactLooksImageByExtension(String titleOrId) {
   final dot = titleOrId.lastIndexOf('.');
   if (dot < 0 || dot + 1 >= titleOrId.length) return false;
   return _imageArtifactExts.contains(titleOrId.substring(dot).toLowerCase());
+}
+
+/// 按标题/id 判定 PDF 扩展名（大小写不敏感）。
+bool artifactLooksPdfByExtension(String titleOrId) =>
+    titleOrId.toLowerCase().endsWith('.pdf');
+
+/// 首块字节嗅探 PDF 魔数（跳过可选 UTF-8 BOM 与前导 ASCII 空白后锚定 `%PDF-`，
+/// 避免正文引用 `%PDF-` 的纯文本/代码文件被误判为 PDF）。
+bool sniffPdfMagic(List<int> b) {
+  var i = 0;
+  if (b.length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) {
+    i = 3;
+  }
+  while (i < b.length &&
+      (b[i] == 0x20 || b[i] == 0x09 || b[i] == 0x0A || b[i] == 0x0D)) {
+    i++;
+  }
+  if (i + 5 > b.length) return false;
+  return b[i] == 0x25 && // %
+      b[i + 1] == 0x50 && // P
+      b[i + 2] == 0x44 && // D
+      b[i + 3] == 0x46 && // F
+      b[i + 4] == 0x2D; // -
 }
 
 /// 首块字节嗅探（PNG/JPEG/GIF/WEBP/BMP 魔数；扩展名缺失或被骗时兜底）。
@@ -1112,13 +1165,20 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
       if (r.oversized) {
         if (!mounted) return;
         messenger.showSnackBar(
-          SnackBar(content: Text(tr('图片过大（超过 16MB），暂不支持预览'))),
+          SnackBar(
+            content: Text(
+              r.isPdf
+                  ? tr('PDF 过大（超过 16MB），请点右侧分享按钮保存到手机打开')
+                  : tr('图片过大（超过 16MB），暂不支持预览'),
+            ),
+          ),
         );
         return;
       }
       final bytes = r.bytes;
       final truncated = r.truncated;
       final isImage = r.isImage;
+      final isPdf = r.isPdf;
       if (!mounted) return;
       final name = '${artifact['title'] ?? artifact['id']}';
       if (isImage) {
@@ -1132,6 +1192,27 @@ class _WorkflowRunDetailPageState extends State<WorkflowRunDetailPage> {
               title: name,
               bytes: Uint8List.fromList(bytes),
             ),
+          ),
+        );
+        return;
+      }
+      if (isPdf) {
+        if (bytes.isEmpty) {
+          messenger.showSnackBar(const SnackBar(content: Text('该产物没有可读的内容')));
+          return;
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ZpCapabilities.supportsInAppPdfPreview
+                ? ArtifactPdfPage(
+                    title: name,
+                    bytes: Uint8List.fromList(bytes),
+                  )
+                : BinaryArtifactPage(
+                    title: name,
+                    bytes: Uint8List.fromList(bytes),
+                    truncated: truncated,
+                  ),
           ),
         );
         return;

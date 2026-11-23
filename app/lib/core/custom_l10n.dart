@@ -361,6 +361,8 @@ const _customEn = <String, String>{
   '对准桌面端「移动端远程控制」弹窗显示的二维码': 'Point the camera at the QR code in the “Mobile remote control” panel on your desktop',
   // 扫码无预览模式新文案（qr_scan_page）。
   '对准桌面端「移动端远程控制」弹窗显示的二维码（无取景预览：对准框内即可识别）': 'Point the camera at the QR code in the "Mobile remote control" panel on your desktop (no live preview: align within the frame)',
+  '画面异常？切换无预览模式': 'Black screen? Switch to no-preview',
+  '开启相机实时预览': 'Enable live camera preview',
   '相机不可用，请返回改用「粘贴链接」添加':
       'Camera unavailable. Please go back and use Paste link instead',
   '思考强度 ': 'Thinking level ',
@@ -416,6 +418,11 @@ const _customEn = <String, String>{
   '任务完成通知': 'Task completion notifications',
   '任务完成/失败时提醒（含离线期间的完成汇总）':
       'Notify on task completion or failure, including offline summaries',
+  // 任务完成横幅（orientation-unlock-1）：Android 渠道高优档开关。
+  '任务完成横幅': 'Task completion banners',
+  '开启后任务完成以顶部横幅弹出（更醒目），关闭则仅状态栏与锁屏提醒':
+      'Show task completions as heads-up banners at the top of the screen; when off, they appear only in the status bar and on the lock screen',
+  '任务完成（横幅）': 'Task completed (banner)',
   '目标进展通知': 'Goal progress notifications',
   '目标模式达成/未达成结论时提醒': 'Notify when a goal is achieved or not achieved',
   '后台保障设置': 'Background reliability settings',
@@ -759,7 +766,29 @@ const _customEn = <String, String>{
   '提问': 'User',
   'AI 回复': 'Assistant',
   '工具': 'Tool',
+  '正则': 'Regex',
+  '含思考': 'Thinking',
+  '正则表达式无效': 'Invalid regular expression',
+  '正则表达式过于复杂': 'Regular expression too complex',
+  '继续往前搜': 'Search earlier',
+  // pdf-preview-collect-1：PDF 应用内预览与收集产物完成直达提示
+  'PDF 过大（超过 16MB），请点右侧分享按钮保存到手机打开':
+      'PDF is too large (over 16 MB). Tap the share button to save and open it',
+  '无法预览加密 PDF': 'Encrypted PDF cannot be previewed',
+  '无法预览 PDF': 'Cannot preview PDF',
+  '该 PDF 已加密，暂不支持应用内预览，可点右上角分享打开':
+      'This PDF is password-protected and cannot be previewed in-app. Tap share in the top right to open it',
+  'PDF 预览失败，可点右上角分享保存到手机打开':
+      'PDF preview failed. Tap share in the top right to save and open it',
+  '分享到其他应用': 'Share to another app',
+  '上一页': 'Previous page',
+  '下一页': 'Next page',
+  '收集的产物已就绪': 'Collected artifacts ready',
+  '查看': 'View',
+  '关闭产物就绪提示': 'Dismiss artifacts ready banner',
   '没有匹配结果': 'No matches',
+  '没有匹配结果：多个词需同时出现在同一条消息':
+      'No matches: all words must appear in the same message',
   '正在加载更早消息…': 'Loading earlier messages…',
   '历史加载失败，点按重试': 'Earlier messages failed to load. Tap to retry',
   '源文件已失效，请重新选择': 'Source file unavailable. Select it again',
@@ -878,6 +907,7 @@ const _customEn = <String, String>{
   '技能': 'Skills',
   '系统提示词': 'System prompt',
   '模型（默认继承）': 'Model (inherit default)',
+  '选择模型': 'Select model',
   '思考强度（默认继承）': 'Thinking level (inherit default)',
   '继承默认': 'Inherit default',
   '共': 'Total',
@@ -1458,6 +1488,16 @@ final _customPatterns = <_L10nPattern>[
     {'count': 1},
   ),
   _L10nPattern(
+    RegExp(r'^第 (\d+) 页渲染失败$'),
+    'Failed to render page {page}',
+    {'page': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^产物已就绪（(\d+) 个）$'),
+    'Artifacts ready ({count})',
+    {'count': 1},
+  ),
+  _L10nPattern(
     RegExp(r'^附件需重新选择：([\s\S]+)（请先移除失效附件）$'),
     'Select these attachments again: {filenames} (remove unavailable attachments first)',
     {'filenames': 1},
@@ -1554,6 +1594,11 @@ final _customPatterns = <_L10nPattern>[
   _L10nPattern(
     RegExp(r'^没有匹配「([\s\S]+)」的任务，换个关键词试试$'),
     'No tasks matching “{query}”. Try another keyword',
+    {'query': 1},
+  ),
+  _L10nPattern(
+    RegExp(r'^没有匹配「([\s\S]+)」的任务：多个词需同时出现在同一任务$'),
+    'No tasks matching “{query}”: all words must appear in the same task',
     {'query': 1},
   ),
   _L10nPattern(

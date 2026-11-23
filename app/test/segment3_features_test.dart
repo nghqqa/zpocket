@@ -88,6 +88,37 @@ void main() {
       expect(res, isEmpty);
     });
 
+    test('1.0.9 验收②续：多词 AND——两词分置命中、缺一不可（旧整串 contains 必红）', () {
+      // 标题「登录性能优化」含「登录」「性能」但整串「登录 性能」不在。
+      final res = filterCrossWorkspaceTasks(
+        workspaceTasks: tasks,
+        activeKey: 'G:\A',
+        activeIds: const {},
+        query: '登录 性能',
+      );
+      expect(res.map((t) => t['taskId']).toList(), ['t2']);
+      // 缺任一词零命中（AND 语义）。
+      expect(
+        filterCrossWorkspaceTasks(
+          workspaceTasks: tasks,
+          activeKey: 'G:\A',
+          activeIds: const {},
+          query: '登录 不存在的词',
+        ),
+        isEmpty,
+      );
+      // 全角空格同切分。
+      expect(
+        filterCrossWorkspaceTasks(
+          workspaceTasks: tasks,
+          activeKey: 'G:\A',
+          activeIds: const {},
+          query: '登录　性能',
+        ).map((t) => t['taskId']).toList(),
+        ['t2'],
+      );
+    });
+
     test('空查询恒空（关闭搜索即无跨区结果）', () {
       final res = filterCrossWorkspaceTasks(
         workspaceTasks: tasks,

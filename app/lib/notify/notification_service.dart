@@ -167,11 +167,21 @@ class NotificationService {
   static const channelTasks = 'tasks'; // 完成/失败
   static const channelGoals = 'goals'; // Goal 里程碑
 
+  /// 任务完成横幅渠道（orientation-unlock-1 批）：tasks 的可切换高优
+  /// 档——Android 8+ 渠道 importance 创建即固化、代码不可升级，升档
+  /// 必须换新渠道 id（旧 tasks 渠道残留一条死记录，无害）。归属仍为
+  /// NotifyChannel.tasks（清理/台账逻辑同通道对待）。
+  static const channelTasksAlert = 'tasks_alert';
+
+  /// 任务完成横幅开关读取（默认关）。由 AppState 接线到 uiPrefs；
+  /// 测试注入。null/不设=关。
+  bool Function()? taskHeadsUpResolver;
+
   /// 遗留通知通道判定（早前批次）。channelId 路=Android 8+；
   /// kind 路=iOS 回退（payload 的 NotifyEventKind.name → 通道归属，
   /// 与 notify_core 事件→通道归属同源）。
   static NotifyChannel? _channelFromId(String id) => switch (id) {
-        channelTasks => NotifyChannel.tasks,
+        channelTasks || channelTasksAlert => NotifyChannel.tasks,
         channelGoals => NotifyChannel.goals,
         channelApprovals => NotifyChannel.approvals,
         _ => null,
@@ -361,7 +371,11 @@ class NotificationService {
         id,
         title,
         body,
-        channelOf(e.channel),
+        // 任务完成横幅（orientation-unlock-1）：开=走高优渠道顶部弹窗，
+        // 关=原 default 档渠道（「完成不打断」2026-10-20 拍板不变）。
+        e.channel == NotifyChannel.tasks && (taskHeadsUpResolver?.call() ?? false)
+            ? channelTasksAlert
+            : channelOf(e.channel),
         NotifyTapPayload(e.deviceSid, e.taskId, e.kind.name, atMs: e.atMs,
                 interactionId: e.interactionId)
             .encode(),
@@ -536,8 +550,16 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
       // 单色小图标（fullsweep-1108）：默认 ic_launcher 是全图 alpha=255
       // 的启动图标，状态栏渲染成实心方块——改用 alpha-only 矢量 Z。
       icon: 'ic_notification',
-      importance: channel == 'approvals' ? Importance.max : Importance.defaultImportance,
-      priority: channel == 'approvals' ? Priority.high : Priority.defaultPriority,
+      // heads-up 档（orientation-unlock-1）：approvals 常驻高优；
+      // tasks_alert=用户开关的任务完成横幅档，与 approvals 同级。
+      importance: channel == NotificationService.channelApprovals ||
+              channel == NotificationService.channelTasksAlert
+          ? Importance.max
+          : Importance.defaultImportance,
+      priority: channel == NotificationService.channelApprovals ||
+              channel == NotificationService.channelTasksAlert
+          ? Priority.high
+          : Priority.defaultPriority,
       autoCancel: true,
       // 审批快捷动作按钮（2026-11-14）：[批准] [拒绝] 通知栏直接应答；
       // 意图 JSON 在 payload（后台 isolate 落盘 → 主 isolate 消费）。
@@ -548,8 +570,13 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
       // approvals 不过期。策略在 notify_core.notificationTtlMs（纯函数，
       // 单测覆盖），此处只接线；字段=毫秒（flutter_local_notifications
       // 22.3.2 AndroidNotificationDetails.timeoutAfter），仅 Android
-      // 生效（本项目唯一平台）。
-      timeoutAfter: notificationTtlMs(channel),
+      // 生效（本项目唯一平台）。tasks_alert 同 tasks 的 30 分钟出栏
+      // （横幅只是呈现档，过期语义同通道）。
+      timeoutAfter: notificationTtlMs(
+        channel == NotificationService.channelTasksAlert
+            ? NotificationService.channelTasks
+            : channel,
+      ),
     );
     // Darwin（早前批次）：iOS 无 channel/timeoutAfter 概念
     // ——呈现等价（默认呈现层级，权限已含 alert/sound）；「不过期」语义
@@ -612,9 +639,11 @@ class FlutterLocalNotificationsBackend implements NotificationBackend {
   }
 
   static String _channelName(String id) => switch (id) {
-    'approvals' => tr('审批提醒'),
-    'tasks' => tr('任务完成'),
-    'goals' => tr('目标进展'),
+    NotificationService.channelApprovals => tr('审批提醒'),
+    NotificationService.channelTasks => tr('任务完成'),
+    // 系统设置里用户可见的渠道名——「横幅」后缀与 tasks 区分。
+    NotificationService.channelTasksAlert => tr('任务完成（横幅）'),
+    NotificationService.channelGoals => tr('目标进展'),
     _ => id,
   };
 }

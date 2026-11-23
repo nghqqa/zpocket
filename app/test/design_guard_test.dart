@@ -57,6 +57,8 @@ const _compact = Size(375, 806); // 折叠屏折叠态外屏
 ///   （参考同类 AI 应用→二轮再收紧）；40 低于 44 触控下限，豁免留痕
 const Map<String, String> _touchExemptions = {
   '[触控<48.0] ModelSheet': '模型行 40dp 紧凑二档（用户 2026-10-26 两轮拍板）',
+  '[触控<48.0] SubagentModelSheet':
+      '子代理模型行 40dp（与 composer ModelSheet 同档同源豁免，1.0.9 验收）',
 };
 
 final _findings = <String>[];
@@ -184,6 +186,45 @@ void main() {
         state: ConversationState(),
       );
     }, app: _GuardCatalogApp());
+  });
+
+  testWidgets('守卫·子代理模型分组弹层（1.0.9 验收：触控/1.3 字号遍历）', (tester) async {
+    await _guardSheetLike(tester, 'SubagentModelSheet', (context) async {
+      await showSubagentModelSheet(
+        context,
+        catalog: const [
+          {
+            'value': 'zai-plan/glm-5.3',
+            'name': 'GLM-5.3',
+            'modelProviderId': 'account:individual-coding-plan-zai',
+            'modelAccessMode': 'individual-coding-plan',
+            'modelAccessAccountType': 'zai',
+          },
+          {
+            'value': 'bigmodel-api/glm-5.3',
+            'name': 'GLM-5.3',
+            'modelProviderId': 'bigmodel-api',
+          },
+        ],
+        currentValue: null,
+      );
+    });
+  });
+
+  testWidgets('英文·SubagentModelSheet 无未翻译项', (tester) async {
+    L10n.setTestLocale('en-US');
+    L10n.collectMissing = true;
+    addTearDown(L10n.resetForTest);
+    await _guardSheetLike(tester, 'SubagentModelSheet', (context) async {
+      await showSubagentModelSheet(
+        context,
+        catalog: const [
+          {'value': 'p/m', 'name': 'Model'},
+        ],
+        currentValue: null,
+      );
+    });
+    _expectNoMissing('SubagentModelSheet');
   });
 
   testWidgets('守卫·任务中心（「任务」内联分支，H13/H14 扩面 2026-10-25）', (tester) async {

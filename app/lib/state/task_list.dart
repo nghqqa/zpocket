@@ -514,21 +514,42 @@ List<String> parseDeletedTaskIds(dynamic raw) {
 /// 工作区、未归档、不在活跃列表里的标题命中（官方 getAvailableTasks 全量
 /// 载荷——webRemoteControlManager.ts:729；任务条目字段见
 /// web-remote-control.ts:747 WebRemoteControlTaskTarget）。
+/// 任务搜索多词切分（1.0.9 验收②续：真机实锤用户在任务主页搜索输
+/// 空格多词零命中——该面此前是整串子串匹配，多词 AND 语义不存在）。
+/// 与会话内搜索 splitSearchTerms 同语义（\s+ 切分含全角空格，去空
+/// 去重），但任务面只判可见性不计数，无需短语优先。
+List<String> taskQueryTerms(String query) {
+  final trimmed = query.trim().toLowerCase();
+  if (trimmed.isEmpty) return const [];
+  final seen = <String>{};
+  return [
+    for (final part in trimmed.split(RegExp(r'\s+')))
+      if (part.isNotEmpty && seen.add(part)) part,
+  ];
+}
+
+/// 多词 AND 命中：全部词都出现在 [text]（小写化后）。
+bool taskTextMatchesAllTerms(String text, List<String> terms) {
+  if (terms.isEmpty) return true;
+  final t = text.toLowerCase();
+  return terms.every(t.contains);
+}
+
 List<Map<String, dynamic>> filterCrossWorkspaceTasks({
   required List<Map<String, dynamic>> workspaceTasks,
   required String? activeKey,
   required Set<String> activeIds,
   required String query,
 }) {
-  final q = query.trim().toLowerCase();
-  if (q.isEmpty) return const [];
+  final terms = taskQueryTerms(query);
+  if (terms.isEmpty) return const [];
   return workspaceTasks.where((t) {
     if (t['archived'] == true || t['deleted'] == true) return false;
     final id = '${t['taskId'] ?? ''}';
     if (id.isEmpty || activeIds.contains(id)) return false;
     final key = '${t['workspaceIdentity'] ?? t['workspacePath'] ?? ''}';
     if (key == (activeKey ?? '')) return false;
-    return '${t['title'] ?? ''}'.toLowerCase().contains(q);
+    return taskTextMatchesAllTerms('${t['title'] ?? ''}', terms);
   }).toList();
 }
 

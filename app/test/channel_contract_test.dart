@@ -100,6 +100,44 @@ void main() {
       );
     }
     expect(insetSrc.contains('refreshSystemInset'), isTrue);
+
+    // pdf_preview_client: companion/pdf 的 open/renderPage/close 在 PdfRendererPlugin.kt。
+    final pdfClientSrc = File('lib/core/pdf_preview_client.dart').readAsStringSync();
+    final pdfPluginSrc = File(
+      'android/app/src/main/kotlin/com/zpocket/mobile/PdfRendererPlugin.kt',
+    ).readAsStringSync();
+    final pdfMethods =
+        RegExp(r'"(\w+)"\s*->').allMatches(pdfPluginSrc).map((m) => m.group(1)!).toSet();
+    for (final m in ['open', 'renderPage', 'close']) {
+      expect(
+        pdfClientSrc.contains("'$m'"),
+        isTrue,
+        reason: 'pdf_preview_client 应调用 $m',
+      );
+      expect(
+        pdfPluginSrc.contains('"$m"') && pdfMethods.contains(m),
+        isTrue,
+        reason: 'PdfRendererPlugin.kt 缺少 $m 分支',
+      );
+    }
+    // ⑳ 载荷键与错误码双向契约（防 Kotlin 改键名而 Dart 假桩测试照绿）
+    for (final key in ['handle', 'pageCount', 'encrypted']) {
+      expect(
+        pdfClientSrc.contains("'$key'"),
+        isTrue,
+        reason: 'pdf_preview_client 应消费键/错误码 $key',
+      );
+      expect(
+        pdfPluginSrc.contains('"$key"'),
+        isTrue,
+        reason: 'PdfRendererPlugin.kt 应产出键/错误码 $key',
+      );
+    }
+    expect(
+      pdfPluginSrc.contains('fun closeAll('),
+      isFalse,
+      reason: 'M5：MainActivity 已按 bindGeneration 隔离，不得残留无调用死代码 closeAll',
+    );
   });
 
   group('companion 通道注册表（早前批次 平台缝）', () {

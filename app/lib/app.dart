@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/theme.dart';
 import 'core/l10n.dart';
+import 'core/orientation_policy.dart';
 import 'platform/capabilities.dart';
 import 'state/app_state.dart';
 import 'state/app_state_scope.dart';
@@ -196,9 +197,14 @@ class _ZcodeCompanionAppState extends State<ZcodeCompanionApp>
               // 钳制在 builder 层=对所有路由/弹层统一生效。
               builder: (context, child) => MediaQuery.withClampedTextScaling(
                 maxScaleFactor: 1.3,
-                // 应用锁遮罩（app-lock-1）：builder 层=Navigator 之上，
-                // 覆盖所有路由/弹层；Stack 保 child 树不被卸载。
-                child: AppLockGate(child: child ?? const SizedBox.shrink()),
+                // 方向闸（orientation-unlock-1）：短边 <600（直板/收起态）
+                // 锁竖屏=现状零变化；≥600（展开态/平板）运行时放开横竖
+                // （Manifest portrait 只是引擎就绪前兜底）；分屏交还系统。
+                child: OrientationGate(
+                  // 应用锁遮罩（app-lock-1）：builder 层=Navigator 之上，
+                  // 覆盖所有路由/弹层；Stack 保 child 树不被卸载。
+                  child: AppLockGate(child: child ?? const SizedBox.shrink()),
+                ),
               ),
               // 深色模式批1（ 拍板③）：浅色仍是设计基准与回归
               // 红线（冻结单测把守）。

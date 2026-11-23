@@ -401,6 +401,54 @@ void main() {
     );
   });
 
+  testWidgets('多词零命中提示 AND 语义（1.0.9 验收②）：多词给语义说明，单词/正则保持原文', (tester) async {
+    Future<void> pumpBar(String query, {bool useRegex = false}) async {
+      final controller = TextEditingController(text: query);
+      final focus = FocusNode();
+      addTearDown(controller.dispose);
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(Brightness.light),
+          home: Scaffold(
+            body: ConversationSearchBar(
+              controller: controller,
+              focusNode: focus,
+              query: query,
+              matches: const [],
+              activeIndex: -1,
+              loading: false,
+              truncated: false,
+              useRegex: useRegex,
+              error: null,
+              onChanged: (_) {},
+              onPrevious: () {},
+              onNext: () {},
+              onClose: () {},
+              onRetry: () {},
+              onToggleRegex: () {},
+              onToggleIncludeReasoning: () {},
+            ),
+          ),
+        ),
+      );
+      await _pump(tester, 3);
+    }
+
+    await pumpBar('错误 修复');
+    expect(find.text('没有匹配结果：多个词需同时出现在同一条消息'), findsOneWidget);
+    expect(find.text('没有匹配结果'), findsNothing);
+
+    await pumpBar('错误');
+    expect(find.text('没有匹配结果'), findsOneWidget);
+    expect(find.text('没有匹配结果：多个词需同时出现在同一条消息'), findsNothing);
+
+    // 正则模式语义不同（整式匹配），不显示多词 AND 提示。
+    await pumpBar('错误 修复', useRegex: true);
+    expect(find.text('没有匹配结果'), findsOneWidget);
+    expect(find.text('没有匹配结果：多个词需同时出现在同一条消息'), findsNothing);
+  });
+
   testWidgets('运行中未补拉历史时明确仅已加载范围，不冒充完整无结果', (tester) async {
     tester.view.physicalSize = const Size(375, 806);
     tester.view.devicePixelRatio = 1.0;
@@ -463,6 +511,8 @@ void main() {
 
   testWidgets('英文深色 320dp/1.3：搜索栏完整且无溢出', (tester) async {
     L10n.setTestLocale('en-US');
+    L10n.collectMissing = true;
+    addTearDown(L10n.resetForTest);
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -494,6 +544,9 @@ void main() {
               onNext: () {},
               onClose: () {},
               onRetry: () {},
+              onToggleRegex: () {},
+              onToggleIncludeReasoning: () {},
+              onLoadMore: () {},
             ),
           ),
         ),
@@ -501,6 +554,9 @@ void main() {
     );
     await _pump(tester, 3);
     expect(find.text('Search messages and tools'), findsOneWidget);
+    expect(find.text('Regex'), findsOneWidget);
+    expect(find.text('Thinking'), findsOneWidget);
+    expect(find.text('Search earlier'), findsOneWidget);
     expect(
       find.text(
         'Searched the latest 1200 rows; earlier content is not included',
@@ -508,6 +564,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('1/3'), findsOneWidget);
+    expect(L10n.missingTranslations, isEmpty);
     expect(tester.takeException(), isNull);
   });
 
@@ -545,6 +602,146 @@ void main() {
       find.byKey(const ValueKey('user-search-highlight')),
       findsNothing,
       reason: '关闭搜索后恢复原渲染',
+    );
+  });
+
+  testWidgets('含思考开关：默认不命中思考块，开启后临时展开并高亮，关闭恢复折叠', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final rows = [
+      {'rowId': 1, 'kind': 'turnHeader', 'state': 'completedSuccess'},
+      {'rowId': 2, 'kind': 'userInput', 'text': '排查登录问题'},
+      {
+        'rowId': 3,
+        'kind': 'reasoning',
+        'state': 'completed',
+        'text': '深入分析发现 secret_thought_token 导致重定向循环',
+      },
+      {'rowId': 4, 'kind': 'assistantText', 'text': '已定位并修复完成。'},
+    ];
+    final app = _SearchApp(rows, [], 's-search-reasoning');
+    await tester.pumpWidget(_host(app));
+    await _pump(tester);
+
+    await tester.tap(find.byKey(const ValueKey('conversation-search-entry')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('conversation-search-input')),
+      'secret_thought_token',
+    );
+    await _pump(tester);
+    // 默认关闭「含思考」：0/0 且思考高亮未渲染
+    expect(find.text('0/0'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reasoning-search-highlight')),
+      findsNothing,
+    );
+
+    // 打开「含思考」：1/1 且临时展开思考块并高亮
+    await tester.tap(
+      find.byKey(const ValueKey('conversation-search-reasoning')),
+    );
+    await _pump(tester, 10);
+    expect(find.text('1/1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reasoning-search-highlight')),
+      findsOneWidget,
+    );
+
+    // 关闭搜索：思考块恢复原折叠态
+    await tester.tap(find.byKey(const ValueKey('conversation-search-close')));
+    await _pump(tester, 10);
+    expect(
+      find.byKey(const ValueKey('reasoning-search-highlight')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('正则开关与非法正则提示：切换命中并友好处理语法错', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final rows = [
+      {'rowId': 1, 'kind': 'turnHeader', 'state': 'completedSuccess'},
+      {'rowId': 2, 'kind': 'userInput', 'text': '看下错误日志'},
+      {'rowId': 3, 'kind': 'assistantText', 'text': '服务返回 ERR 502 超时'},
+    ];
+    final app = _SearchApp(rows, [], 's-search-regex');
+    await tester.pumpWidget(_host(app));
+    await _pump(tester);
+
+    await tester.tap(find.byKey(const ValueKey('conversation-search-entry')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('conversation-search-input')),
+      r'err\s+\d+',
+    );
+    await _pump(tester);
+    // 默认字面多词：不命中正则语法
+    expect(find.text('0/0'), findsOneWidget);
+
+    // 切正则开关：命中 ERR 502
+    await tester.tap(find.byKey(const ValueKey('conversation-search-regex')));
+    await _pump(tester);
+    expect(find.text('1/1'), findsOneWidget);
+
+    // 输入非法正则：温和报错不崩
+    await tester.enterText(
+      find.byKey(const ValueKey('conversation-search-input')),
+      '[unclosed',
+    );
+    await _pump(tester);
+    expect(
+      find.byKey(const ValueKey('conversation-search-regex-error')),
+      findsOneWidget,
+    );
+    expect(find.text('0/0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('突破 1200 行上限：点「继续往前搜」加载更早历史并命中', (tester) async {
+    tester.view.physicalSize = const Size(375, 806);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final recent = <Map<String, dynamic>>[
+      for (var i = 100; i < 1300; i++)
+        {'rowId': i, 'kind': 'userInput', 'text': 'recent-$i'},
+    ];
+    final older = <Map<String, dynamic>>[
+      {'rowId': 1, 'kind': 'turnHeader', 'state': 'completedSuccess'},
+      {'rowId': 2, 'kind': 'userInput', 'text': 'ancient_secret_hit'},
+    ];
+    final app = _SearchApp(recent, [older], 's-search-loadmore');
+    await tester.pumpWidget(_host(app));
+    await _pump(tester);
+
+    await tester.tap(find.byKey(const ValueKey('conversation-search-entry')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const ValueKey('conversation-search-input')),
+      'ancient_secret_hit',
+    );
+    await _pump(tester, 6);
+
+    // 首轮触及 1200 行上限：展示截断提示和「继续往前搜」按钮
+    expect(find.text('0/0'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('conversation-search-load-more')),
+      findsOneWidget,
+    );
+
+    // 点「继续往前搜」：放宽上限至 2400，拉回更早历史并命中
+    await tester.tap(
+      find.byKey(const ValueKey('conversation-search-load-more')),
+    );
+    await _pump(tester, 8);
+    expect(find.text('1/1'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('conversation-search-load-more')),
+      findsNothing,
     );
   });
 }

@@ -98,6 +98,7 @@ void main() {
       expect(ZpCapabilities.supportsSystemCredentialUnlock, isTrue);
       expect(ZpCapabilities.supportsSecureFlag, isTrue);
       expect(ZpCapabilities.supportsSurfaceRecreate, isTrue);
+      expect(ZpCapabilities.supportsInAppPdfPreview, isTrue);
     });
 
     test('iOS：结构性三项恒 false；系统凭证解锁 已翻 true', () {
@@ -114,6 +115,8 @@ void main() {
       // 对位——系统锁凭证（含 Face ID/触控 ID，不可用时由系统回落设备
       // 密码）可用，本批起由 false 翻 true。
       expect(ZpCapabilities.supportsSystemCredentialUnlock, isTrue);
+      // PDF 应用内预览 iOS 待 PDFKit 对位，当前门控为 false 回落分享页。
+      expect(ZpCapabilities.supportsInAppPdfPreview, isFalse);
     });
   });
 

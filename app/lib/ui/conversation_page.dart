@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert' show utf8;
+import 'dart:convert' show jsonDecode, utf8;
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
@@ -281,6 +281,18 @@ class _ConversationPageState extends State<ConversationPage> {
   int _submittedDraftRevision = 0;
   String _draftTextSnapshot = '';
   bool _draftResultUnknown = false;
+
+  /// pdf-preview-collect-1：「收集产物」发送后监测本会话新完成的带产物运行，
+  /// 就绪时在输入区上方弹出一步直达提示条（直入该运行产物页，不污染聊天流）。
+  static const Duration _collectWatchTimeout = Duration(minutes: 10);
+  bool _awaitingCollectedArtifacts = false;
+  bool _collectWaitingLiveSeed = false;
+  bool _collectSawTurnActive = false;
+  int _collectBaselineLastRowId = -1;
+  DateTime? _collectSentAt;
+  Set<String> _knownRunsBeforeCollect = const {};
+  ({String runId, String title, int artifactCount, int? lastEventSequence})?
+      _readyArtifactRun;
 
   /// 待发送附件（阶段 3 第三段）：草稿态停留 waitingSession，发送时统一
   /// 上传（官方 SessionPane.tsx:3520+ 兜底路径的手机端适配）。
@@ -1532,7 +1544,9 @@ class _ConversationPageState extends State<ConversationPage> {
         )) {
       unawaited(_scheduleAttachmentValidation());
     }
-    if (_searchOpen && state != null) {
+    if (_searchOpen &&
+        state != null &&
+        !(_searchChangeDebounce?.isActive ?? false)) {
       // 流式期每 40ms 合帧都全量重建搜索
       // 索引（O(rows×文本)）——搜索刷新自身加宽到 500ms 节流+尾沿补一
       // 次（渲染节流不变；计数最多滞后半秒）。
@@ -1547,12 +1561,19 @@ class _ConversationPageState extends State<ConversationPage> {
       } else {
         _searchRefreshTrail?.cancel();
         _searchRefreshTrail = Timer(const Duration(milliseconds: 500), () {
-          if (!mounted || !_searchOpen) return;
+          if (!mounted ||
+              !_searchOpen ||
+              (_searchChangeDebounce?.isActive ?? false)) {
+            return;
+          }
           _searchRefreshAt = DateTime.now();
           _refreshConversationSearch();
           unawaited(_pumpSearchHistory());
         });
       }
+    }
+    if (_awaitingCollectedArtifacts && state != null) {
+      _consumeCollectedArtifactRuns(state);
     }
     setState(() {});
     if (!_stickToBottom) return;
@@ -2261,14 +2282,179 @@ class _ConversationPageState extends State<ConversationPage> {
     await _saveDraft();
   }
 
+  int _maxRowIdInState(ConversationState? state) {
+    if (state == null || state.rows.isEmpty) return -1;
+    var maxId = -1;
+    for (final row in state.rows) {
+      final id = intOf(row['rowId']);
+      if (id != null && id > maxId) maxId = id;
+    }
+    return maxId;
+  }
+
+  /// 从会话流中查找发送后新创建的 CreateWorkflow 工具行 toolCallId 集合。
+  Set<String> _postBaselineWorkflowToolCallIds(ConversationState state) {
+    if (_collectBaselineLastRowId < 0) return const {};
+    final ids = <String>{};
+    for (final row in state.rows) {
+      if ('${row['kind'] ?? ''}' != 'toolCall') continue;
+      if ('${row['toolName'] ?? ''}' != 'CreateWorkflow') continue;
+      final rowId = intOf(row['rowId']);
+      if (rowId == null || rowId <= _collectBaselineLastRowId) continue;
+      final tcId = '${row['toolCallId'] ?? ''}'.trim();
+      if (tcId.isNotEmpty) ids.add(tcId);
+    }
+    return ids;
+  }
+
+  /// 官方快照投影 workflowRunSchema 不含 label 字段（label 仅在 RPC 目录行），
+  /// 与 WorkflowRunCard 同源从关联 CreateWorkflow 工具行 input.name /
+  /// input.description 派生可读标题；单产物兜底首产物标题，否则退回「工作流」。
+  String _resolveCollectedRunTitle(
+    ConversationState state,
+    Map<String, dynamic> run,
+    List<dynamic> arts,
+  ) {
+    final tcId = '${run['toolCallId'] ?? ''}'.trim();
+    if (tcId.isNotEmpty) {
+      for (final row in state.rows.reversed) {
+        if ('${row['kind'] ?? ''}' != 'toolCall') continue;
+        if ('${row['toolCallId'] ?? ''}' != tcId) continue;
+        Map<String, dynamic>? input = toolInputArgs(row);
+        if (input == null) {
+          final raw = '${row['inputText'] ?? ''}'.trim();
+          if (raw.startsWith('{')) {
+            try {
+              final decoded = jsonDecode(raw);
+              if (decoded is Map) input = decoded.cast<String, dynamic>();
+            } catch (_) {}
+          }
+        }
+        final name = '${input?['name'] ?? ''}'.trim();
+        if (name.isNotEmpty) return name;
+        final desc = '${input?['description'] ?? ''}'.trim();
+        if (desc.isNotEmpty) return desc;
+        break;
+      }
+    }
+    if (arts.length == 1 && arts.first is Map) {
+      final firstTitle = '${(arts.first as Map)['title'] ?? ''}'.trim();
+      if (firstTitle.isNotEmpty) return firstTitle;
+    }
+    return tr('工作流');
+  }
+
+  void _consumeCollectedArtifactRuns(ConversationState state) {
+    if (!_awaitingCollectedArtifacts) return;
+    final sentAt = _collectSentAt;
+    if (sentAt != null &&
+        DateTime.now().difference(sentAt) > _collectWatchTimeout) {
+      _awaitingCollectedArtifacts = false;
+      _collectWaitingLiveSeed = false;
+      return;
+    }
+    // 发送时若仍在缓存种子态（或订阅尚未建立），等首个活快照到达时吸收既有
+    // run 作为真实基线，避免把种子水位之后桌面端早已跑完的旧 run 误判为新收集。
+    final hasLive = _sub?.hasLiveFrames == true;
+    if (_collectWaitingLiveSeed) {
+      if (!hasLive) return;
+      _collectWaitingLiveSeed = false;
+      final postTcIds = _postBaselineWorkflowToolCallIds(state);
+      final merged = <String>{..._knownRunsBeforeCollect};
+      for (final r in state.workflowRunsList) {
+        final id = '${r['runId'] ?? ''}';
+        final tcId = '${r['toolCallId'] ?? ''}'.trim();
+        if (id.isNotEmpty && (tcId.isEmpty || !postTcIds.contains(tcId))) {
+          merged.add(id);
+        }
+      }
+      _knownRunsBeforeCollect = merged;
+    }
+
+    // 官方 sessionPhaseSchema（snapshot.ts:28-37）：活跃态仅 prewarming/running
+    // （即 state.isRunning），workflowRunSchema.status 封闭五态：
+    // pending / running / completed / errored / stopped。
+    final turnActive = state.isRunning;
+    if (turnActive) _collectSawTurnActive = true;
+
+    var sawTerminalFailure = false;
+    var hasActiveNewRun = false;
+    for (final run in state.workflowRunsList) {
+      final runId = '${run['runId'] ?? ''}';
+      if (runId.isEmpty || _knownRunsBeforeCollect.contains(runId)) continue;
+      final status = '${run['status'] ?? ''}';
+      if (status == 'running' || status == 'pending') {
+        hasActiveNewRun = true;
+        continue;
+      }
+      if (status == 'errored' || status == 'stopped') {
+        sawTerminalFailure = true;
+        continue;
+      }
+      if (status != 'completed') continue;
+      final arts = run['artifacts'];
+      if (arts is! List || arts.isEmpty) continue;
+      final title = _resolveCollectedRunTitle(state, run, arts);
+      final seq = intOf(run['lastEventSequence']);
+      _awaitingCollectedArtifacts = false;
+      _collectWaitingLiveSeed = false;
+      _readyArtifactRun = (
+        runId: runId,
+        title: title,
+        artifactCount: arts.length,
+        lastEventSequence: seq,
+      );
+      break;
+    }
+    if (_awaitingCollectedArtifacts && !hasActiveNewRun && !turnActive) {
+      // 1) 新 run 全部终态失败且回合已结束；或
+      // 2) 本回合已经历活跃→结束（例如 agent 直接文字回复未建工作流），
+      // 收口监听窗，避免无限期挂起误命中后续无关工作流。
+      if (sawTerminalFailure || _collectSawTurnActive) {
+        _awaitingCollectedArtifacts = false;
+        _collectWaitingLiveSeed = false;
+      }
+    }
+  }
+
+  Future<bool> _sendCollectArtifactsPrompt(String prompt) async {
+    final sub = _sub;
+    final hasLive = sub?.hasLiveFrames == true;
+    final runs =
+        sub?.state.workflowRunsList ?? const <Map<String, dynamic>>[];
+    final known = {
+      for (final r in runs)
+        if ('${r['runId'] ?? ''}'.isNotEmpty) '${r['runId']}',
+    };
+    final baselineLastRowId = _maxRowIdInState(sub?.state);
+    final ok = await _sendText(prompt, standaloneCommand: true);
+    if (ok && mounted) {
+      setState(() {
+        _awaitingCollectedArtifacts = true;
+        _collectWaitingLiveSeed = !hasLive;
+        _collectSawTurnActive = false;
+        _collectBaselineLastRowId = baselineLastRowId;
+        _collectSentAt = DateTime.now();
+        _readyArtifactRun = null;
+        _knownRunsBeforeCollect = known;
+        final state = _sub?.state;
+        if (state != null) _consumeCollectedArtifactRuns(state);
+      });
+    }
+    return ok;
+  }
+
   /// 发送核心（语音直发复用：附件/建会话/错误回填链路完全一致）。
   /// [clearInput]=手动发送清输入框；语音直发不动输入框（可能有草稿）。
   /// [fromQueue]=断网排队重放（6.6②）：失败不清稿不回填输入框（条目
   /// 留在队列，重连再试），也不再次入队。返回值=是否成功（供 drain）。
+  /// [standaloneCommand]=独立功能命令（如「收集产物」）：不消费/等待/
+  /// 清空待发附件、不触碰草稿与输入框回填、断网/重连态直接拒发返回 false。
   Future<bool> _sendText(
     String text, {
     bool clearInput = false,
     SendQueueEntry? fromQueue,
+    bool standaloneCommand = false,
   }) async {
     final app = AppStateScope.of(context);
     if (text.trim().isEmpty || _sending) return false;
@@ -2276,7 +2462,7 @@ class _ConversationPageState extends State<ConversationPage> {
     // 根因：官方 compact 是专用命令信封，我们此前按纯文本发送=CLI 不
     // 执行。官方 compact 无参数——精确匹配 /compact 走命令通道；其余
     // 带参形态维持文本由 CLI 自行解释。维护命令不进离线队列。
-    if (fromQueue == null && text.trim() == '/compact') {
+    if (!standaloneCommand && fromQueue == null && text.trim() == '/compact') {
       // 命令发出后清输入——此前 "/compact" 残留
       // 在输入框（草稿还会存它），再点一次=busy 期双压缩进 FIFO。
       // 语音直发（clearInput=false）路径输入框可能正
@@ -2303,7 +2489,7 @@ class _ConversationPageState extends State<ConversationPage> {
     // 下轮重试）。
     final blockedState = _sub?.state;
     if (blockedState != null && blockedState.runtimeInitializationBlocked) {
-      if (fromQueue == null && text.trim().isNotEmpty) {
+      if (!standaloneCommand && fromQueue == null && text.trim().isNotEmpty) {
         final merged = mergeBlockedVoiceDraft(_input.text, text);
         _suppressDraftSync = true;
         try {
@@ -2324,7 +2510,11 @@ class _ConversationPageState extends State<ConversationPage> {
     // 超时才失败（转圈很久、第二条也进不了队）。relay 断链后 phase
     // 秒降 reconnecting，以此快速判定（offline/connecting 时桥本就为
     // null 或在建，由前一条件覆盖）。带附件不排队（上传依赖连接）。
-    if (fromQueue == null &&
+    if (standaloneCommand) {
+      if (app.bridge == null || app.phase == LinkPhase.reconnecting) {
+        return false;
+      }
+    } else if (fromQueue == null &&
         _pendingAtts.isEmpty &&
         (app.bridge == null || app.phase == LinkPhase.reconnecting)) {
       // 入队在飞哨兵——清输入发生在 await store.add
@@ -2339,15 +2529,17 @@ class _ConversationPageState extends State<ConversationPage> {
       }
       return true;
     }
-    _submittedDraftText = text;
-    _draftResultUnknown = false;
-    unawaited(_saveDraft());
+    if (!standaloneCommand) {
+      _submittedDraftText = text;
+      _draftResultUnknown = false;
+      unawaited(_saveDraft());
+    }
     setState(() {
       _sending = true;
-      _error = null;
+      if (!standaloneCommand) _error = null;
       _stickToBottom = true;
     });
-    if (clearInput) {
+    if (!standaloneCommand && clearInput) {
       _suppressDraftSync = true;
       try {
         _input.clear();
@@ -2360,6 +2552,13 @@ class _ConversationPageState extends State<ConversationPage> {
       }
     }
     try {
+      if (standaloneCommand) {
+        final sessionId = _sessionId;
+        if (sessionId == null) return false;
+        final res = await app.sendText(sessionId, text, attachments: null);
+        _throwIfSendRejected(res);
+        return true;
+      }
       await _draftRestoreFuture;
       _submittedDraftRevision = _draftRevision;
       await _saveDraft();
@@ -2579,6 +2778,9 @@ class _ConversationPageState extends State<ConversationPage> {
         return true;
       }
     } catch (e) {
+      if (standaloneCommand) {
+        return false;
+      }
       // 用户在 held 二选一弹层点取消/点遮罩=主动放弃，不是发送失败
       // ——旧实现落通用 catch，红条「发送失败：Bad state: 已取消发送」。
       if (e is SendCancelled) {
@@ -3251,7 +3453,41 @@ class _ConversationPageState extends State<ConversationPage> {
     });
   }
 
-  void _stepConversationSearch(int direction) => _search.step(direction);
+  bool _flushPendingSearchChange() {
+    final pending = _searchChangeDebounce?.isActive ?? false;
+    _searchChangeDebounce?.cancel();
+    if (pending || _search.appliedQuery != _searchController.text) {
+      _search.change(_searchController.text);
+      return true;
+    }
+    return false;
+  }
+
+  void _stepConversationSearch(int direction) {
+    if (_flushPendingSearchChange()) return;
+    _search.step(direction);
+  }
+
+  void _submitConversationSearch() {
+    if (_flushPendingSearchChange()) return;
+    _search.step(1);
+  }
+
+  void _toggleConversationSearchRegex() {
+    _searchChangeDebounce?.cancel();
+    _search.toggleRegex();
+  }
+
+  void _toggleConversationSearchIncludeReasoning() {
+    final hadPending = _flushPendingSearchChange();
+    _search.toggleIncludeReasoning();
+    if (hadPending) unawaited(_pumpSearchHistory());
+  }
+
+  void _loadMoreConversationSearch() {
+    _flushPendingSearchChange();
+    _search.loadMoreHistory();
+  }
 
   Future<void> _pumpSearchHistory() => _search.pumpHistory();
 
@@ -4707,7 +4943,7 @@ class _ConversationPageState extends State<ConversationPage> {
                     // 发送回调（hub 按钮禁用）。
                     onCollectPrompt: widget.readOnly
                         ? null
-                        : (prompt) => _sendText(prompt),
+                        : _sendCollectArtifactsPrompt,
                   ),
                 ),
               ),
@@ -4797,18 +5033,26 @@ class _ConversationPageState extends State<ConversationPage> {
             ConversationSearchBar(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              query: _searchController.text,
+              query: _search.appliedQuery,
               matches: _searchMatches,
               activeIndex: _searchActiveIndex,
               loading: _searchLoading,
               truncated: _searchTruncated,
+              rowLimit: _search.rowLimit,
+              useRegex: _search.useRegex,
+              includeReasoning: _search.includeReasoning,
+              regexError: _search.regexError,
               error: _searchError,
               partialNotice: _searchPartialNotice,
               onChanged: _onConversationSearchChanged,
+              onSubmitted: _submitConversationSearch,
               onPrevious: () => _stepConversationSearch(-1),
               onNext: () => _stepConversationSearch(1),
               onClose: _closeConversationSearch,
               onRetry: _search.retry,
+              onToggleRegex: _toggleConversationSearchRegex,
+              onToggleIncludeReasoning: _toggleConversationSearchIncludeReasoning,
+              onLoadMore: _loadMoreConversationSearch,
             ),
           // 桥降级/恢复期反馈（统一叙事的一部分）：会话页不再静默
           if (state != null && app2.phase != LinkPhase.online)
@@ -5272,6 +5516,27 @@ class _ConversationPageState extends State<ConversationPage> {
               );
             },
           ),
+          // pdf-preview-collect-1：收集产物完成直达条（输入区上方轻量提示，
+          // 点「查看」直入该次运行详情页，关闭或离开会话即清）。
+          if (_readyArtifactRun != null && _sessionId != null)
+            _CollectArtifactsReadyBanner(
+              artifactCount: _readyArtifactRun!.artifactCount,
+              onOpen: () {
+                final ready = _readyArtifactRun!;
+                setState(() => _readyArtifactRun = null);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => WorkflowRunDetailPage(
+                      sessionId: _sessionId!,
+                      runId: ready.runId,
+                      title: ready.title,
+                      lastEventSequence: ready.lastEventSequence,
+                    ),
+                  ),
+                );
+              },
+              onDismiss: () => setState(() => _readyArtifactRun = null),
+            ),
           // Goal 面板（有目标时置顶于 chrome 区）
           if (state != null) GoalPanel(state: state, sessionId: _sessionId),
           // 审批横幅（pendingInteractions，先到先得）
@@ -6099,6 +6364,13 @@ class _ConversationPageState extends State<ConversationPage> {
                         : (prev is TurnBarItem || prev is UserItem
                               ? 20.0
                               : 16.0));
+              final activeSearchQuery =
+                  _searchOpen && _search.regexError == null
+                  ? _search.appliedQuery.trim()
+                  : null;
+              final activeSearchRegex = _searchOpen
+                  ? _search.compiledRegex
+                  : null;
               Widget child = switch (item) {
                 UserItem() => SearchTargetFrame(
                   rowId: intOf(item.row['rowId']),
@@ -6115,9 +6387,9 @@ class _ConversationPageState extends State<ConversationPage> {
                     searchReveal:
                         _activeSearchMatch?.rowId == intOf(item.row['rowId']),
                     // 验收#11（Bug H）：提问内容同享词级高亮。
-                    searchQuery: _searchOpen
-                        ? _searchController.text.trim()
-                        : null,
+                    searchQuery: activeSearchQuery,
+                    searchUseRegex: _search.useRegex,
+                    searchCompiledRegex: activeSearchRegex,
                   ),
                 ),
                 TurnBarItem() => TurnBar(
@@ -6140,9 +6412,10 @@ class _ConversationPageState extends State<ConversationPage> {
                   searchStart: _activeSearchMatch?.start,
                   searchSourceText: _activeSearchMatch?.sourceText,
                   searchSnippet: _activeSearchMatch?.snippet,
-                  searchQuery: _searchOpen
-                      ? _searchController.text.trim()
-                      : null,
+                  searchQuery: activeSearchQuery,
+                  searchUseRegex: _search.useRegex,
+                  searchCompiledRegex: activeSearchRegex,
+                  searchIncludeReasoning: _search.includeReasoning,
                   openSession: _openConversationSession,
                   onLiveCollapsedChanged: (collapsed) {
                     // 与 TurnBar._turnId 同源
@@ -6294,5 +6567,73 @@ final class _PickedXFile extends PlatformFile {
   @override
   Stream<Uint8List> readAsByteStream() async* {
     yield await _xfile.readAsBytes();
+  }
+}
+
+/// 收集产物完成直达提示条（pdf-preview-collect-1）：与 QuotaBanner 同形制，
+/// 轻量化展示产物已就绪并提供一键直入运行详情页，不污染聊天记录。
+class _CollectArtifactsReadyBanner extends StatelessWidget {
+  final int artifactCount;
+  final VoidCallback onOpen;
+  final VoidCallback onDismiss;
+
+  const _CollectArtifactsReadyBanner({
+    required this.artifactCount,
+    required this.onOpen,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Container(
+      key: const ValueKey('collect-artifacts-ready-banner'),
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: c.success.withValues(alpha: AppAlpha.light),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: c.success.withValues(alpha: AppAlpha.mid)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.download_done_outlined, size: 16, color: c.success),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              artifactCount > 0 ? '产物已就绪（$artifactCount 个）' : '收集的产物已就绪',
+              style: TextStyle(
+                fontSize: AppType.uiCaption,
+                color: c.foreground,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('collect-artifacts-ready-open'),
+            onPressed: onOpen,
+            style: TextButton.styleFrom(
+              foregroundColor: c.brandAccent,
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            child: const Text(
+              '查看',
+              style: TextStyle(
+                fontSize: AppType.uiCaption,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('collect-artifacts-ready-dismiss'),
+            padding: EdgeInsets.zero,
+            iconSize: 16,
+            tooltip: tr('关闭产物就绪提示'),
+            onPressed: onDismiss,
+            icon: Icon(Icons.close, size: 15, color: c.foregroundSubtlest),
+          ),
+        ],
+      ),
+    );
   }
 }

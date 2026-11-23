@@ -11,8 +11,292 @@ import '../transport/conversation.dart';
 import 'turn_model.dart';
 
 const int conversationSearchRowLimit = 1200;
+const int _kMaxRegexMatchesPerRow = 200;
+const int _kMaxTotalSearchMatches = 2000;
+const int _kMaxRegexScanLength = 200000;
+final RegExp _searchWhitespaceRe = RegExp(r'\s+');
 
-enum ConversationSearchKind { user, assistant, tool }
+enum ConversationSearchKind { user, assistant, tool, reasoning }
+
+({int end, bool variableRepeat})? _readBracedQuantifier(
+  String pattern,
+  int start,
+) {
+  if (start >= pattern.length || pattern.codeUnitAt(start) != 0x7B /* { */) {
+    return null;
+  }
+  var i = start + 1;
+  final minStart = i;
+  while (i < pattern.length) {
+    final c = pattern.codeUnitAt(i);
+    if (c < 0x30 || c > 0x39) break;
+    i++;
+  }
+  if (i == minStart) return null;
+  final minCount = int.tryParse(pattern.substring(minStart, i));
+  if (minCount == null) return null;
+  var hasComma = false;
+  int? maxCount = minCount;
+  if (i < pattern.length && pattern.codeUnitAt(i) == 0x2C /* , */) {
+    hasComma = true;
+    i++;
+    final maxStart = i;
+    while (i < pattern.length) {
+      final c = pattern.codeUnitAt(i);
+      if (c < 0x30 || c > 0x39) break;
+      i++;
+    }
+    maxCount = i == maxStart
+        ? null
+        : int.tryParse(pattern.substring(maxStart, i));
+  }
+  if (i >= pattern.length || pattern.codeUnitAt(i) != 0x7D /* } */) {
+    return null;
+  }
+  final variableRepeat =
+      hasComma && (maxCount == null || (maxCount > minCount && maxCount > 1));
+  return (end: i, variableRepeat: variableRepeat);
+}
+
+/// 预检明显的高危回溯正则（ReDoS）：
+/// 1) 嵌套量词：`(a+)+`、`(.*)+`、`(.+)*`、`(\w+){2,}`；
+/// 2) 量化分支交替：`(a|aa)+$`、`(\s|.)*END`；
+/// 3) 反向引用带量词：`(a+)\1+`、`(?<x>a+)\k<x>*`。
+/// 线性扫描避开转义与字符类内的字面符号。
+bool isPotentiallyUnsafeRegex(String pattern) {
+  final groupHasQuantifier = <bool>[];
+  final groupHasAlternation = <bool>[];
+  var inCharClass = false;
+
+  bool consumeTrailingQuantifier(int afterIndex) {
+    if (afterIndex >= pattern.length) return false;
+    final next = pattern.codeUnitAt(afterIndex);
+    if (next == 0x2B /* + */ || next == 0x2A /* * */) return true;
+    if (next == 0x7B /* { */) {
+      final braced = _readBracedQuantifier(pattern, afterIndex);
+      return braced != null && braced.variableRepeat;
+    }
+    return false;
+  }
+
+  for (var i = 0; i < pattern.length; i++) {
+    final c = pattern.codeUnitAt(i);
+    if (c == 0x5C /* \ */) {
+      if (i + 1 < pattern.length) {
+        final esc = pattern.codeUnitAt(i + 1);
+        if (!inCharClass && esc >= 0x31 && esc <= 0x39 /* \1..\9 */) {
+          var end = i + 1;
+          while (end + 1 < pattern.length) {
+            final d = pattern.codeUnitAt(end + 1);
+            if (d < 0x30 || d > 0x39) break;
+            end++;
+          }
+          if (consumeTrailingQuantifier(end + 1)) return true;
+          if (groupHasQuantifier.isNotEmpty) {
+            groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+          }
+          i = end;
+          continue;
+        }
+        if (!inCharClass &&
+            esc == 0x6B /* \k<name> */ &&
+            i + 2 < pattern.length &&
+            pattern.codeUnitAt(i + 2) == 0x3C /* < */) {
+          final close = pattern.indexOf('>', i + 3);
+          if (close > i + 3) {
+            if (consumeTrailingQuantifier(close + 1)) return true;
+            if (groupHasQuantifier.isNotEmpty) {
+              groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+            }
+            i = close;
+            continue;
+          }
+        }
+      }
+      i++;
+      continue;
+    }
+    if (inCharClass) {
+      if (c == 0x5D /* ] */) inCharClass = false;
+      continue;
+    }
+    if (c == 0x5B /* [ */) {
+      inCharClass = true;
+      continue;
+    }
+    if (c == 0x28 /* ( */) {
+      groupHasQuantifier.add(false);
+      groupHasAlternation.add(false);
+      continue;
+    }
+    if (c == 0x7C /* | */) {
+      if (groupHasAlternation.isNotEmpty) {
+        groupHasAlternation[groupHasAlternation.length - 1] = true;
+      }
+      continue;
+    }
+    if (c == 0x29 /* ) */) {
+      if (groupHasQuantifier.isEmpty) continue;
+      final innerHasQuantifier = groupHasQuantifier.removeLast();
+      final innerHasAlternation = groupHasAlternation.removeLast();
+      var outerQuantified = false;
+      if (i + 1 < pattern.length) {
+        final next = pattern.codeUnitAt(i + 1);
+        if (next == 0x2B /* + */ || next == 0x2A /* * */) {
+          outerQuantified = true;
+          i++;
+        } else if (next == 0x7B /* { */) {
+          final braced = _readBracedQuantifier(pattern, i + 1);
+          if (braced != null) {
+            outerQuantified = braced.variableRepeat;
+            i = braced.end;
+          }
+        }
+      }
+      if ((innerHasQuantifier || innerHasAlternation) && outerQuantified) {
+        return true;
+      }
+      if (groupHasQuantifier.isNotEmpty &&
+          (innerHasQuantifier || outerQuantified)) {
+        groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+      }
+      if (groupHasAlternation.isNotEmpty && innerHasAlternation) {
+        groupHasAlternation[groupHasAlternation.length - 1] = true;
+      }
+      continue;
+    }
+    if (c == 0x2B /* + */ || c == 0x2A /* * */) {
+      if (groupHasQuantifier.isNotEmpty) {
+        groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+      }
+      continue;
+    }
+    if (c == 0x7B /* { */) {
+      final braced = _readBracedQuantifier(pattern, i);
+      if (braced != null) {
+        if (braced.variableRepeat && groupHasQuantifier.isNotEmpty) {
+          groupHasQuantifier[groupHasQuantifier.length - 1] = true;
+        }
+        i = braced.end;
+      }
+    }
+  }
+  return false;
+}
+
+/// 空格分词（去空、去重、保序；长度稳定折叠）。
+List<String> splitSearchTerms(String query) {
+  final trimmed = foldCaseStable(query.trim());
+  if (trimmed.isEmpty) return const [];
+  final seen = <String>{};
+  final out = <String>[];
+  for (final part in trimmed.split(_searchWhitespaceRe)) {
+    if (part.isNotEmpty && seen.add(part)) {
+      out.add(part);
+    }
+  }
+  return out;
+}
+
+/// 编译正则搜索式（大小写不敏感、多行、unicode 防代理对劈裂）；
+/// 命中嵌套量词 ReDoS 预检或语法非法时返回错误描述。
+({RegExp? regex, String? error}) compileSearchRegex(String query) {
+  final trimmed = query.trim();
+  if (trimmed.isEmpty) return (regex: null, error: null);
+  if (isPotentiallyUnsafeRegex(trimmed)) {
+    return (regex: null, error: '正则表达式过于复杂');
+  }
+  try {
+    return (
+      regex: RegExp(trimmed, caseSensitive: false, multiLine: true, unicode: true),
+      error: null,
+    );
+  } on FormatException catch (e) {
+    return (regex: null, error: e.message);
+  }
+}
+
+String _clipRegexScanSource(String source) {
+  if (source.length <= _kMaxRegexScanLength) return source;
+  var end = _kMaxRegexScanLength;
+  final last = source.codeUnitAt(end - 1);
+  if (last >= 0xD800 && last <= 0xDBFF) end--;
+  return source.substring(0, end);
+}
+
+List<({int start, int end})> _findLiteralRanges(
+  String haystack,
+  String needle,
+) {
+  final ranges = <({int start, int end})>[];
+  var from = 0;
+  while (from <= haystack.length - needle.length) {
+    final start = haystack.indexOf(needle, from);
+    if (start < 0) break;
+    ranges.add((start: start, end: start + needle.length));
+    from = start + needle.length;
+  }
+  return ranges;
+}
+
+/// 查找 [source] 中全部高亮区间（供高亮渲染与索引复用）。
+/// - [useRegex]=false：空格多词优先连续短语（与计数一致），无短语时按
+///   AND 语义返回合并后的非重叠命中区间；单词与旧字面子串完全等价；
+/// - [useRegex]=true：大小写不敏感正则，跳过零宽匹配，单行扫描窗口上限
+///   200,000 字符且命中上限 200 处。
+List<({int start, int end})> findSearchMatchRanges(
+  String source,
+  String query, {
+  bool useRegex = false,
+  RegExp? compiledRegex,
+}) {
+  if (source.isEmpty) return const [];
+  if (useRegex) {
+    final re = compiledRegex ?? compileSearchRegex(query).regex;
+    if (re == null) return const [];
+    final scanSource = _clipRegexScanSource(source);
+    final ranges = <({int start, int end})>[];
+    for (final m in re.allMatches(scanSource)) {
+      if (m.end <= m.start) continue;
+      ranges.add((start: m.start, end: m.end));
+      if (ranges.length >= _kMaxRegexMatchesPerRow) break;
+    }
+    return ranges;
+  }
+  final trimmed = query.trim();
+  final terms = splitSearchTerms(trimmed);
+  if (terms.isEmpty) return const [];
+  final haystack = foldCaseStable(source);
+  if (terms.length == 1) {
+    return _findLiteralRanges(haystack, terms.first);
+  }
+  // 与 buildConversationSearchMatches 短语优先语义对齐：若完整连续短语
+  // 命中，仅高亮连续短语本身，不再把同条后面的零散分词也标亮。
+  final phrase = foldCaseStable(trimmed);
+  if (haystack.contains(phrase)) {
+    return _findLiteralRanges(haystack, phrase);
+  }
+  // 多词 AND：所有词都必须存在，否则整条不命中。
+  final raw = <({int start, int end})>[];
+  for (final term in terms) {
+    final found = _findLiteralRanges(haystack, term);
+    if (found.isEmpty) return const [];
+    raw.addAll(found);
+  }
+  raw.sort((a, b) {
+    final cmp = a.start.compareTo(b.start);
+    return cmp != 0 ? cmp : a.end.compareTo(b.end);
+  });
+  final merged = <({int start, int end})>[];
+  for (final r in raw) {
+    if (merged.isEmpty || r.start > merged.last.end) {
+      merged.add(r);
+    } else if (r.end > merged.last.end) {
+      merged[merged.length - 1] = (start: merged.last.start, end: r.end);
+    }
+  }
+  return merged;
+}
 
 class ConversationSearchMatch {
   final int rowId;
@@ -94,31 +378,48 @@ String? _toolSearchText(Map<String, dynamic> row) {
   return parts.join('\n');
 }
 
-String? _searchTextOf(Map<String, dynamic> row) => switch ('${row['kind']}') {
+String? _searchTextOf(
+  Map<String, dynamic> row, {
+  required bool includeReasoning,
+}) => switch ('${row['kind']}') {
   'userInput' || 'assistantText' => '${row['text'] ?? ''}',
   'toolCall' => _toolSearchText(row),
+  'reasoning' when includeReasoning => '${row['text'] ?? ''}',
   _ => null,
 };
 
-ConversationSearchKind? _searchKindOf(Map<String, dynamic> row) =>
-    switch ('${row['kind']}') {
-      'userInput' => ConversationSearchKind.user,
-      'assistantText' => ConversationSearchKind.assistant,
-      'toolCall' => ConversationSearchKind.tool,
-      _ => null,
-    };
+ConversationSearchKind? _searchKindOf(
+  Map<String, dynamic> row, {
+  required bool includeReasoning,
+}) => switch ('${row['kind']}') {
+  'userInput' => ConversationSearchKind.user,
+  'assistantText' => ConversationSearchKind.assistant,
+  'toolCall' => ConversationSearchKind.tool,
+  'reasoning' when includeReasoning => ConversationSearchKind.reasoning,
+  _ => null,
+};
 
-/// 主会话的提问/回复加上用户明确要求的工具内容；思考与内部标记不索引。
-/// 匹配规则与官方一致：trim、大小写不敏感、字面子串、同一行内非重叠计数。
+/// 主会话的提问/回复加上工具内容；[includeReasoning]=true 时同步索引思考块。
+/// - 默认模式：大小写不敏感，空格拆分为多词 AND 语义（单词与旧字面一致）；
+/// - [useRegex]=true：大小写不敏感正则匹配（非法正则返回空）。
 List<ConversationSearchMatch> buildConversationSearchMatches(
   List<ChatItem> items,
-  String query,
-) {
-  // 长度稳定折叠——İ 等扩长字符会使折叠串
-  // 下标漂移（snippet 切原串错位/极端越界），命中下标必须落在原串
-  // 坐标系（与 buildSearchHighlightSpans 同源 foldCaseStable）。
-  final needle = foldCaseStable(query.trim());
-  if (needle.isEmpty) return const [];
+  String query, {
+  bool useRegex = false,
+  bool includeReasoning = false,
+  RegExp? compiledRegex,
+}) {
+  final trimmed = query.trim();
+  if (trimmed.isEmpty) return const [];
+  RegExp? resolvedRegex = compiledRegex;
+  List<String> terms = const [];
+  if (useRegex) {
+    resolvedRegex ??= compileSearchRegex(trimmed).regex;
+    if (resolvedRegex == null) return const [];
+  } else {
+    terms = splitSearchTerms(trimmed);
+    if (terms.isEmpty) return const [];
+  }
   final matches = <ConversationSearchMatch>[];
   for (var index = 0; index < items.length; index++) {
     final item = items[index];
@@ -133,31 +434,106 @@ List<ConversationSearchMatch> buildConversationSearchMatches(
         : null;
     for (final row in rows) {
       final rowId = intOf(row['rowId']);
-      final kind = _searchKindOf(row);
-      final source = _searchTextOf(row);
+      final kind = _searchKindOf(row, includeReasoning: includeReasoning);
+      final source = _searchTextOf(row, includeReasoning: includeReasoning);
       if (rowId == null || rowId < 0 || kind == null || source == null) {
         continue;
       }
+      if (useRegex) {
+        final ranges = findSearchMatchRanges(
+          source,
+          trimmed,
+          useRegex: true,
+          compiledRegex: resolvedRegex,
+        );
+        for (var occ = 0; occ < ranges.length; occ++) {
+          final r = ranges[occ];
+          matches.add(
+            ConversationSearchMatch(
+              rowId: rowId,
+              turnId: turnId,
+              anchorKey: anchorKey,
+              kind: kind,
+              occurrence: occ,
+              sourceText: source,
+              start: r.start,
+              end: r.end,
+            ),
+          );
+          if (matches.length >= _kMaxTotalSearchMatches) return matches;
+        }
+        continue;
+      }
       final haystack = foldCaseStable(source);
-      var occurrence = 0;
-      var from = 0;
-      while (from <= haystack.length - needle.length) {
-        final start = haystack.indexOf(needle, from);
-        if (start < 0) break;
+      if (terms.length == 1) {
+        final needle = terms.first;
+        var occ = 0;
+        var from = 0;
+        while (from <= haystack.length - needle.length) {
+          final start = haystack.indexOf(needle, from);
+          if (start < 0) break;
+          matches.add(
+            ConversationSearchMatch(
+              rowId: rowId,
+              turnId: turnId,
+              anchorKey: anchorKey,
+              kind: kind,
+              occurrence: occ,
+              sourceText: source,
+              start: start,
+              end: start + needle.length,
+            ),
+          );
+          occ++;
+          from = start + needle.length;
+          if (matches.length >= _kMaxTotalSearchMatches) return matches;
+        }
+        continue;
+      }
+      // 多词模式：①若完整短语本身连续出现，优先按连续短语逐次计（保持与
+      // 旧带空格字面短语搜索 100% 一致的计数直觉）；②否则走空格多词 AND，
+      // 全部词都存在时按每条消息 1 次定位（锚定最早出现词，渲染层高亮全词）。
+      final phrase = foldCaseStable(trimmed);
+      if (haystack.contains(phrase)) {
+        var occ = 0;
+        var from = 0;
+        while (from <= haystack.length - phrase.length) {
+          final start = haystack.indexOf(phrase, from);
+          if (start < 0) break;
+          matches.add(
+            ConversationSearchMatch(
+              rowId: rowId,
+              turnId: turnId,
+              anchorKey: anchorKey,
+              kind: kind,
+              occurrence: occ,
+              sourceText: source,
+              start: start,
+              end: start + phrase.length,
+            ),
+          );
+          occ++;
+          from = start + phrase.length;
+          if (matches.length >= _kMaxTotalSearchMatches) return matches;
+        }
+        continue;
+      }
+      final ranges = findSearchMatchRanges(source, trimmed, useRegex: false);
+      if (ranges.isNotEmpty) {
+        final first = ranges.first;
         matches.add(
           ConversationSearchMatch(
             rowId: rowId,
             turnId: turnId,
             anchorKey: anchorKey,
             kind: kind,
-            occurrence: occurrence,
+            occurrence: 0,
             sourceText: source,
-            start: start,
-            end: start + needle.length,
+            start: first.start,
+            end: first.end,
           ),
         );
-        occurrence++;
-        from = start + needle.length;
+        if (matches.length >= _kMaxTotalSearchMatches) return matches;
       }
     }
   }
@@ -217,15 +593,24 @@ class ConversationSearchController {
   bool loading = false;
   bool truncated = false;
   bool stalled = false;
+  bool useRegex = false;
+  bool includeReasoning = false;
+  int rowLimit = conversationSearchRowLimit;
+  String? regexError;
   String? error;
   List<ConversationSearchMatch> matches = const [];
   int activeIndex = -1;
   int navigationId = 0;
   String? locatedIdentity;
+  String _appliedQuery = '';
+  RegExp? _compiledRegex;
   bool _historyPumping = false;
+  int _pumpGeneration = 0;
   bool _disposed = false;
 
   String get query => controller.text;
+  String get appliedQuery => _appliedQuery;
+  RegExp? get compiledRegex => _compiledRegex;
   ConversationSearchMatch? get activeMatch =>
       activeIndex >= 0 && activeIndex < matches.length
       ? matches[activeIndex]
@@ -233,8 +618,10 @@ class ConversationSearchController {
 
   void open() {
     if (_disposed || _stateProvider() == null) return;
+    _pumpGeneration++;
     isOpen = true;
     error = null;
+    rowLimit = conversationSearchRowLimit;
     refresh(reset: true);
     _onNotify();
     final active = activeMatch;
@@ -244,19 +631,62 @@ class ConversationSearchController {
 
   ConversationSearchCloseResult close() {
     navigationId++;
+    _pumpGeneration++;
     focusNode.unfocus();
     final result = ConversationSearchCloseResult(activeMatch);
     isOpen = false;
     loading = false;
     truncated = false;
     stalled = false;
+    useRegex = false;
+    includeReasoning = false;
+    rowLimit = conversationSearchRowLimit;
+    regexError = null;
     error = null;
     matches = const [];
     activeIndex = -1;
     locatedIdentity = null;
+    _appliedQuery = '';
+    _compiledRegex = null;
     controller.clear();
     _onNotify();
     return result;
+  }
+
+  void toggleRegex() {
+    if (_disposed || !isOpen) return;
+    useRegex = !useRegex;
+    navigationId++;
+    locatedIdentity = null;
+    error = null;
+    stalled = false;
+    refresh(reset: true);
+    _onNotify();
+    final active = activeMatch;
+    if (active != null) _locate(active);
+    unawaited(pumpHistory());
+  }
+
+  void toggleIncludeReasoning() {
+    if (_disposed || !isOpen) return;
+    includeReasoning = !includeReasoning;
+    navigationId++;
+    locatedIdentity = null;
+    refresh(reset: true);
+    _onNotify();
+    final active = activeMatch;
+    if (active != null) _locate(active);
+  }
+
+  /// 突破 1200 行初始补拉上限：用户主动要求继续往前拉取下一批 1200 行。
+  void loadMoreHistory() {
+    if (_disposed || !isOpen || loading) return;
+    rowLimit += conversationSearchRowLimit;
+    truncated = false;
+    stalled = false;
+    error = null;
+    _onNotify();
+    unawaited(pumpHistory());
   }
 
   void refresh({bool reset = false}) {
@@ -264,10 +694,31 @@ class ConversationSearchController {
     if (state == null || _disposed) return;
     final previous = activeMatch?.identity;
     final previousAnchor = activeMatch?.anchorKey;
-    matches = buildConversationSearchMatches(
-      _itemsProvider(state),
-      controller.text,
-    );
+    final trimmed = controller.text.trim();
+    _appliedQuery = controller.text;
+    if (useRegex && trimmed.isNotEmpty) {
+      if (_compiledRegex != null &&
+          _compiledRegex!.pattern == trimmed &&
+          regexError == null) {
+        // 复用同模式预编译 RegExp（避免流式刷新或列表 rebuild 重复编译）。
+      } else {
+        final compiled = compileSearchRegex(trimmed);
+        _compiledRegex = compiled.regex;
+        regexError = compiled.error;
+      }
+    } else {
+      _compiledRegex = null;
+      regexError = null;
+    }
+    matches = regexError != null
+        ? const []
+        : buildConversationSearchMatches(
+            _itemsProvider(state),
+            controller.text,
+            useRegex: useRegex,
+            includeReasoning: includeReasoning,
+            compiledRegex: _compiledRegex,
+          );
     activeIndex = reset
         ? (matches.isEmpty ? -1 : 0)
         : reanchorConversationSearchMatch(
@@ -275,7 +726,10 @@ class ConversationSearchController {
             previous,
             activeIndex < 0 ? 0 : activeIndex,
           );
-    truncated = state.rows.length >= conversationSearchRowLimit && state.canLoadOlder;
+    truncated = trimmed.isNotEmpty &&
+        regexError == null &&
+        state.rows.length >= rowLimit &&
+        state.canLoadOlder;
     final currentAnchor = activeMatch?.anchorKey;
     if (previousAnchor != null &&
         currentAnchor != null &&
@@ -331,10 +785,13 @@ class ConversationSearchController {
     if (_historyPumping || !isOpen || _disposed) return;
     final query = controller.text.trim();
     if (query.isEmpty) return;
+    if (useRegex && compileSearchRegex(query).error != null) return;
+    final gen = _pumpGeneration;
+    final targetLimit = rowLimit;
     final initial = _stateProvider();
     if (initial == null ||
         !initial.canLoadOlder ||
-        initial.rows.length >= conversationSearchRowLimit ||
+        initial.rows.length >= targetLimit ||
         initial.phase == 'running' ||
         initial.phase == 'prewarming') {
       return;
@@ -346,18 +803,27 @@ class ConversationSearchController {
       _onNotify();
     }
     try {
-      while (_isAlive() && isOpen && controller.text.trim() == query) {
+      while (_isAlive() &&
+          isOpen &&
+          _pumpGeneration == gen &&
+          regexError == null &&
+          controller.text.trim() == query) {
         final state = _stateProvider();
         if (state == null ||
             !state.canLoadOlder ||
-            state.rows.length >= conversationSearchRowLimit ||
+            state.rows.length >= rowLimit ||
             state.phase == 'running' ||
             state.phase == 'prewarming') {
           break;
         }
         final progressed = await _loadOlder();
-        if (!_isAlive() || controller.text.trim() != query) break;
+        if (!_isAlive() ||
+            _pumpGeneration != gen ||
+            controller.text.trim() != query) {
+          break;
+        }
         refresh();
+        if (regexError != null) break;
         if (!progressed) {
           if (_stateProvider()?.canLoadOlder == true) stalled = true;
           break;
@@ -366,16 +832,28 @@ class ConversationSearchController {
         if (active != null && locatedIdentity == null) _locate(active);
       }
     } catch (caught) {
-      if (_isAlive() && isOpen && controller.text.trim() == query) {
+      if (_isAlive() &&
+          isOpen &&
+          _pumpGeneration == gen &&
+          controller.text.trim() == query) {
         error = '$caught';
       }
     } finally {
       _historyPumping = false;
       if (_isAlive()) {
-        loading = false;
-        refresh();
-        _onNotify();
-        if (isOpen && controller.text.trim() != query) {
+        if (_pumpGeneration == gen) {
+          loading = false;
+          refresh();
+          _onNotify();
+          if (isOpen && activeMatch != null && locatedIdentity == null) {
+            _locate(activeMatch!);
+          }
+          if (isOpen &&
+              (controller.text.trim() != query || rowLimit > targetLimit)) {
+            unawaited(pumpHistory());
+          }
+        } else if (isOpen) {
+          // 关闭后立即重开的新代际等待旧协程收尾后自动补拉。
           unawaited(pumpHistory());
         }
       }
@@ -383,7 +861,9 @@ class ConversationSearchController {
   }
 
   String? get partialNotice {
-    if (!isOpen || loading || truncated || error != null) return null;
+    if (!isOpen || loading || truncated || error != null || regexError != null) {
+      return null;
+    }
     final state = _stateProvider();
     if (state?.canLoadOlder != true) return null;
     if (state!.phase == 'running' || state.phase == 'prewarming') {
@@ -410,13 +890,21 @@ class ConversationSearchBar extends StatelessWidget {
   final int activeIndex;
   final bool loading;
   final bool truncated;
+  final int rowLimit;
+  final bool useRegex;
+  final bool includeReasoning;
+  final String? regexError;
   final String? error;
   final String? partialNotice;
   final ValueChanged<String> onChanged;
+  final VoidCallback? onSubmitted;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
   final VoidCallback onClose;
   final VoidCallback onRetry;
+  final VoidCallback? onToggleRegex;
+  final VoidCallback? onToggleIncludeReasoning;
+  final VoidCallback? onLoadMore;
 
   const ConversationSearchBar({
     super.key,
@@ -427,13 +915,21 @@ class ConversationSearchBar extends StatelessWidget {
     required this.activeIndex,
     required this.loading,
     required this.truncated,
+    this.rowLimit = conversationSearchRowLimit,
+    this.useRegex = false,
+    this.includeReasoning = false,
+    this.regexError,
     required this.error,
     this.partialNotice,
     required this.onChanged,
+    this.onSubmitted,
     required this.onPrevious,
     required this.onNext,
     required this.onClose,
     required this.onRetry,
+    this.onToggleRegex,
+    this.onToggleIncludeReasoning,
+    this.onLoadMore,
   });
 
   @override
@@ -446,6 +942,7 @@ class ConversationSearchBar extends StatelessWidget {
       ConversationSearchKind.user => '提问',
       ConversationSearchKind.assistant => 'AI 回复',
       ConversationSearchKind.tool => '工具',
+      ConversationSearchKind.reasoning => '思考',
       null => '',
     };
     return Material(
@@ -468,7 +965,7 @@ class ConversationSearchBar extends StatelessWidget {
                     focusNode: focusNode,
                     autofocus: true,
                     onChanged: onChanged,
-                    onSubmitted: (_) => onNext(),
+                    onSubmitted: (_) => (onSubmitted ?? onNext)(),
                     textInputAction: TextInputAction.search,
                     style: const TextStyle(fontSize: AppType.mobileInputSafe),
                     decoration: InputDecoration(
@@ -515,6 +1012,34 @@ class ConversationSearchBar extends StatelessWidget {
                 ),
               ],
             ),
+            if (onToggleRegex != null || onToggleIncludeReasoning != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (onToggleRegex != null)
+                        _SearchOptionChip(
+                          key: const ValueKey('conversation-search-regex'),
+                          label: '正则',
+                          selected: useRegex,
+                          onTap: onToggleRegex!,
+                        ),
+                      if (onToggleIncludeReasoning != null)
+                        _SearchOptionChip(
+                          key: const ValueKey('conversation-search-reasoning'),
+                          label: '含思考',
+                          selected: includeReasoning,
+                          onTap: onToggleIncludeReasoning!,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             if (active != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 3),
@@ -551,6 +1076,7 @@ class ConversationSearchBar extends StatelessWidget {
               ),
             if (loading ||
                 truncated ||
+                regexError != null ||
                 error != null ||
                 partialNotice != null ||
                 (hasQuery && matches.isEmpty))
@@ -558,7 +1084,18 @@ class ConversationSearchBar extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: error != null
+                  child: regexError != null
+                      ? Text(
+                          regexError == '正则表达式过于复杂'
+                              ? '正则表达式过于复杂'
+                              : '正则表达式无效',
+                          key: const ValueKey('conversation-search-regex-error'),
+                          style: TextStyle(
+                            fontSize: AppType.uiXs,
+                            color: context.colors.destructive,
+                          ),
+                        )
+                      : error != null
                       ? TextButton.icon(
                           key: const ValueKey('conversation-search-retry'),
                           onPressed: onRetry,
@@ -570,12 +1107,54 @@ class ConversationSearchBar extends StatelessWidget {
                             tapTargetSize: MaterialTapTargetSize.padded,
                           ),
                         )
+                      : truncated && !loading
+                      ? Wrap(
+                          spacing: 8,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              '已搜索最近 $rowLimit 行，更早内容未纳入',
+                              style: TextStyle(
+                                fontSize: AppType.uiXs,
+                                color: context.colors.foregroundSubtle,
+                              ),
+                            ),
+                            if (onLoadMore != null)
+                              TextButton(
+                                key: const ValueKey(
+                                  'conversation-search-load-more',
+                                ),
+                                onPressed: onLoadMore,
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
+                                  minimumSize: const Size(48, 32),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: context.colors.brandAccent,
+                                ),
+                                child: const Text(
+                                  '继续往前搜',
+                                  style: TextStyle(
+                                    fontSize: AppType.uiXs,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
                       : Text(
                           loading
                               ? '正在加载更早消息…'
-                              : truncated
-                              ? '已搜索最近 $conversationSearchRowLimit 行，更早内容未纳入'
-                              : partialNotice ?? '没有匹配结果',
+                              : partialNotice ??
+                                    (!useRegex &&
+                                            splitSearchTerms(query).length > 1
+                                        ? '没有匹配结果：多个词需同时出现在同一条消息'
+                                        : '没有匹配结果'),
+                          key: const ValueKey(
+                            'conversation-search-empty-reason',
+                          ),
                           style: TextStyle(
                             fontSize: AppType.uiXs,
                             color: context.colors.foregroundSubtle,
@@ -584,6 +1163,57 @@ class ConversationSearchBar extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchOptionChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SearchOptionChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    // 1.0.9 真机验收②（入口不明显）：旧态=11dp 灰字+1.17:1 极淡描边+
+    // 透明底，视觉子代理判定为全面板最低对比行、读作静态标签。升档：
+    // 13dp+未选中淡实底+500 字重，可点感对齐按钮。
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          minimumSize: const Size(48, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          backgroundColor: selected
+              ? c.brandAccent.withValues(alpha: AppAlpha.light)
+              : c.foreground.withValues(alpha: AppAlpha.faint),
+          foregroundColor: selected ? c.brandAccent : c.foreground,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            side: BorderSide(
+              color: selected ? c.brandAccent : c.border,
+              width: 1,
+            ),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: AppType.uiCaption,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          ),
         ),
       ),
     );

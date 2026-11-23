@@ -127,4 +127,19 @@ const kCompanionChannels = <CompanionChannel>[
     iosNote: 'iOS 永不编译 HMS（无对应源集，VOICE_HMS 仅 Android 注入）；'
         'hmsVoiceConfigured 在 iOS 恒 false，语音自动走 sys_asr',
   ),
+  CompanionChannel(
+    name: 'companion/window',
+    androidOwner: 'MainActivity.kt',
+    iosPlan: CompanionIosPlan.notApplicable,
+    iosNote: 'isMultiWindow（orientation-unlock-1 方向闸分屏检测）：iOS 无 '
+        'Android 式 multi-window 概念（iPhone 恒 false；iPad Split View 下 '
+        '方向本就交还系统）——调用点按 catch 降级 false=非分屏，闸正常工作',
+  ),
+  CompanionChannel(
+    name: 'companion/pdf',
+    androidOwner: 'PdfRendererPlugin.kt',
+    iosPlan: CompanionIosPlan.swift,
+    iosNote: '待后续批以 PDFKit 对位；当前由 supportsInAppPdfPreview=false 门控，'
+        'PDF 产物保持走 BinaryArtifactPage 分享降级',
+  ),
 ];

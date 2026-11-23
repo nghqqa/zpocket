@@ -44,6 +44,7 @@ class MainActivity : FlutterActivity() {
     // 热启动（singleTop onNewIntent）原生→Dart 推送。
     private var shortcutAction: String? = null
     private var testChannel: MethodChannel? = null
+    private var pdfBindGeneration: Long = 0L
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,6 +120,7 @@ class MainActivity : FlutterActivity() {
         // 对抗审查 ④M3：释放通道插件持有的 Activity 强引用与挂起 result
         // （进程因 FGS 常驻时静态单例的泄漏面）。
         AppLockPlugin.release()
+        PdfRendererPlugin.closeForGeneration(pdfBindGeneration)
         super.onDestroy()
     }
 
@@ -148,6 +150,8 @@ class MainActivity : FlutterActivity() {
         SystemAsrPlugin.bind(flutterEngine, this)
         // 应用锁通道（app-lock-1）：系统锁屏凭证验证 + FLAG_SECURE 联动。
         AppLockPlugin.bind(flutterEngine, this)
+        // PDF 产物预览通道（pdf-preview-collect-1）：系统内置 PdfRenderer 逐页渲染。
+        pdfBindGeneration = PdfRendererPlugin.bind(flutterEngine, this)
         readExtras(intent)
         // companion/test 通道（名字沿用历史测试缝）：现承载
         // 生产功能——长按图标快捷入口（冷启动 getLaunchArgs + 热启动
@@ -193,6 +197,18 @@ class MainActivity : FlutterActivity() {
                 if (!exempt) recreateAt.add(now)
                 runOnUiThread { recreate() }
                 result.success(true)
+            } else {
+                result.notImplemented()
+            }
+        }
+        // 窗口形态查询（orientation-unlock-1）：Dart 侧方向闸检测分屏
+        // ——multi-window 中锁方向只会 letterbox 或被 ROM 忽略，主动
+        // 交还系统（布局断点本就按实际窗口自适应单双栏）。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, "companion/window"
+        ).setMethodCallHandler { call, result ->
+            if (call.method == "isMultiWindow") {
+                result.success(isInMultiWindowMode)
             } else {
                 result.notImplemented()
             }

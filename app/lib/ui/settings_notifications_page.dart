@@ -117,6 +117,25 @@ class SettingsNotificationsPage extends StatelessWidget {
                 style: TextStyle(fontSize: AppType.uiCaption),
               ),
             ),
+            // 任务完成横幅（orientation-unlock-1，vivo 真机反馈「完成只有
+            // 震动+锁屏内容、无顶部弹窗」——tasks 渠道 default 档为
+            // 2026-10-20「完成不打断」拍板，横幅改为用户自选档）：
+            // 默认关=原语义；开后任务完成走 tasks_alert 高优渠道顶部
+            // 弹窗。iOS 无渠道 importance 概念，入口隐藏（不撒谎）。
+            if (ZpCapabilities.supportsHeadsUpChannelToggle)
+              SwitchListTile(
+                value: app.uiPrefs.taskHeadsUp,
+                onChanged: (v) => app.uiPrefs.setTaskHeadsUp(v),
+                title: const Text(
+                  '任务完成横幅',
+                  style: TextStyle(fontSize: AppType.uiBase),
+                ),
+                subtitle: const Text(
+                  '开启后任务完成以顶部横幅弹出（更醒目），关闭则仅'
+                  '状态栏与锁屏提醒',
+                  style: TextStyle(fontSize: AppType.uiCaption),
+                ),
+              ),
             SwitchListTile(
               value: !app.uiPrefs.muteGoals,
               onChanged: (v) => app.uiPrefs.setChannelMute('goals', !v),

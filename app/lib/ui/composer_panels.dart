@@ -616,7 +616,6 @@ String planBadgeOf(ConfigOptionValue v) {
 /// （真机实锤徽标被裁成「A」）。规则：providerId 里的套餐 token 映射
 /// 人话词（闲时/高速/加油/包月…），多 token 取可辨组合；无已知 token
 /// 取末段短词截断 6 字；仍取不到退序号。恒短（≤8 字）防溢出。
-@visibleForTesting
 String groupDisambigSuffix(String providerId, int nth) =>
     _groupDisambigSuffix(providerId.toLowerCase(), nth);
 

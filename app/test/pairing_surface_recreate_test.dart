@@ -14,28 +14,71 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:zpocket/core/oem_vendor.dart';
 import 'package:zpocket/state/app_state.dart';
 import 'package:zpocket/state/app_state_scope.dart';
+import 'package:zpocket/state/ui_prefs.dart';
+import 'package:zpocket/transport/connection_params.dart';
 import 'package:zpocket/ui/home_shell.dart';
 import 'package:zpocket/ui/pairing_page.dart';
 import 'package:zpocket/ui/qr_scan_page.dart';
 
+class _MemStorage extends FlutterSecureStorage {
+  final data = <String, String>{};
+  @override
+  Future<String?> read({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async =>
+      data[key];
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    data[key] = value ?? '';
+  }
+}
+
 const _v1Url = 'https://zcode.z.ai/remote/v4?sid=s1&hash=h1&t=1700000000';
+const _v2Url = 'https://zcode.z.ai/remote/v4?sid=s2&name=pc2';
 const _kSurfaceChannel = MethodChannel('companion/surface');
 const _kLauncherBase = ValueKey('pairing-launcher-base');
 const _kLauncherOpen = ValueKey('pairing-launcher-open');
 
 /// 极简 fake（_FakeApp 私有不可跨文件导入，本文件按需内建）：只数
-/// addComputer 次数——连接流程的其余状态用不到。
+/// addComputer / addV2Profile 次数——连接流程的其余状态用不到。
 class _ScanApp extends AppState {
-  _ScanApp() {
+  _ScanApp() : _prefs = UiPrefs(storage: _MemStorage()) {
     // 根形态经 HomeShell 渲染：!loaded 时它只显示启动转圈，必须先置
     // 载入完成（AppState.loaded 是 public 可变字段）。
     loaded = true;
   }
 
+  final UiPrefs _prefs;
+
+  @override
+  UiPrefs get uiPrefs => _prefs;
+
   int addComputerCalls = 0;
+  int addV2ProfileCalls = 0;
+
+  @override
+  Future<bool> get hasAccount async => true;
 
   @override
   Future<void> addComputer(String rawUrl, {String? label}) async {
@@ -44,6 +87,16 @@ class _ScanApp extends AppState {
     // 验证「配对页自己不 pop 根路由」。真实 AppState.addComputer 会加
     // 档案并通知 → HomeShell 自动换到 TaskCenterPage 收尾（不属本文件
     // 旅程——那会把任务中心整套重状态拉进树里）。
+  }
+
+  @override
+  Future<void> addV2Profile(
+    CompanionV2Params params, {
+    String? label,
+    String? accountId,
+    bool forceRebind = false,
+  }) async {
+    addV2ProfileCalls++;
   }
 }
 
@@ -98,7 +151,10 @@ Future<void> _pumpLauncher(WidgetTester tester, AppState app) async {
 
 /// 扫码成功路径的模拟：点扫码推入 QrScanPage 后直接以结果串 pop——
 /// 绕开相机（widget 环境无相机，QrScanPage 自身有降级 UI 但无需走）。
-Future<void> _runScanFlow(WidgetTester tester) async {
+Future<void> _runScanFlow(
+  WidgetTester tester, {
+  String scanResult = _v1Url,
+}) async {
   // 按钮在折叠线下（800×600 画布）——先滚入可视区再点。
   await tester.ensureVisible(find.text('扫码添加'));
   await tester.pump(const Duration(milliseconds: 100));
@@ -106,7 +162,7 @@ Future<void> _runScanFlow(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
   expect(find.byType(QrScanPage), findsOneWidget, reason: '扫码页未推入');
-  Navigator.of(tester.element(find.byType(QrScanPage))).pop(_v1Url);
+  Navigator.of(tester.element(find.byType(QrScanPage))).pop(scanResult);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
   expect(find.byType(PairingPage), findsOneWidget, reason: '扫码页未带结果返回');
@@ -195,8 +251,9 @@ void main() {
     }
   });
 
-  testWidgets('Android：扫码配对成功 → recreate 接管（页面停留等重启）', (tester) async {
+  testWidgets('Android（未探测厂商/保守兜底）：扫码配对成功 → recreate 接管（页面停留等重启）', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.resetForTest();
     var surfaceCalls = 0;
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -217,13 +274,229 @@ void main() {
       await _runScanFlow(tester);
 
       expect(app.addComputerCalls, 1);
-      expect(surfaceCalls, 1, reason: 'Android 扫码防线语义零变化');
+      expect(surfaceCalls, 1, reason: '未探测到厂商时保守保留 Android 重建防线');
       expect(
         find.byType(PairingPage),
         findsOneWidget,
-        reason: 'Android 由 Activity 重建接管收尾（页面原地等重启）',
+        reason: 'Android 防御模式由 Activity 重建接管收尾（页面原地等重启）',
       );
     } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android 非受影响厂商（vivo）：开预览扫码配对成功 → 免重建直接 pop', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.vivo;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await _pumpLauncher(tester, app);
+      await _runScanFlow(tester);
+
+      expect(app.addComputerCalls, 1);
+      expect(surfaceCalls, 0, reason: '非华为/荣耀默认开预览不应闪屏重建');
+      expect(find.byType(PairingPage), findsNothing);
+      expect(find.byKey(_kLauncherBase), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android 非受影响厂商手动切无预览：自动恢复 recreate 防线', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.vivo;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await app.uiPrefs.setQrPreviewMode(kQrPreviewOff);
+      await _pumpLauncher(tester, app);
+      await _runScanFlow(tester);
+
+      expect(app.addComputerCalls, 1);
+      expect(surfaceCalls, 1, reason: '用户切回无预览自救模式后须恢复重建防线');
+      expect(find.byType(PairingPage), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android 华为手动开启实时预览：扫码配对后仍保留 recreate 防线', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.huawei;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await app.uiPrefs.setQrPreviewMode(kQrPreviewOn);
+      await _pumpLauncher(tester, app);
+      await _runScanFlow(tester);
+
+      expect(app.addComputerCalls, 1);
+      expect(surfaceCalls, 1, reason: '华为即使手动开预览仍须保留配对后重建防线');
+      expect(find.byType(PairingPage), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android V2 路径（_connectV2）：华为触发 recreate', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.huawei;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await _pumpLauncher(tester, app);
+      await _runScanFlow(tester, scanResult: _v2Url);
+
+      expect(app.addV2ProfileCalls, 1);
+      expect(surfaceCalls, 1, reason: '华为走 V2 扫码配对同样须触发 recreate 防黑屏');
+      expect(find.byType(PairingPage), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android V2 路径（_connectV2）：vivo 免 recreate 直接 pop', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.vivo;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await _pumpLauncher(tester, app);
+      await _runScanFlow(tester, scanResult: _v2Url);
+
+      expect(app.addV2ProfileCalls, 1);
+      expect(surfaceCalls, 0, reason: 'vivo 走 V2 扫码配对应免重建平滑 pop');
+      expect(find.byType(PairingPage), findsNothing);
+      expect(find.byKey(_kLauncherBase), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android vivo 根路由形态（canPop == false）：扫码成功后不 pop 根路由', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.vivo;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await _pumpRootForm(tester, app);
+      await _runScanFlow(tester);
+
+      expect(app.addComputerCalls, 1);
+      expect(surfaceCalls, 0);
+      expect(find.byType(PairingPage), findsOneWidget, reason: '根路由不可 pop 黑屏');
+      expect(find.text('添加电脑'), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
+      messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('Android 华为：进扫码页取消返回（raw == null）后改用粘贴不触发 recreate', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    OemDevice.debugVendorOverride = OemVendor.huawei;
+    var surfaceCalls = 0;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_kSurfaceChannel, (call) async {
+      surfaceCalls++;
+      return true;
+    });
+    try {
+      final app = _ScanApp();
+      await _pumpLauncher(tester, app);
+
+      await tester.ensureVisible(find.text('扫码添加'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('扫码添加'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(QrScanPage), findsOneWidget);
+
+      // 取消扫码返回 null
+      Navigator.of(tester.element(find.byType(QrScanPage))).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(PairingPage), findsOneWidget);
+
+      // 改用手动粘贴链接连接
+      await tester.enterText(find.byType(TextField).first, _v1Url);
+      await tester.pump();
+      await tester.ensureVisible(find.text('连接'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('连接'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(app.addComputerCalls, 1);
+      expect(surfaceCalls, 0, reason: '取消扫码后改走粘贴不得触发 Activity 重建');
+      expect(find.byType(PairingPage), findsNothing);
+      expect(find.byKey(_kLauncherBase), findsOneWidget);
+    } finally {
+      OemDevice.resetForTest();
       messenger.setMockMethodCallHandler(_kSurfaceChannel, null);
       debugDefaultTargetPlatformOverride = null;
     }

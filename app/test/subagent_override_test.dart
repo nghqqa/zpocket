@@ -216,6 +216,29 @@ Future<void> _expandRow(WidgetTester tester, Key rowKey) async {
   }
 }
 
+/// 1.0.9 验收：模型选择改 provider 分组弹层后的选取流。
+Future<void> _pickModel(WidgetTester tester, Key rowKey, String value) async {
+  final rowCtx = tester.element(find.byKey(rowKey));
+  await Scrollable.ensureVisible(rowCtx);
+  for (var i = 0; i < 3; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  await tester.tap(find.byKey(rowKey));
+  for (var i = 0; i < 6; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  await tester.tap(
+    find.byKey(
+      ValueKey(
+        value.isEmpty ? 'subagent-model-inherit' : 'subagent-model-option-$value',
+      ),
+    ),
+  );
+  for (var i = 0; i < 8; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 Future<void> _pick(
   WidgetTester tester,
   Key chipKey,
@@ -271,10 +294,10 @@ void main() {
       reason: '展开行的模型下拉显示继承默认（未覆盖态）',
     );
 
-    await _pick(
+    await _pickModel(
       tester,
       const ValueKey('override-model-builtin-general-purpose'),
-      'glm-test',
+      'prov-a/glm-test',
     );
 
     expect(channel.calls, hasLength(1));
@@ -298,10 +321,10 @@ void main() {
       tester,
       const ValueKey('subagent-plugin:demo:helper'),
     );
-    await _pick(
+    await _pickModel(
       tester,
       const ValueKey('override-model-plugin:demo:helper'),
-      'glm-test',
+      'prov-a/glm-test',
     );
     expect(
       channel.calls.map((c) => c.$1),
@@ -323,10 +346,10 @@ void main() {
     });
 
     // 继承默认=清除覆盖（modelSelection: null）。
-    await _pick(
+    await _pickModel(
       tester,
       const ValueKey('override-model-plugin:demo:helper'),
-      '继承默认',
+      '',
     );
     expect(channel.calls.last.$2['modelSelection'], isNull,
         reason: 'null=清除覆盖恢复默认（官方 normalize 语义）');

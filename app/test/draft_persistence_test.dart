@@ -1001,7 +1001,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('collect-artifacts-send')));
     await _pump(tester, 12);
     expect(app.sendTexts, isNotEmpty, reason: '发送键把弹层文本作为消息发出');
-    expect(app.sendTexts.last, startsWith('把本回合生成的文件'));
+    expect(app.sendTexts.last, startsWith('/workflow 把本回合生成的文件'),
+        reason: '/workflow 前缀=onDemand 激活语义，禁止丢失');
     expect(app.sendTexts.last, contains('report.pdf'));
 
     // 取消不发。
