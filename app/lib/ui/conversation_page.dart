@@ -1479,9 +1479,9 @@ class _ConversationPageState extends State<ConversationPage> {
   Timer? _renderThrottle;
   bool _renderPending = false;
   static const Duration _renderThrottleWindow = Duration(milliseconds: 40);
-  // 流式输出期合帧窗口（T1 性能报告建议）：减少高速吐字期 MarkdownBody 全文重解析频次，
-  // 降低中低端机 CPU 占用与发热；非流式交互仍保持 40ms 即时响应。
-  static const Duration _streamingThrottleWindow = Duration(milliseconds: 160);
+  // 流式输出期合帧窗口：兼顾高速吐字跟手顺滑（~15.6 FPS）与 MarkdownBody 降频重解析，
+  // 降低中低端机 CPU 占用与发热；非流式交互保持 40ms 即时响应。
+  static const Duration _streamingThrottleWindow = Duration(milliseconds: 64);
 
   /// 搜索索引刷新节流：流式期 500ms 上限+尾沿补跳。
   DateTime? _searchRefreshAt;
@@ -6483,14 +6483,16 @@ class _ConversationPageState extends State<ConversationPage> {
               // 整层删除，直接返回。
               return KeyedSubtree(
                 key: ValueKey(itemKey),
-                child: top > 0
-                    ? Padding(
-                        padding: EdgeInsets.only(top: top),
-                        child: fresh ? EntryFadeSlide(child: child) : child,
-                      )
-                    : fresh
-                    ? EntryFadeSlide(child: child)
-                    : child,
+                child: RepaintBoundary(
+                  child: top > 0
+                      ? Padding(
+                          padding: EdgeInsets.only(top: top),
+                          child: fresh ? EntryFadeSlide(child: child) : child,
+                        )
+                      : fresh
+                      ? EntryFadeSlide(child: child)
+                      : child,
+                ),
               );
             },
           ),

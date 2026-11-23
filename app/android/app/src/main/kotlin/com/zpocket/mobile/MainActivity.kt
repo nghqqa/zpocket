@@ -48,12 +48,49 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        requestHighRefreshRate()
         // 链接器顺序加固（模拟器实证）：进程最早期先占位加载 libdartjni，
         // 避免 path_provider（jni 实现）晚加载报 found-but-not-loaded。
         try {
             System.loadLibrary("dartjni")
         } catch (e: Throwable) {
             Log.w("voice", "dartjni preload skip: ${e.message}")
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            requestHighRefreshRate()
+        }
+    }
+
+    /// 适配高刷屏（90Hz/120Hz/144Hz）：在同物理分辨率下选择最高刷新率模式，
+    /// 避免部分国产 ROM 将未显式声明高刷的 Flutter 应用默认锁在 60Hz。
+    private fun requestHighRefreshRate() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        try {
+            @Suppress("DEPRECATION")
+            val activeDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display ?: windowManager.defaultDisplay
+            } else {
+                windowManager.defaultDisplay
+            } ?: return
+            val current = activeDisplay.mode ?: return
+            val best = activeDisplay.supportedModes
+                .filter {
+                    it.physicalWidth == current.physicalWidth &&
+                        it.physicalHeight == current.physicalHeight
+                }
+                .maxByOrNull { it.refreshRate }
+                ?: return
+            val attrs = window.attributes
+            if (attrs.preferredDisplayModeId != best.modeId) {
+                attrs.preferredDisplayModeId = best.modeId
+                window.attributes = attrs
+            }
+        } catch (e: Throwable) {
+            Log.w("display", "requestHighRefreshRate skip: ${e.message}")
         }
     }
 

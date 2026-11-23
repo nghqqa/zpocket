@@ -1,26 +1,26 @@
 (() => {
   const RELEASE_DATA = {
-    version: '1.8.1',
+    version: '1.8.2',
     notes:
-      'v1.8.0 质量加固版本：修复通知栏带批注拒绝异常隔离、台账与快捷指令并发写保护、快捷指令草稿保护与空列表修复、文件浏览器搜索防竞态与离线提示、已保存产物清空确认与英文词条补全',
+      '高刷屏适配与流畅度优化：支持 Android 90Hz/120Hz/144Hz 同分辨率最高刷新率，流式输出合帧窗口优化至 64ms，消息列表新增 RepaintBoundary 隔离重绘',
     assets: {
       'arm64-v8a': {
-        name: 'zpocket-1.8.1-arm64-v8a.apk',
+        name: 'zpocket-1.8.2-arm64-v8a.apk',
         size: '31.8 MB',
-        url: 'https://nghqqa.cn/updates/zpocket-1.8.1-arm64-v8a.apk',
-        sha256: '271eb2d82eb1dd8c5d55db4b04542b6f3f4cb44d9a6db2c13ee7031f34b7c623',
+        url: 'https://nghqqa.cn/updates/zpocket-1.8.2-arm64-v8a.apk',
+        sha256: '65afc551539b6dbfc93635941eef508bee20e6b8ca9a788ab893fa477360c480',
       },
       'armeabi-v7a': {
-        name: 'zpocket-1.8.1-armeabi-v7a.apk',
+        name: 'zpocket-1.8.2-armeabi-v7a.apk',
         size: '28.6 MB',
-        url: 'https://nghqqa.cn/updates/zpocket-1.8.1-armeabi-v7a.apk',
-        sha256: '7137110a4c99f3e58722a9852a83baefec01089759cde34c1324517f292ad883',
+        url: 'https://nghqqa.cn/updates/zpocket-1.8.2-armeabi-v7a.apk',
+        sha256: '2e1fdfa7714921b5dff819fad50ba5a297d547a3c1f73b3aa20a277f9fc86ae3',
       },
       x86_64: {
-        name: 'zpocket-1.8.1-x86_64.apk',
+        name: 'zpocket-1.8.2-x86_64.apk',
         size: '34.4 MB',
-        url: 'https://nghqqa.cn/updates/zpocket-1.8.1-x86_64.apk',
-        sha256: '20a216799579d145ae1d9d7e4b4fc4cccea8b636b42ce810602e44ad222b784e',
+        url: 'https://nghqqa.cn/updates/zpocket-1.8.2-x86_64.apk',
+        sha256: '5885d3617a36f505e8cff94675b9e85c153d14eeeee21aafe05a1e451f99b7d9',
       },
     },
   };
