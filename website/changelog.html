@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZPocket 更新日志 — 版本演进与变更记录</title>
+  <meta name="description" content="ZPocket 安卓伴侣客户端完整更新日志：高刷适配、工作区文件浏览器、通知栏带批注拒绝、快捷指令、PDF 预览、冷会话秒开与历史版本记录。">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="navbar">
+    <div class="container nav-inner">
+      <a href="index.html" class="brand">
+        <img src="assets/icon.png" alt="ZPocket 图标" class="brand-icon">
+        <span class="brand-name">ZPocket</span>
+        <span class="brand-tag">更新日志</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#features">核心能力</a>
+        <a href="index.html#showcase">界面预览</a>
+        <a href="guide.html">使用手册</a>
+        <a href="changelog.html" class="nav-active">更新日志</a>
+        <a href="index.html#download">下载安装</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="https://github.com/nghqqa/zpocket/blob/main/CHANGELOG.md" target="_blank" rel="noopener" class="btn btn-ghost">Markdown 原文</a>
+        <a href="index.html#download" class="btn btn-primary btn-sm">下载 v1.8.2</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container guide-layout">
+    <aside class="guide-toc" aria-label="版本目录">
+      <div class="toc-title">版本索引</div>
+      <a href="#v1.8.2" class="toc-latest"><span>v1.8.2</span><span class="toc-pill">最新</span></a>
+      <a href="#v1.8.1">v1.8.1 · 质量加固</a>
+      <a href="#v1.8.0">v1.8.0 · 独立演进</a>
+      <a href="#v1.7.0">v1.7.0 · PDF / 搜索</a>
+      <a href="#v1.6.0">v1.6.0 · 冷会话秒开</a>
+      <a href="#v1.5.0">v1.5.0 · ZCode 3.18</a>
+      <a href="#v1.4.0">v1.4.0 · 通知栏审批</a>
+      <a href="#v1.3.1">v1.3.1 · 流式落盘</a>
+      <a href="#v1.3.0">v1.3.0 · 多更新源</a>
+      <a href="#v1.2.2">v1.2.x · 批量保存</a>
+      <a href="#v1.1.0">v1.1.0 · 路径点按</a>
+      <a href="#v1.0.6">v1.0.6 – 1.0.9</a>
+      <a href="#v1.0.5">v1.0.0 – 1.0.5</a>
+    </aside>
+
+    <article class="guide-content">
+      <div class="guide-header">
+        <span class="eyebrow">CHANGELOG · v1.8.2</span>
+        <h1>ZPocket 更新日志</h1>
+        <p>记录所有面向用户的功能演进、性能优化与缺陷修复。版本号遵循 SemVer，构建码为 <code>YYYYMMDDNN</code>。</p>
+        <div class="cl-filters" role="group" aria-label="按阶段筛选版本">
+          <button type="button" class="tab-btn active" data-filter="all">全部版本</button>
+          <button type="button" class="tab-btn" data-filter="independent">v1.8+ 独立演进</button>
+          <button type="button" class="tab-btn" data-filter="upstream">上游同步与协议</button>
+          <button type="button" class="tab-btn" data-filter="early">早期里程碑</button>
+        </div>
+      </div>
+
+      <!-- v1.8.2 -->
+      <section id="v1.8.2" class="guide-section cl-card cl-card-latest" data-era="independent">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.8.2</h2>
+            <span class="cl-badge cl-badge-latest">LATEST</span>
+            <span class="cl-date">2026-11-23</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.8.2" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">高刷新率屏幕适配与流畅度优化版本。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-improved">优化 Improved</span>
+          <ul>
+            <li><strong>Android 高刷屏适配</strong>：在 <code>MainActivity</code> 启动与窗口获焦（含切屏 / 折叠屏展开）时自动选择同物理分辨率下最高刷新率显示模式（90Hz / 120Hz / 144Hz），消除国产高刷机型默认锁 60Hz 导致的滑动发涩感。</li>
+            <li><strong>流式输出更跟手</strong>：流式吐字合帧窗口由 <code>160ms</code> 调优至 <code>64ms</code>（~15.6 FPS），兼顾吐字顺滑度与降频省电。</li>
+            <li><strong>会话消息重绘隔离</strong>：为消息列表项增加 <code>RepaintBoundary</code>，减少长对话滚动与流式输出时的多余重绘。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.8.1 -->
+      <section id="v1.8.1" class="guide-section cl-card" data-era="independent">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.8.1</h2>
+            <span class="cl-date">2026-11-23</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.8.1" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">v1.8.0 质量加固与边界修复版本。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-fixed">修复 Fixed</span>
+          <ul>
+            <li><strong>通知栏「拒绝并说明」异常隔离</strong>：拒绝审批成功后，附言发送失败不再误报「审批未生效」或漏清原审批通知，并将附言结果写入反馈通知正文；消费后自动清理落盘意图键。</li>
+            <li><strong>台账与快捷指令并发写保护</strong>：为 <code>SavedArtifactsStore</code> 与 <code>QuickPromptsStore</code> 增加串行写队列，消除批量保存产物或快速连续删除时的并发覆盖与丢记录风险。</li>
+            <li><strong>快捷指令草稿保护与空列表修复</strong>：「立即发送」改为直接发送而不覆盖或清空输入框中已有草稿；删光全部快捷指令后重新打开保持为空，不再自动复活默认列表。</li>
+            <li><strong>工作区文件浏览器防竞态与离线提示</strong>：引入请求序号避免慢请求覆盖新结果，点按快捷筛选标签先取消防抖；未连接电脑或查询异常时明确展示错误提示。</li>
+            <li><strong>已保存产物中心体验完善</strong>：SAF 另存为在页面销毁前即完成台账记录；隐藏 SAF 条目无效的分享按钮，并为「清空记录」增加二次确认弹窗；补齐 5 条默认快捷指令与新增提示语的英文翻译。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.8.0 -->
+      <section id="v1.8.0" class="guide-section cl-card" data-era="independent">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.8.0</h2>
+            <span class="cl-badge">独立演进</span>
+            <span class="cl-date">2026-11-23</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.8.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">ZPocket 独立演进功能与性能优化版本。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>工作区轻量文件浏览器</strong>：会话菜单新增「工作区文件」入口，支持关键字搜索与常用目录 / 扩展名快捷筛选，点按任意文件即可零额度预览或保存到手机。</li>
+            <li><strong>通知栏带批注拒绝（<code>RemoteInput</code>）</strong>：审批通知新增「拒绝并说明」动作，可在通知栏直接输入拒绝原因，后台受理后自动回传给当前会话；同时修复后台审批动作键名匹配问题。</li>
+            <li><strong>手机端快捷指令模板</strong>：输入栏新增 <code>⚡</code> 快捷指令抽屉，内置常用指令并支持一键上屏、立即发送、自定义增删与恢复默认。</li>
+            <li><strong>本地已保存产物中心</strong>：「设置 → 功能 → 已保存产物」集中记录已保存到手机的文件与路径，支持复制路径、移除记录与本地文件复分享。</li>
+          </ul>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-improved">优化 Improved</span>
+          <ul>
+            <li><strong>流式 Markdown 合帧节流</strong>：流式输出期合帧节流降低高速吐字期 CPU 占用与机身发热（非流式交互维持 <code>40ms</code> 即时响应）。</li>
+            <li><strong>模型选择弹层触控优化</strong>：<code>ModelSheet</code> 列表行最小高度提升至 <code>48dp</code>，满足 Material 触控标准。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.7.0 -->
+      <section id="v1.7.0" class="guide-section cl-card" data-era="upstream">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.7.0</h2>
+            <span class="cl-date">2026-11-23</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.7.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">上游同步版本（合入上游 <code>zcode-pocket</code> v1.0.9，已验证兼容 ZCode 桌面端 3.19.1）。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>PDF 产物应用内预览</strong>：支持原生渲染翻页、缩放与分享，损坏或受保护文件自动降级导出（新增 <code>PdfRendererPlugin</code>）。</li>
+            <li><strong>会话内搜索增强</strong>：支持多词 AND 搜索全词高亮、正则开关（含回溯预检）、「含思考」开关与历史边界继续往前搜。</li>
+            <li><strong>扫码实时预览按机型分流</strong>：非问题机型恢复实时取景，支持胶囊按钮切换与偏好记忆。</li>
+            <li><strong>收集产物完成直达条</strong>：输入区上方展示已收集产物数量，一键进入详情页；收集产物自动激活工作流。</li>
+            <li><strong>平板 / 折叠屏横屏解锁</strong>：短边 ≥600dp 设备跟随系统旋转与分屏，窄屏手机保持竖屏锁定。</li>
+            <li><strong>任务完成横幅通知开关</strong>：支持高优渠道顶部弹窗提醒（默认关闭）。</li>
+            <li><strong>子代理模型按提供方分组</strong>：组头显示套餐徽标并支持折叠。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.6.0 -->
+      <section id="v1.6.0" class="guide-section cl-card" data-era="upstream">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.6.0</h2>
+            <span class="cl-date">2026-11-21</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.6.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">上游同步与 ZCode 3.19 兼容性版本（合入上游 <code>zcode-pocket</code> v1.0.8）。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>冷会话秒开历史</strong>（需桌面端 3.18+）：打开已退出的旧会话先立即渲染历史消息，再在后台唤醒运行时；唤醒期间可输入存草稿，失败提供原因与一键重试。</li>
+            <li><strong>后台 Bash 实时输出查看</strong>：后台工作中的 bash 任务支持点开查看每秒刷新的实时输出、一键复制与重试；失败任务在列表行显示错误摘要（需桌面端 3.19+）。</li>
+            <li><strong>工作流运行控制</strong>（需桌面端 3.18+）：中断的工作流支持一键恢复续跑；运行中支持调整子代理模型与并发上限，自动停旧起新并保留历史可回看。</li>
+            <li><strong>官方福利投递提醒</strong>：任务主页展示官方免费额度活动卡片，支持收起 / 展开与误关撤销。</li>
+          </ul>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-fixed">修复 Fixed</span>
+          <ul>
+            <li>修复带按钮的提示条（如任务归档撤销、通知定位、福利卡关闭）常驻不消失的问题，统一改为约 4 秒自动消失；优化宽屏福利卡操作按钮对齐。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.5.0 -->
+      <section id="v1.5.0" class="guide-section cl-card" data-era="upstream">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.5.0</h2>
+            <span class="cl-date">2026-11-19</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.5.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">上游同步与 ZCode 3.18 协议适配版本（合入上游 <code>zcode-pocket</code> v1.0.6 + v1.0.7）。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>上下文组成下钻</strong>（<code>getContextComposition</code>，需桌面端 3.18+）：用量卡支持下钻查看 11 类上下文明细。</li>
+            <li><strong>子代理逐条停止</strong>（<code>stopSubagent</code>，需桌面端 3.18+）：子代理列表支持单条停止按钮。</li>
+            <li><strong>归档任务永久删除</strong>：支持 PIN 三段防呆确认后永久删除会话。</li>
+            <li><strong>工作流产物收集与分享</strong>：顶栏新增工作流产物收集 / 分享入口（<code>companion/share</code> 通道 + FileProvider）。</li>
+            <li>提交配置溯源角标、WebView 致命错误判定与系统备份排除。</li>
+          </ul>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-changed">变更 Changed</span>
+          <ul>
+            <li>顶栏工作流一级入口替代原会话菜单内二级入口；应用锁材料存储原子化；照片附件限制 4096px 尺寸与数量上限；用量页 Start Plan 死锁修复与 3.16–3.17 排队消息编辑兼容。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.4.0 -->
+      <section id="v1.4.0" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.4.0</h2>
+            <span class="cl-date">2026-11-14</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.4.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>通知栏快捷审批</strong>：审批通知新增「批准」「拒绝」快捷按钮，可在通知栏直接应答，无需解锁或跳转进入会话。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.3.1 -->
+      <section id="v1.3.1" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.3.1</h2>
+            <span class="cl-date">2026-11-14</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.3.1" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-changed">变更 Changed</span>
+          <ul>
+            <li><strong>工作区文件下载改用流式落盘</strong>：分段拉取后直接写入临时文件并逐段校验 SHA-256，避免大文件下载期间的全内存缓冲峰值。</li>
+            <li>新增 <code>docs/perf-t1-report.md</code>（T1 静态性能深审报告与 T2 真机操作单）。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.3.0 -->
+      <section id="v1.3.0" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.3.0</h2>
+            <span class="cl-date">2026-11-13</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.3.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>可选更新源通道</strong>：设置页支持切换更新源（自动测速 / 自建服务器 / GitHub Releases 三档可选，结合 RTT 探测）。</li>
+          </ul>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-changed">变更 Changed</span>
+          <ul>
+            <li>重写中英文 <code>README</code> 为 ZPocket 独立说明文档，补充架构图与深色模式截图。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.2.2 & v1.2.0 -->
+      <section id="v1.2.2" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.2.2 &amp; v1.2.0</h2>
+            <span class="cl-date">2026-11-13</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.2.2" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li>支持将本轮工作区产物文件一键批量保存到手机；单文件保存支持进度提示、取消操作与明确失败详情。</li>
+          </ul>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-fixed">修复 Fixed</span>
+          <ul>
+            <li>修复 Windows 路径在文件摘要行中被截断导致的同名冲突，支持剥离工作区前缀并保留 diff 着色。</li>
+            <li>底部「滚动到底」悬浮球增加 72dp 底部让位；会话页顶部菜单重整为三分组结构；修复保存流程异步回调 <code>mounted</code> 守卫并补全英文词条。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.1.0 -->
+      <section id="v1.1.0" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.1.0</h2>
+            <span class="cl-date">2026-11-13</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.1.0" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>对话内路径点按</strong>：Agent 回复中的文件路径支持直接点击，弹出存在性校验、文本预览或保存到手机面板。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.0.6 - v1.0.9 -->
+      <section id="v1.0.6" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.0.6 – v1.0.9</h2>
+            <span class="cl-badge">品牌上线</span>
+            <span class="cl-date">2026-11-13</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/releases/tag/v1.0.6" target="_blank" rel="noopener" class="cl-rel-link">GitHub Release ↗</a>
+        </div>
+        <p class="cl-summary">ZPocket 品牌重塑、自建更新通道与工作区文件保存上线。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">新增 Added</span>
+          <ul>
+            <li><strong>独立品牌与图标（v1.0.6）</strong>：由 ZCode Pocket 更名为 <strong>ZPocket</strong>，启用全新绿色折带 <code>Z.</code> 应用图标；接入自建更新通道（<code>manifest.json</code> + SHA-256 校验）。</li>
+            <li><strong>保存到手机（v1.0.6 – v1.0.9）</strong>：支持 SAF 另存为手机本地存储、文件摘要行直出下载按钮、保存完成后提示精确路径，并区分「上传文件」与工作区下载文案。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- v1.0.0 - v1.0.5 -->
+      <section id="v1.0.5" class="guide-section cl-card" data-era="early">
+        <div class="cl-head">
+          <div class="cl-title-wrap">
+            <h2 class="cl-ver">v1.0.0 – v1.0.5</h2>
+            <span class="cl-date">2026-11-04 ~ 2026-11-13</span>
+          </div>
+          <a href="https://github.com/nghqqa/zpocket/blob/main/CHANGELOG.md#105---2026-11-13" target="_blank" rel="noopener" class="cl-rel-link">查看完整归档 ↗</a>
+        </div>
+        <p class="cl-summary">早期基础版本与上游奠基阶段。</p>
+        <div class="cl-group">
+          <span class="cl-tag cl-tag-added">里程碑 Milestones</span>
+          <ul>
+            <li><strong>v1.0.5（2026-11-13）</strong>：应用锁（生物识别 / PIN / 防截屏）、应用内更新（SHA-256 + 签名校验）、折叠屏空态出口与任务栏避让。</li>
+            <li><strong>v1.0.4（2026-11-12）</strong>：工作流图片产物预览、清除本地缓存、按手机品牌自适应后台保活引导、展开态双栏整栏收起与 Android 7–10 启动兼容修复。</li>
+            <li><strong>v1.0.2（2026-11-09）</strong>：约 120 项边界与体验修复（发送链双发隐患、自动化调度、状态托盘小屏密度治理、热力图三档粒度切换）。</li>
+            <li><strong>v1.0.0 – v1.0.1（2026-11-04 ~ 11-05）</strong>：首个公开版本——多电脑/多账号隔离、任务主页、流式会话、草稿与断网排队、用量看板、双主题与中英双语、Apache-2.0 开源。</li>
+          </ul>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img src="assets/icon.png" alt="ZPocket" class="footer-icon">
+        <span>ZPocket · Apache-2.0 License</span>
+      </div>
+      <div class="footer-links">
+        <a href="index.html">返回首页</a>
+        <a href="guide.html">使用手册</a>
+        <a href="https://github.com/nghqqa/zpocket" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/nghqqa/zpocket/releases" target="_blank" rel="noopener">GitHub Releases</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const btns = document.querySelectorAll('.cl-filters [data-filter]');
+      const cards = document.querySelectorAll('.cl-card[data-era]');
+      btns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const filter = btn.dataset.filter;
+          btns.forEach((b) => b.classList.toggle('active', b === btn));
+          cards.forEach((card) => {
+            card.hidden = filter !== 'all' && card.dataset.era !== filter;
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
