@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zpocket.nghqqa.cn/sitemap.xml
